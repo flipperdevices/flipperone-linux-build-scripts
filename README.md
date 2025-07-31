@@ -65,3 +65,31 @@ To download and build a mainline-based Linux kernel from any repo other than Lin
 ```bash
 LINUX_GIT=https://gitlab.collabora.com/hardware-enablement/rockchip-3588/linux.git LINUX_BRANCH=rockchip-devel ./build-kernel-mainline.sh
 ```
+
+## Building bootloader images
+
+To simply fetch and build the most recent upstream U-boot with opensource TF-A:
+
+```bash
+./build-uboot.sh
+```
+
+Please note that as of July 2025, the only RK3576 based board supported by the unmodified upstream U-boot is Firefly ROC-RK3576-PC.
+
+To build for other boards, alternative U-boot source trees can be used, such as:
+
+```bash
+BOARD=sige5 UBOOT_GIT="https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git" UBOOT_BRANCH="rk3576" ./build-uboot.sh
+BOARD=omni3576 KEEP_SRC=yes ./build-uboot.sh
+BOARD=nanopi-m5 KEEP_SRC=yes ./build-uboot.sh
+BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
+```
+
+To use Rockchip binary BL31 instead of opensource TF-A:
+
+```bash
+USE_BL31=vendor BOARD=sige5 UBOOT_GIT="https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git" UBOOT_BRANCH="rk3576" ./build-uboot.sh
+USE_BL31=vendor BOARD=omni3576 KEEP_SRC=yes ./build-uboot.sh
+USE_BL31=vendor BOARD=nanopi-m5 KEEP_SRC=yes ./build-uboot.sh
+USE_BL31=vendor BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
+```
