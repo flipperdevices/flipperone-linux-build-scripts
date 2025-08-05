@@ -1,10 +1,10 @@
 #!/bin/bash
-: "${BOARD:=roc-pc}"
+: "${BOARD:=all}"
 : "${UBOOT_DIR:=src/u-boot}"
 : "${TFA_DIR:=src/tfa}"
 : "${RKBIN_DIR:=src/rkbin}"
 : "${KEEP_SRC:=no}"
-: "${OUT:=prebuilt/u-boot/${BOARD}}"
+: "${OUT:=prebuilt/u-boot}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 
 # Use the Github mirror by default, as it has beefier infrastructure vs. denx.de
@@ -48,18 +48,26 @@ else
 	BL31=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_bl31_*.elf`
 fi
 
-pushd "$UBOOT_DIR"
-make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" clean
-make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$BOARD"-rk3576_defconfig
-make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL"
-popd
-
 pushd "$RKBIN_DIR"
 rm -f rk3576_spl_loader_*.bin
 ./tools/boot_merger RKBOOT/RK3576MINIALL.ini
 popd
 
-rm -rf "$OUT"
-mkdir -p "$OUT"
-cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$OUT"/
-cp "$RKBIN_DIR"/rk3576_spl_loader_*.bin "$OUT"/
+if [ x"$BOARD" = x"all" ]; then
+	BOARDS=`basename -a -s "-rk3576_defconfig" "$UBOOT_DIR"/configs/*-rk3576_defconfig`
+else
+	BOARDS="$BOARD"
+fi
+
+for i in $BOARDS; do
+	pushd "$UBOOT_DIR"
+	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" clean
+	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$i"-rk3576_defconfig
+	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL"
+	popd
+
+	rm -rf "$OUT"/"$i"
+	mkdir -p "$OUT"/"$i"
+	cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$OUT"/"$i"/
+	cp "$RKBIN_DIR"/rk3576_spl_loader_*.bin "$OUT"/"$i"
+done
