@@ -1,0 +1,152 @@
+{{ $suite := or .suite "trixie" }}
+{{ $variant := or .variant "minbase" }}
+{{ $imagesize := or .imagesize "4GiB" }}
+{{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
+{{ $kerneldir := or .kerneldir "prebuilt/linux" }}
+
+architecture: arm64
+
+actions:
+  - action: mmdebstrap
+    description: Bootstrap a base Debian {{ $suite }} system
+    suite: {{ $suite }}
+    variant: {{ $variant }}
+    components:
+      - main
+      - contrib
+      - non-free
+      - non-free-firmware
+    include:
+      - apt-transport-https
+      - ca-certificates
+      - systemd
+      - systemd-sysv
+      - udev
+      - systemd-resolved
+      - systemd-timesyncd
+      - systemd-repart
+      - sudo
+      - adduser
+      - evtest
+      - i2c-tools
+      - iproute2
+      - iputils-ping
+      - iw
+      - pciutils
+      - traceroute
+      - usbutils
+      - v4l-utils
+      - bluez
+      - iwd
+      - firmware-realtek
+      - rfkill
+      - zstd
+      - unzip
+      - curl
+      - openssh-server
+      - u-boot-menu
+      - initramfs-tools
+      - alsa-ucm-conf
+      - alsa-utils
+      - nano
+      - linux-cpupower
+      - lm-sensors
+      - wget
+      - bash-completion
+      - e2fsprogs
+      - linux-sysctl-defaults
+      - wireless-regdb
+
+  - action: run
+    description: Enable systemd-networkd
+    chroot: true
+    command: systemctl enable systemd-networkd
+
+  - action: run
+    description: Preconfigure network for DHCP
+    command: |
+      cat > $ROOTDIR/etc/systemd/network/20-wired.network << EOF
+      [Match]
+      Name=en*
+
+      [Link]
+      RequiredForOnline=routable
+
+      [Network]
+      DHCP=yes
+      EOF
+
+      cat > /etc/systemd/network/25-wireless.network << EOF
+      [Match]
+      Name=wl*
+
+      [Link]
+      RequiredForOnline=routable
+
+      [Network]
+      DHCP=yes
+      EOF
+
+  - action: run
+    description: Enable automatic repartitioning
+    command: |
+      mkdir -p $ROOTDIR/etc/repart.d && cat > $ROOTDIR/etc/repart.d/50-rootfs.conf << EOF
+      [Partition]
+      Type=esp
+      EOF
+
+  - action: run
+    description: Force disable resume from disk
+    command: echo 'RESUME=none' > $ROOTDIR/etc/initramfs-tools/conf.d/resume
+
+  - action: run
+    description: Set hostname to debian-rk3576
+    command: echo 'debian-rk3576' > $ROOTDIR/etc/hostname
+
+  - action: run
+    description: Add default user "user" without password
+    chroot: true
+    command: useradd -s /bin/bash -F -m user &&
+             passwd --delete user &&
+             gpasswd -a user sudo
+
+  - action: overlay
+    description: Copy Linux kernel packages into the target
+    source: {{ $kerneldir }}
+    destination: /var/cache/linux-kernel
+
+  - action: overlay
+    description: Copy firmware files into the target
+    source: overlays/firmware
+    destination: /usr/lib/firmware
+
+  - action: pack
+    description: Save a tarball of the root filesystem
+    file: debian.tar.gz
+
+  - action: image-partition
+    imagename: debian-nobootloader.img
+    imagesize: {{ $imagesize }}
+    partitiontype: gpt
+    partitions:
+      - name: loader
+        fs: none
+        start: 64s
+        end: 16MiB
+      - name: root
+        fs: ext4
+        start: 16MiB
+        end: 100%
+        flags: [ boot ]
+    mountpoints:
+      - mountpoint: /
+        partition: root
+        options: [ x-systemd.growfs ]
+
+  - action: filesystem-deploy
+    append-kernel-cmdline: {{ $cmdline }}
+
+  - action: run
+    description: Install Linux kernel packages inside the target
+    chroot: true
+    command: find /var/cache/linux-kernel -name linux-image-\* -a ! -name \*-dbg_\* -print0 | xargs -0 apt install
