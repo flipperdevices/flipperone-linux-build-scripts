@@ -64,47 +64,6 @@ actions:
     command: systemctl enable systemd-networkd
 
   - action: run
-    description: Preconfigure network for DHCP
-    command: |
-      cat > $ROOTDIR/etc/systemd/network/20-wired.network << EOF
-      [Match]
-      Name=en*
-
-      [Link]
-      RequiredForOnline=routable
-
-      [Network]
-      DHCP=yes
-      EOF
-
-      cat > /etc/systemd/network/25-wireless.network << EOF
-      [Match]
-      Name=wl*
-
-      [Link]
-      RequiredForOnline=routable
-
-      [Network]
-      DHCP=yes
-      EOF
-
-  - action: run
-    description: Enable automatic repartitioning
-    command: |
-      mkdir -p $ROOTDIR/etc/repart.d && cat > $ROOTDIR/etc/repart.d/50-rootfs.conf << EOF
-      [Partition]
-      Type=esp
-      EOF
-
-  - action: run
-    description: Force disable resume from disk
-    command: echo 'RESUME=none' > $ROOTDIR/etc/initramfs-tools/conf.d/resume
-
-  - action: run
-    description: Set hostname to debian-rk3576
-    command: echo 'debian-rk3576' > $ROOTDIR/etc/hostname
-
-  - action: run
     description: Add default user "user" without password
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
@@ -115,6 +74,11 @@ actions:
     description: Copy Linux kernel packages into the target
     source: {{ $kerneldir }}
     destination: /var/cache/linux-kernel
+
+  - action: overlay
+    description: Overlay our config defaults
+    source: overlays/configs
+    destination: /etc
 
   - action: overlay
     description: Copy firmware files into the target
