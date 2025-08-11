@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Luckfox Technology Co., Ltd.
+ *
+ */
+/dts-v1/;
+
+#include "luckfox-core3576.dtsi"
+#include "luckfox-omni3576-can.dtsi"
+#include "luckfox-omni3576-cam.dtsi"
+#include "luckfox-omni3576-usb.dtsi"
+#include "luckfox-omni3576-usb-c.dtsi"
+#include "luckfox-omni3576-pcie.dtsi"
+#include "luckfox-omni3576-display.dtsi"
+#include "luckfox-omni3576-wireless.dtsi"
+#include "luckfox-omni3576-codec.dtsi"
+#include "luckfox-omni3576-ir.dtsi"
+#include "rk3576-linux.dtsi"
+
+/ {
+	model = "Luckfox Omni3576";
+	compatible = "luckfox,omni3576", "rockchip,rk3576";
+	leds: leds {
+		compatible = "gpio-leds";
+		work_led: work{
+			gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "activity";
+			default-state = "on";
+		};
+	};
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_poweren_gpio>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		post-power-on-delay-ms = <200>;
+		reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&sdmmc {
+	max-frequency = <200000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr104;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	vqmmc-supply = <&vccio_sd_s0>;
+	status = "okay";
+};
+
+&gmac1 {
+	/* Use rgmii-rxid mode to disable rx delay inside Soc */
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth1m0_miim
+		     &eth1m0_tx_bus2
+		     &eth1m0_rx_bus2
+		     &eth1m0_rgmii_clk
+		     &eth1m0_rgmii_bus
+		     &ethm0_clk1_25m_out>;
+
+	tx_delay = <0x20>;
+	/* rx_delay = <0x3f>; */
+
+	phy-handle = <&rgmii_phy1>;
+	status = "okay";
+};
+
+&mdio1 {
+	rgmii_phy1: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+		clocks = <&cru REFCLKO25M_GMAC1_OUT>;
+	};
+};

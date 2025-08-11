@@ -1,0 +1,66 @@
+#!/bin/bash
+: "${LINUX_DIR:=src/linux-bsp}"
+: "${VENDOR_DTS:=vendor-dts}"
+: "${KEEP_SRC:=no}"
+: "${OUT:=prebuilt/linux}"
+: "${CROSS_COMPILE:=aarch64-linux-gnu-}"
+
+: "${LINUX_GIT:=https://github.com/rockchip-linux/kernel.git}"
+: "${LINUX_BRANCH:=develop-6.1}"
+
+if [ -d "$LINUX_DIR" ]; then
+	if [ x"$KEEP_SRC" = x"update" ]; then
+		pushd "$LINUX_DIR"
+		git reset --hard HEAD
+		git pull
+		popd
+	elif [ x"$KEEP_SRC" = x"no" ]; then
+		rm -rf "$LINUX_DIR"
+	fi
+fi
+
+[ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_GIT" "$LINUX_DIR"
+
+if [ ! x"$KEEP_SRC" = x"yes" ]; then
+	# For Radxa Rock 4D
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-rock-4d.dts \
+		https://raw.githubusercontent.com/radxa/kernel/refs/heads/linux-6.1-stan-rkr5.1/arch/arm64/boot/dts/rockchip/rk3576-rock-4d.dts
+	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-rock-4d.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	# For FriendlyELEC NanoPi M5
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts \
+		https://raw.githubusercontent.com/friendlyarm/kernel-rockchip/refs/heads/nanopi6-v6.1.y/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-rev01.dts
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-common.dtsi \
+		https://github.com/friendlyarm/kernel-rockchip/raw/refs/heads/nanopi6-v6.1.y/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-common.dtsi
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-mipi-lcd-yx70.dtsi \
+		https://github.com/friendlyarm/kernel-rockchip/raw/refs/heads/nanopi6-v6.1.y/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-mipi-lcd-yx70.dtsi
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-csi0-imx415.dtsi \
+		https://github.com/friendlyarm/kernel-rockchip/raw/refs/heads/nanopi6-v6.1.y/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-csi0-imx415.dtsi
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-csi1-imx415.dtsi \
+		https://github.com/friendlyarm/kernel-rockchip/raw/refs/heads/nanopi6-v6.1.y/arch/arm64/boot/dts/rockchip/rk3576-nanopi5-csi1-imx415.dtsi
+	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-m5.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	# For ArmSoM Sige5
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dts \
+		https://raw.githubusercontent.com/ArmSoM/rk3576_linux_rkr5_sdk/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dts
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dtsi \
+		https://github.com/ArmSoM/rk3576_linux_rkr5_sdk/raw/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dtsi
+	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5-camera-ov13850.dtsi \
+		https://github.com/ArmSoM/rk3576_linux_rkr5_sdk/raw/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5-camera-ov13850.dtsi
+	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-sige5.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	# For Luckfox Omni3576
+	cp "$VENDOR_DTS"/omni3576/luckfox-*.dts* "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/
+	sed -i 's/MIPI_DSI_MODE_EOT_PACKET/MIPI_DSI_MODE_NO_EOT_PACKET/' "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-*.dts*
+	mv "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-omni3576.dts "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-luckfox-omni3576.dts
+	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+fi
+
+pushd "$LINUX_DIR"
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
+popd
+
+mkdir -p "$OUT"
+mv "$LINUX_DIR"/../linux-*.* "$OUT"/

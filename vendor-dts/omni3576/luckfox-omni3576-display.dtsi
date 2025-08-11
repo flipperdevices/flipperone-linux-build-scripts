@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Luckfox Technology Co., Ltd.
+ *
+ */
+// #include "luckfox-core3576.dtsi"
+#include "luckfox-omni3576-hdmi.dtsi"
+#include "luckfox-omni3576-dsi.dtsi"
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+
+/ {
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <512>;
+		rockchip,card-name = "rockchip-dp0";
+		rockchip,cpu = <&spdif_tx3>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+};
+
+/*********************************************************************
+ *                                                                      *
+ * HDMI                                                                 *
+ *                                                                      *
+ *********************************************************************/
+&hdmi {
+	status = "okay";
+};
+
+//Connect the display interface of hdmi to Port0
+&hdmi_in_vp0 {
+	status = "okay";
+};
+//Turn on hdmi's boot logo
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
+};
+
+/*********************************************************************
+ *                                                                      *
+ * DSI                                                                  *
+ *                                                                      *
+ *********************************************************************/
+&dsi {
+	status = "okay";
+};
+
+//Connect the display interface of dsi to Port1
+&dsi_in_vp1 {
+	status = "okay";
+};
+//Turn on dsi's boot logo
+&route_dsi {
+	status = "okay";
+	connect = <&vp1_out_dsi>;
+};
+/*********************************************************************
+ *                                                                      *
+ * USB-DP                                                               *
+ *                                                                      *
+ *********************************************************************/
+
+&usbdp_phy_dp {
+	status = "okay";
+};
+&usbdp_phy_u3 {
+	status = "okay";
+};
+&usbdp_phy {
+	status = "okay";
+	orientation-switch;
+	svid = <0xff01>;
+	sbu1-dc-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbdp_phy_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+
+		usbdp_phy_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
+		};
+	};
+};
+
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VP2_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&dp {
+	status = "okay";
+};
+
+&dp0 {
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
+&dp0_sound {
+	status = "okay";
+};
+
+&route_dp0 {
+	status = "okay";
+	connect = <&vp2_out_dp0>;
+};
+
+&spdif_tx3{
+	status = "okay";
+};

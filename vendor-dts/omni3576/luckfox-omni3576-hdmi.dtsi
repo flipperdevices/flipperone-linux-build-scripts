@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Luckfox Technology Co., Ltd.
+ *
+ */
+
+// #include "luckfox-core3576.dtsi"
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/gpio/gpio.h>
+
+#include <dt-bindings/display/rockchip_vop.h>
+
+/*
+ * HDMI
+ */
+&hdmi {
+	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+	rockchip,sda-falling-delay-ns = <360>;
+	status = "okay";
+};
+
+//Turn on hardware phy for hdmi
+&hdptxphy_hdmi {
+	status = "okay";
+};
+
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi>;
+	clock-names = "hdmi0_phy_pll";
+};

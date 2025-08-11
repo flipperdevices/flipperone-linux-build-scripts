@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Luckfox Technology Co., Ltd.
+ *
+ */
+
+// #include "luckfox-core3576.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	vcc3v3_m2: vcc3v3-m2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_m2";
+		gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_poweren_gpio>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <1000>;
+	};
+};
+
+&combphy0_ps {
+	status = "okay";
+};
+&pcie0 {
+	vpcie3v3-supply = <&vcc3v3_m2>;
+	// rockchip,skip-scan-in-resume;
+	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&pcie_rst_gpio>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pinctrl {
+	pcie {
+		pcie_poweren_gpio: pcie-poweren-gpio {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		pcie_wake_irq: pcie-wake-irq {
+			rockchip,pins = <0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		pcie_rst_gpio: pcie-rst-gpio {
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
