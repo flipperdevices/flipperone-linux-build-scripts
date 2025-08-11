@@ -56,6 +56,7 @@ actions:
       - e2fsprogs
       - linux-sysctl-defaults
       - wireless-regdb
+      - wpasupplicant
 
   - action: run
     description: Enable systemd-networkd
