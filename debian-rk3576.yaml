@@ -57,6 +57,8 @@ actions:
       - linux-sysctl-defaults
       - wireless-regdb
       - wpasupplicant
+      - util-linux-extra
+      - gpiod
 
   - action: run
     description: Enable systemd-networkd
