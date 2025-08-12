@@ -3,6 +3,7 @@
 {{ $imagesize := or .imagesize "4GiB" }}
 {{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
+{{ $timestamp := or .timestamp "current" }}
 
 architecture: arm64
 
@@ -82,6 +83,11 @@ actions:
     source: overlays/configs
     destination: /etc
 
+  - action: run
+    description: Add timestamp to the default hostname
+    chroot: true
+    command: echo debian-rk3576-{{ $timestamp }} > /etc/hostname
+
   - action: overlay
     description: Copy firmware files into the target
     source: overlays/firmware
@@ -89,10 +95,10 @@ actions:
 
   - action: pack
     description: Save a tarball of the root filesystem
-    file: debian.tar.gz
+    file: debian-{{ $timestamp }}.tar.gz
 
   - action: image-partition
-    imagename: debian-nobootloader.img
+    imagename: debian-nobootloader-{{ $timestamp }}.img
     imagesize: {{ $imagesize }}
     partitiontype: gpt
     partitions:
