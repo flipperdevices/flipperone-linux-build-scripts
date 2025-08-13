@@ -2,7 +2,7 @@
 : "${UBOOT_DIR:=prebuilt/u-boot}"
 : "${OUT:=out}"
 
-TIMESTAMP=`date -u '+%Y%m%d-%k%M'`
+TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	DEBOS="debos"
