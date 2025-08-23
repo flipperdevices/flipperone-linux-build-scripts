@@ -101,7 +101,7 @@ Please note that as of August 2025, upstream U-boot doesn't have a driver for th
 Prepare the kernel and U-boot images per the above instructions, then run:
 
 ```bash
-./build-image.sh
+./build-images.sh
 ```
 
 It will produce compressed disk images for all boards for which you have compiled U-boot images. Linux kernel and root filesystem images will be the same in all of them.
