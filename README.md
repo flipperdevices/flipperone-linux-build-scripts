@@ -4,6 +4,17 @@ The scripts in this repository produce disk images for Rockchip RK3576 based boa
 
 They are meant to be run on a Debian 13 (trixie) or later systems. It's probably possible to use different distributions too, but you'll need to find the right prerequisites yourself. Your mileage may vary.
 
+
+# Build in Docker
+
+**TODO**: Move to Docker Hub
+
+```bash
+docker build -t rk3576-linux-build .
+docker run -it --privileged -v /dev:/dev rk3576-linux-build
+```
+
+
 ## Prerequisites
 
 For building the bootloader:
@@ -101,7 +112,7 @@ Please note that as of August 2025, upstream U-boot doesn't have a driver for th
 Prepare the kernel and U-boot images per the above instructions, then run:
 
 ```bash
-./build-image.sh
+./build-images.sh
 ```
 
 It will produce compressed disk images for all boards for which you have compiled U-boot images. Linux kernel and root filesystem images will be the same in all of them.
