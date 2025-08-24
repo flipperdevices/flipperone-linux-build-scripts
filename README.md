@@ -4,7 +4,47 @@ The scripts in this repository produce disk images for Rockchip RK3576 based boa
 
 They are meant to be run on a Debian 13 (trixie) or later systems. It's probably possible to use different distributions too, but you'll need to find the right prerequisites yourself. Your mileage may vary.
 
-## Prerequisites
+
+## Quick start with Docker
+
+**TODO**: Move to Docker Hub
+
+```bash
+# Clone repo 
+git clone https://github.com/flipperdevices/rk3576-linux-build 
+cd rk3576-linux-build
+
+# Build docker image and start container
+docker build -t rk3576-linux-build .
+docker run -it --privileged -v /dev:/dev rk3576-linux-build
+
+# Build image inside container
+./build-kernel-mainline.sh
+BOARD=sige5 UBOOT_GIT="https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git" UBOOT_BRANCH="rk3576" ./build-uboot.sh
+BOARD=omni3576 KEEP_SRC=yes ./build-uboot.sh
+BOARD=nanopi-m5 KEEP_SRC=yes ./build-uboot.sh
+BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
+./build-images.sh
+
+
+# Flash image to Radxa 4D MicroSD card via USB
+
+# 1. Switch Radxa 4D into Maskrom mode and verify it
+# rockusb should work inside Docker container becuase of privileged mode
+rockusb list
+
+# 2. Upload bootloader to Radxa 4D
+rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_spl_loader_*.bin
+
+# 3. Flash image to MicroSD card
+rockusb write-file 0 out/debian-rock-4d-20250824-0021.img.gz
+
+# 4. Reboot the board
+rockusb reset-device
+```
+
+
+## Prepare build system manually
 
 For building the bootloader:
 
@@ -101,7 +141,7 @@ Please note that as of August 2025, upstream U-boot doesn't have a driver for th
 Prepare the kernel and U-boot images per the above instructions, then run:
 
 ```bash
-./build-image.sh
+./build-images.sh
 ```
 
 It will produce compressed disk images for all boards for which you have compiled U-boot images. Linux kernel and root filesystem images will be the same in all of them.
