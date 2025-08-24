@@ -54,15 +54,15 @@ RUN apt-get install -y \
 RUN apt-get install -y \
     rockusb
 
-# Clone the linux-build-scripts repository
-WORKDIR /linux-build-scripts
-RUN git clone https://github.com/flipperdevices/linux-build-scripts .
+# Clone the rk3576-linux-build repository
+WORKDIR /rk3576-linux-build
+RUN git clone https://github.com/flipperdevices/rk3576-linux-build .
 
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /linux-build-scripts
+WORKDIR /rk3576-linux-build
 
 # Entry point
 CMD ["/bin/bash"]
