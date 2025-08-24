@@ -45,6 +45,7 @@ RUN apt-get install -y \
 # Prerequisites for assembling complete disk images
 RUN apt-get install -y \
     debos \
+    mmdebstrap \
     systemd-resolved \
     bmap-tools \
     pigz
