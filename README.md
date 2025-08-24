@@ -24,7 +24,7 @@ BOARD=sige5 UBOOT_GIT="https://source.denx.de/u-boot/contributors/kwiboo/u-boot.
 BOARD=omni3576 KEEP_SRC=yes ./build-uboot.sh
 BOARD=nanopi-m5 KEEP_SRC=yes ./build-uboot.sh
 BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
-./build-image.sh
+./build-images.sh
 
 
 # Flash image to Radxa 4D MicroSD card via USB
