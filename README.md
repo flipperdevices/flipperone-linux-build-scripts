@@ -37,7 +37,7 @@ rockusb list
 rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_spl_loader_*.bin
 
 # 3. Flash image to MicroSD card
-rockusb write-file 0 out/debian-rock-4d-20250824-0021.img.gz
+rockusb write-bmap out/debian-rock-4d-20250824-0021.img.gz
 
 # 4. Reboot the board
 rockusb reset-device
@@ -181,5 +181,5 @@ Your device is now ready for programming over the Rockusb protocol.
 # Boot the board in USB upload mode
 sudo rockusb download-boot prebuilt/u-boot/<your_board>/rk3576_spl_loader_*.bin
 
-sudo rockusb write-file 0 out/debian-<your_board>.img.gz
+sudo rockusb write-bmap out/debian-<your_board>.img.gz
 ```
