@@ -5,8 +5,8 @@
 : "${OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 
-: "${LINUX_GIT:=https://github.com/rockchip-linux/kernel.git}"
-: "${LINUX_BRANCH:=develop-6.1}"
+: "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
+: "${LINUXBSP_BRANCH:=develop-6.1}"
 
 if [ -d "$LINUX_DIR" ]; then
 	if [ x"$KEEP_SRC" = x"update" ]; then
@@ -19,7 +19,7 @@ if [ -d "$LINUX_DIR" ]; then
 	fi
 fi
 
-[ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_GIT" "$LINUX_DIR"
+[ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUXBSP_BRANCH" "$LINUXBSP_GIT" "$LINUX_DIR"
 
 if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	# For Radxa Rock 4D
