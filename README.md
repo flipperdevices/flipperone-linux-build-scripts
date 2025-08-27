@@ -106,6 +106,26 @@ To download and build a mainline-based Linux kernel from any repo other than Lin
 LINUX_GIT=https://gitlab.collabora.com/hardware-enablement/rockchip-3588/linux.git LINUX_BRANCH=rockchip-devel ./build-kernel-mainline.sh
 ```
 
+### BSP kernel
+
+To simply fetch and build the most recent Rockchip publicly released kernel:
+
+```bash
+./build-kernel-bsp.sh
+```
+
+To rebuild without re-downloading:
+
+```bash
+KEEP_SRC=yes ./build-kernel-bsp.sh
+```
+
+To incrementally update downloaded sources without full fresh clone:
+
+```bash
+KEEP_SRC=update ./build-kernel-bsp.sh
+```
+
 ## Building bootloader images
 
 To simply fetch and build the most recent upstream U-boot with opensource TF-A:
