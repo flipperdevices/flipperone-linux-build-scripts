@@ -6,14 +6,26 @@
 TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
+	# Have virtualization support, can use fakemachine (default, fast, safe)
+	DEBOS="debos"
+elif [ -f /.dockerenv ]; then
+	# Running in a container without access to virtualization, fall back to the slow method
+	DEBOS="debos -b qemu -c $(nproc)"
+elif [ `id -u` -e 0 ]; then
+	# Running as root, can use the host mode without fakemachine (fast, less safe)
 	DEBOS="debos"
 else
 	DEBOS="sudo debos"
 fi
 
 mkdir -p "$IMG_OUT"
+rm -rf prebuilt/linux_tmp
+mkdir -p prebuilt/linux_tmp
+cp "$LINUX_OUT"/* prebuilt/linux_tmp/
 
-$DEBOS --artifactdir="$IMG_OUT" -t timestamp:"$TIMESTAMP" -t kerneldir:"$LINUX_OUT" debian-rk3576.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t timestamp:"$TIMESTAMP" -t kerneldir:prebuilt/linux_tmp debian-rk3576.yaml
+
+rm -rf prebuilt/linux_tmp
 
 for i in `basename -a "$UBOOT_OUT"/*`; do
 	cp "$IMG_OUT"/debian-nobootloader-"$TIMESTAMP".img "$IMG_OUT"/debian-"$i"-"$TIMESTAMP".img

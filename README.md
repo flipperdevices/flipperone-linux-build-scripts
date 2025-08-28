@@ -16,16 +16,10 @@ cd rk3576-linux-build
 
 # Build docker image and start container
 docker build -t rk3576-linux-build .
-docker run -it --privileged -v /dev:/dev rk3576-linux-build
-
-# Build image inside container
-./build-kernel-mainline.sh
-BOARD=sige5 UBOOT_GIT="https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git" UBOOT_BRANCH="rk3576" ./build-uboot.sh
-BOARD=omni3576 KEEP_SRC=yes ./build-uboot.sh
-BOARD=nanopi-m5 KEEP_SRC=yes ./build-uboot.sh
-BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
-./build-images.sh
-
+docker run --privileged --rm -v $(pwd)/out:/artifacts \
+	-e UBOOT_GIT=https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git \
+	-e UBOOT_BRANCH=rk3576 \
+	rk3576-linux-build
 
 # Flash image to Radxa 4D MicroSD card via USB
 
@@ -34,10 +28,10 @@ BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
 rockusb list
 
 # 2. Upload bootloader to Radxa 4D
-rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_spl_loader_*.bin
+rockusb download-boot out/u-boot/rock-4d/rk3576_spl_loader_*.bin
 
 # 3. Flash image to MicroSD card
-rockusb write-bmap out/debian-rock-4d-20250824-0021.img.gz
+rockusb write-bmap out/images/debian-rock-4d-20250824-0021.img.gz
 
 # 4. Reboot the board
 rockusb reset-device
