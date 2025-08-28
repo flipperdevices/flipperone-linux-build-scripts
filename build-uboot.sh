@@ -4,7 +4,7 @@
 : "${TFA_DIR:=src/tfa}"
 : "${RKBIN_DIR:=src/rkbin}"
 : "${KEEP_SRC:=no}"
-: "${OUT:=prebuilt/u-boot}"
+: "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 
 # Use the Github mirror by default, as it has beefier infrastructure vs. denx.de
@@ -66,8 +66,8 @@ for i in $BOARDS; do
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL"
 	popd
 
-	rm -rf "$OUT"/"$i"
-	mkdir -p "$OUT"/"$i"
-	cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$OUT"/"$i"/
-	cp "$RKBIN_DIR"/rk3576_spl_loader_*.bin "$OUT"/"$i"
+	rm -rf "$UBOOT_OUT"/"$i"
+	mkdir -p "$UBOOT_OUT"/"$i"
+	cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$UBOOT_OUT"/"$i"/
+	cp "$RKBIN_DIR"/rk3576_spl_loader_*.bin "$UBOOT_OUT"/"$i"
 done

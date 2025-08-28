@@ -1,7 +1,7 @@
 #!/bin/bash
 : "${LINUX_DIR:=src/linux}"
 : "${KEEP_SRC:=no}"
-: "${OUT:=prebuilt/linux}"
+: "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 : "${CONFIGS:=configs/linux}"
 
@@ -30,5 +30,5 @@ make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) olddefconfig
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
 popd
 
-mkdir -p "$OUT"
-mv "$LINUX_DIR"/../linux-*.* "$OUT"/
+mkdir -p "$LINUX_OUT"
+mv "$LINUX_DIR"/../linux-*.* "$LINUX_OUT"/

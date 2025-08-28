@@ -2,7 +2,7 @@
 : "${LINUX_DIR:=src/linux-bsp}"
 : "${VENDOR_DTS:=vendor-dts}"
 : "${KEEP_SRC:=no}"
-: "${OUT:=prebuilt/linux}"
+: "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 
 : "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
@@ -62,5 +62,5 @@ make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_lin
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
 popd
 
-mkdir -p "$OUT"
-mv "$LINUX_DIR"/../linux-*.* "$OUT"/
+mkdir -p "$LINUX_OUT"
+mv "$LINUX_DIR"/../linux-*.* "$LINUX_OUT"/
