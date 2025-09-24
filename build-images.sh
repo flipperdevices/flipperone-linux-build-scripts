@@ -25,6 +25,8 @@ cp "$LINUX_OUT"/* prebuilt/linux_tmp/
 
 $DEBOS --artifactdir="$IMG_OUT" -t timestamp:"$TIMESTAMP" -t kerneldir:prebuilt/linux_tmp debian-rk3576.yaml
 
+[ $? -ne 0 ] && echo "debos didn't run successfully, aborting" && exit 1
+
 rm -rf prebuilt/linux_tmp
 
 for i in `basename -a "$UBOOT_OUT"/*`; do
