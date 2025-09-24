@@ -61,6 +61,8 @@ actions:
       - wpasupplicant
       - util-linux-extra
       - gpiod
+      - kde-standard
+      - sddm
 
   - action: run
     description: Enable systemd-networkd
