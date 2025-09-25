@@ -39,6 +39,7 @@ actions:
       - v4l-utils
       - bluez
       - iwd
+      - firmware-mediatek
       - firmware-realtek
       - firmware-misc-nonfree
       - rfkill
