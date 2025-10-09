@@ -7,10 +7,10 @@ TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	# Have virtualization support, can use fakemachine (default, fast, safe)
-	DEBOS="debos"
+	DEBOS="debos -m 6Gb"
 elif [ -f /.dockerenv ]; then
 	# Running in a container without access to virtualization, fall back to the slow method
-	DEBOS="debos -b qemu -c $(nproc)"
+	DEBOS="debos -b qemu -c $(nproc) -m 6Gb"
 elif [ `id -u` -eq 0 ]; then
 	# Running as root, can use the host mode without fakemachine (fast, less safe)
 	DEBOS="debos"
