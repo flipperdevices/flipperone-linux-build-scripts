@@ -69,6 +69,17 @@ actions:
       - sddm-theme-breeze
       - systemsettings
       - glmark2-wayland
+      - gcc
+      - make
+      - build-essential
+      - powercap-utils
+      - bsdmainutils
+      - dmidecode
+      - git
+      - sysstat
+      - lshw
+      - links
+      - p7zip
 
   - action: run
     description: Enable systemd-networkd
@@ -81,6 +92,20 @@ actions:
     command: useradd -s /bin/bash -F -m user &&
              passwd --delete user &&
              gpasswd -a user sudo
+
+  - action: download
+    description: Download the most recent version of sbc-bench
+    url: https://raw.githubusercontent.com/ThomasKaiser/sbc-bench/master/sbc-bench.sh
+    name: sbc-bench
+
+  - action: overlay
+    description: Copy sbc-bench into root
+    origin: sbc-bench
+    destination: /usr/bin/sbc-bench.sh
+
+  - action: run
+    chroot: true
+    command: chmod +x /usr/bin/sbc-bench.sh
 
   - action: overlay
     description: Copy Linux kernel packages into the target
