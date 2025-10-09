@@ -63,7 +63,12 @@ actions:
       - util-linux-extra
       - gpiod
       - kde-standard
+      - plasma-mobile-core
+      - konsole
       - sddm
+      - sddm-theme-breeze
+      - systemsettings
+      - glmark2-wayland
 
   - action: run
     description: Enable systemd-networkd
