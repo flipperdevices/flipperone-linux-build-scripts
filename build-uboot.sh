@@ -51,6 +51,7 @@ fi
 pushd "$RKBIN_DIR"
 rm -f rk3576_spl_loader_*.bin
 ./tools/boot_merger RKBOOT/RK3576MINIALL.ini
+./tools/boot_merger RKBOOT/RK3576MINIALL_FSPI1.ini
 popd
 
 if [ x"$BOARD" = x"all" ]; then
