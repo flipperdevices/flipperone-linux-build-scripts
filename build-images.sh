@@ -3,6 +3,8 @@
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${IMG_OUT:=out}"
 
+set -e
+
 TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then

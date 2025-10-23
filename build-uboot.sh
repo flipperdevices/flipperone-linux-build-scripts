@@ -19,6 +19,8 @@
 
 : "${USE_BL31:=opensource}"
 
+set -e
+
 for i in "$UBOOT_DIR" "$RKBIN_DIR" "$TFA_DIR"; do
 	if [ -d "$i" ]; then
 		if [ x"$KEEP_SRC" = x"update" ]; then

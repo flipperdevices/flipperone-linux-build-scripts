@@ -10,6 +10,8 @@
 : "${LINUX_GIT:=https://github.com/torvalds/linux.git}"
 : "${LINUX_BRANCH:=master}"
 
+set -e
+
 if [ -d "$LINUX_DIR" ]; then
 	if [ x"$KEEP_SRC" = x"update" ]; then
 		pushd "$LINUX_DIR"

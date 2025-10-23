@@ -8,6 +8,8 @@
 : "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
 : "${LINUXBSP_BRANCH:=develop-6.1}"
 
+set -e
+
 if [ -d "$LINUX_DIR" ]; then
 	if [ x"$KEEP_SRC" = x"update" ]; then
 		pushd "$LINUX_DIR"
