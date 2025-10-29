@@ -7,9 +7,8 @@
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 
-# Use the Github mirror by default, as it has beefier infrastructure vs. denx.de
-: "${UBOOT_GIT:=https://github.com/u-boot/u-boot.git}"
-: "${UBOOT_BRANCH:=master}"
+: "${UBOOT_GIT:=https://github.com/flipperdevices/u-boot.git}"
+: "${UBOOT_BRANCH:=rk3576}"
 
 : "${TFA_GIT:=https://github.com/ARM-software/arm-trusted-firmware.git}"
 : "${TFA_BRANCH:=master}"
