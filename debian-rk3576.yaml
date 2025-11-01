@@ -12,6 +12,7 @@ actions:
     description: Bootstrap a base Debian {{ $suite }} system
     suite: {{ $suite }}
     variant: {{ $variant }}
+    keyring: /usr/share/keyrings/debian-archive-keyring.gpg
     components:
       - main
       - contrib
@@ -24,13 +25,18 @@ actions:
       - apt-transport-https
       - bash-completion
       - bluez
+      - bsdextrautils
       - bsdmainutils
       - build-essential
       - ca-certificates
       - curl
       - dmidecode
+      - dnsmasq-base
+      - drm-info
       - e2fsprogs
+      - edid-decode
       - evtest
+      - file
       - firmware-mediatek
       - firmware-misc-nonfree
       - firmware-realtek
@@ -39,13 +45,21 @@ actions:
       - glmark2-wayland
       - gpiod
       - i2c-tools
+      - inetutils-telnet
       - initramfs-tools
+      - iperf3
       - iproute2
       - iputils-ping
       - iw
       - iwd
       - kde-standard
+      - kmscube
       - konsole
+      - less
+      - libdrm-tests
+      - libubootenv-tool
+      - libusb-1.0-0-dev
+      - usb-modeswitch
       - links
       - linux-cpupower
       - linux-sysctl-defaults
@@ -59,8 +73,10 @@ actions:
       - plasma-mobile-core
       - powercap-utils
       - rfkill
+      - rsync
       - sddm
       - sddm-theme-breeze
+      - strace
       - sudo
       - sysstat
       - systemd
@@ -69,6 +85,7 @@ actions:
       - systemd-sysv
       - systemd-timesyncd
       - systemsettings
+      - tcpdump
       - traceroute
       - u-boot-menu
       - udev
@@ -76,6 +93,7 @@ actions:
       - usbutils
       - util-linux-extra
       - v4l-utils
+      - vim-tiny
       - wget
       - wireless-regdb
       - wpasupplicant
