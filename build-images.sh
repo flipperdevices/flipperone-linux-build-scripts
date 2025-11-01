@@ -7,6 +7,12 @@ set -e
 
 TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
+# Capture Git information
+[ -n "${GIT_HASH}" ] || GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+[ -n "${GIT_BRANCH}" ] || GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "detached")
+[ -n "${GIT_MSG}" ] || GIT_MSG=$(git log -1 --pretty=format:"%s" 2>/dev/null || echo "unknown")
+[ -n "${GIT_INFO}" ] || GIT_INFO="${GIT_BRANCH}@${GIT_HASH}: ${GIT_MSG}"
+
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	# Have virtualization support, can use fakemachine (default, fast, safe)
 	DEBOS="debos -m 6Gb"
@@ -25,7 +31,7 @@ rm -rf prebuilt/linux_tmp
 mkdir -p prebuilt/linux_tmp
 cp "$LINUX_OUT"/* prebuilt/linux_tmp/
 
-$DEBOS --artifactdir="$IMG_OUT" -t timestamp:"$TIMESTAMP" -t kerneldir:prebuilt/linux_tmp debian-rk3576.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t timestamp:"$TIMESTAMP" -t gitinfo:"$GIT_INFO" -t kerneldir:prebuilt/linux_tmp debian-rk3576.yaml
 
 [ $? -ne 0 ] && echo "debos didn't run successfully, aborting" && exit 1
 

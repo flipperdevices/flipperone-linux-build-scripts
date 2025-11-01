@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 
 G=/sys/kernel/config/usb_gadget/ncmg

@@ -1,8 +1,9 @@
 [Unit]
 Description=Set dynamic hostname based on board and OS
-DefaultDependencies=no
-Before=sysinit.target shutdown.target network.target
-Conflicts=shutdown.target
+After=systemd-hostnamed.service dbus.service
+Before=network.target
+ConditionPathIsReadWrite=/etc
+ConditionFirstBoot=yes
 
 [Service]
 Type=oneshot
@@ -10,4 +11,4 @@ ExecStart=/usr/local/bin/set-dynamic-hostname.sh
 RemainAfterExit=yes
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=multi-user.target

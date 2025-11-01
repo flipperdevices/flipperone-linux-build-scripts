@@ -4,6 +4,7 @@
 {{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
 {{ $timestamp := or .timestamp "current" }}
+{{ $gitinfo := or .gitinfo "unknown" }}
 
 architecture: arm64
 
@@ -109,7 +110,9 @@ actions:
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
              passwd --delete user &&
-             gpasswd -a user sudo
+             gpasswd -a user sudo &&
+             mkdir -p /home/user/.config/systemd/user &&
+             ln -s /dev/null /home/user/.config/systemd/user/plasma-powerdevil.service
 
   - action: download
     description: Download the most recent version of sbc-bench
@@ -141,14 +144,16 @@ actions:
     destination: /usr/local
 
   - action: run
+    description: Save build ID
+    chroot: true
+    command: |
+      echo BUILD_ID={{ $timestamp }} >> /etc/os-release
+      echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
+
+  - action: run
     description: Make dynamic hostname script executable and enable service
     chroot: true
     command: chmod +x /usr/local/bin/set-dynamic-hostname.sh && systemctl enable set-dynamic-hostname.service
-
-  - action: run
-    description: Save build ID
-    chroot: true
-    command: echo "BUILD_ID={{ $timestamp }}" >> /etc/os-release
 
   - action: run
     description: Make USB NCM gadget scripts executable
