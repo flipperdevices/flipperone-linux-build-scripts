@@ -1,0 +1,13 @@
+[Unit]
+Description=Set dynamic hostname based on board and OS
+DefaultDependencies=no
+Before=sysinit.target shutdown.target network.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/set-dynamic-hostname.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

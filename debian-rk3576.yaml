@@ -135,10 +135,20 @@ actions:
     source: overlays/configs
     destination: /etc
 
+  - action: overlay
+    description: Overlay our usr/local scripts
+    source: overlays/usr/local
+    destination: /usr/local
+
   - action: run
-    description: Add timestamp to the default hostname
+    description: Make dynamic hostname script executable and enable service
     chroot: true
-    command: echo debian-rk3576-{{ $timestamp }} > /etc/hostname
+    command: chmod +x /usr/local/bin/set-dynamic-hostname.sh && systemctl enable set-dynamic-hostname.service
+
+  - action: run
+    description: Save build ID
+    chroot: true
+    command: echo "BUILD_ID={{ $timestamp }}" >> /etc/os-release
 
   - action: overlay
     description: Copy firmware files into the target
