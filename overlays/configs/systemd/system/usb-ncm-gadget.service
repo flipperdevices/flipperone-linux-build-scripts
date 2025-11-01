@@ -1,0 +1,15 @@
+[Unit]
+Description=USB NCM Gadget Setup
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-ncm-gadget.sh start
+ExecStop=/usr/local/bin/usb-ncm-gadget.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

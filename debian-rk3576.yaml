@@ -150,6 +150,11 @@ actions:
     chroot: true
     command: echo "BUILD_ID={{ $timestamp }}" >> /etc/os-release
 
+  - action: run
+    description: Make USB NCM gadget scripts executable
+    chroot: true
+    command: chmod +x /usr/local/bin/usb-ncm-gadget.sh
+
   - action: overlay
     description: Copy firmware files into the target
     source: overlays/firmware
