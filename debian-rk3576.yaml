@@ -18,68 +18,68 @@ actions:
       - non-free
       - non-free-firmware
     include:
-      - apt-transport-https
-      - ca-certificates
-      - systemd
-      - systemd-sysv
-      - udev
-      - systemd-resolved
-      - systemd-timesyncd
-      - systemd-repart
-      - sudo
       - adduser
+      - alsa-ucm-conf
+      - alsa-utils
+      - apt-transport-https
+      - bash-completion
+      - bluez
+      - bsdmainutils
+      - build-essential
+      - ca-certificates
+      - curl
+      - dmidecode
+      - e2fsprogs
       - evtest
+      - firmware-mediatek
+      - firmware-misc-nonfree
+      - firmware-realtek
+      - gcc
+      - git
+      - glmark2-wayland
+      - gpiod
       - i2c-tools
+      - initramfs-tools
       - iproute2
       - iputils-ping
       - iw
-      - pciutils
-      - traceroute
-      - usbutils
-      - v4l-utils
-      - bluez
       - iwd
-      - firmware-mediatek
-      - firmware-realtek
-      - firmware-misc-nonfree
-      - rfkill
-      - zstd
-      - unzip
-      - curl
-      - openssh-server
-      - u-boot-menu
-      - initramfs-tools
-      - alsa-ucm-conf
-      - alsa-utils
-      - nano
-      - linux-cpupower
-      - lm-sensors
-      - wget
-      - bash-completion
-      - e2fsprogs
-      - linux-sysctl-defaults
-      - wireless-regdb
-      - wpasupplicant
-      - util-linux-extra
-      - gpiod
       - kde-standard
-      - plasma-mobile-core
       - konsole
+      - links
+      - linux-cpupower
+      - linux-sysctl-defaults
+      - lm-sensors
+      - lshw
+      - make
+      - nano
+      - openssh-server
+      - p7zip
+      - pciutils
+      - plasma-mobile-core
+      - powercap-utils
+      - rfkill
       - sddm
       - sddm-theme-breeze
-      - systemsettings
-      - glmark2-wayland
-      - gcc
-      - make
-      - build-essential
-      - powercap-utils
-      - bsdmainutils
-      - dmidecode
-      - git
+      - sudo
       - sysstat
-      - lshw
-      - links
-      - p7zip
+      - systemd
+      - systemd-repart
+      - systemd-resolved
+      - systemd-sysv
+      - systemd-timesyncd
+      - systemsettings
+      - traceroute
+      - u-boot-menu
+      - udev
+      - unzip
+      - usbutils
+      - util-linux-extra
+      - v4l-utils
+      - wget
+      - wireless-regdb
+      - wpasupplicant
+      - zstd
 
   - action: run
     description: Enable systemd-networkd
