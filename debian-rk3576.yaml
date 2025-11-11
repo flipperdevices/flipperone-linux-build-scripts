@@ -106,10 +106,10 @@ actions:
     command: systemctl enable systemd-networkd
 
   - action: run
-    description: Add default user "user" without password
+    description: Add default user "user" with password "user"
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
-             passwd --delete user &&
+             echo "user:user" | chpasswd &&
              gpasswd -a user sudo
 
   - action: download
@@ -151,12 +151,17 @@ actions:
   - action: run
     description: Make dynamic hostname script executable and enable service
     chroot: true
-    command: chmod +x /usr/local/bin/set-dynamic-hostname.sh && systemctl enable set-dynamic-hostname.service
+    command: chmod +x /usr/local/bin/set-hostname-and-banner.sh && systemctl enable set-hostname-and-banner.service
 
   - action: run
     description: Make USB NCM gadget scripts executable
     chroot: true
     command: chmod +x /usr/local/bin/usb-ncm-gadget.sh
+
+  - action: run
+    description: Remove /etc/machine-id
+    chroot: true
+    command: rm -f /etc/machine-id
 
   - action: overlay
     description: Copy firmware files into the target

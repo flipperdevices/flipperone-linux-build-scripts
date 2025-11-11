@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Extract board name from device tree
-board=$(cat /sys/firmware/devicetree/base/compatible | tr '\0' '\n' | awk -F, '$2 != "rk3576" { print $2 }')
+board=$(cat /sys/firmware/devicetree/base/compatible | tr '\0' '\n' | awk -F, '$2 != "rk3576" { print $2; exit }')
 board=${board:-rk3576}
 
 . /etc/os-release
