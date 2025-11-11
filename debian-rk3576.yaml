@@ -60,11 +60,11 @@ actions:
       - libdrm-tests
       - libubootenv-tool
       - libusb-1.0-0-dev
-      - usb-modeswitch
       - links
       - linux-cpupower
       - linux-sysctl-defaults
       - lm-sensors
+      - locales
       - lshw
       - make
       - nano
@@ -91,6 +91,7 @@ actions:
       - u-boot-menu
       - udev
       - unzip
+      - usb-modeswitch
       - usbutils
       - util-linux-extra
       - v4l-utils
@@ -99,6 +100,16 @@ actions:
       - wireless-regdb
       - wpasupplicant
       - zstd
+
+  - action: run
+    description: Generate en_US.UTF-8 locale
+    chroot: true
+    command: sed -i 's/^# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen
+
+  - action: run
+    description: Set default locale
+    chroot: true
+    command: echo "LANG=en_US.UTF-8" > /etc/default/locale
 
   - action: run
     description: Enable systemd-networkd
