@@ -17,8 +17,8 @@ total_mem=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo)
 cat <<EOF
 
                     Welcome to FlipperOne
-   Git:          $build_git
 
+   Git:          $build_git
    Board:        $board
    Memory:       $total_mem
    Build Date:   $build_date
