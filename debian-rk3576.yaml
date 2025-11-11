@@ -110,9 +110,7 @@ actions:
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
              passwd --delete user &&
-             gpasswd -a user sudo &&
-             mkdir -p /home/user/.config/systemd/user &&
-             ln -s /dev/null /home/user/.config/systemd/user/plasma-powerdevil.service
+             gpasswd -a user sudo
 
   - action: download
     description: Download the most recent version of sbc-bench
