@@ -1,0 +1,15 @@
+[Match]
+Name=usb0
+
+[Link]
+RequiredForOnline=routable
+
+[Network]
+Address=192.168.33.1/24
+DHCPServer=yes
+
+[DHCPServer]
+PoolOffset=10
+PoolSize=100
+EmitRouter=no
+EmitDNS=no

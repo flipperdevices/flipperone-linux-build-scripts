@@ -4,6 +4,7 @@
 {{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
 {{ $timestamp := or .timestamp "current" }}
+{{ $gitinfo := or .gitinfo "unknown" }}
 
 architecture: arm64
 
@@ -105,10 +106,10 @@ actions:
     command: systemctl enable systemd-networkd
 
   - action: run
-    description: Add default user "user" without password
+    description: Add default user "user" with password "user"
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
-             passwd --delete user &&
+             echo "user:user" | chpasswd &&
              gpasswd -a user sudo
 
   - action: download
@@ -135,10 +136,32 @@ actions:
     source: overlays/configs
     destination: /etc
 
+  - action: overlay
+    description: Overlay our usr/local scripts
+    source: overlays/usr/local
+    destination: /usr/local
+
   - action: run
-    description: Add timestamp to the default hostname
+    description: Save build ID
     chroot: true
-    command: echo debian-rk3576-{{ $timestamp }} > /etc/hostname
+    command: |
+      echo BUILD_ID={{ $timestamp }} >> /etc/os-release
+      echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
+
+  - action: run
+    description: Make dynamic hostname script executable and enable service
+    chroot: true
+    command: chmod +x /usr/local/bin/set-hostname-and-banner.sh && systemctl enable set-hostname-and-banner.service
+
+  - action: run
+    description: Make USB NCM gadget scripts executable
+    chroot: true
+    command: chmod +x /usr/local/bin/usb-ncm-gadget.sh
+
+  - action: run
+    description: Remove /etc/machine-id
+    chroot: true
+    command: rm -f /etc/machine-id
 
   - action: overlay
     description: Copy firmware files into the target

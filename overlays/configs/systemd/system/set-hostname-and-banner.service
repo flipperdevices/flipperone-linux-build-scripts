@@ -1,0 +1,16 @@
+[Unit]
+Description=Set dynamic hostname and SSH banner based on board and OS
+DefaultDependencies=no
+After=systemd-hostnamed.service dbus.service
+Before=systemd-machine-id-commit.service first-boot-complete.target network.target
+ConditionPathIsReadWrite=/etc
+ConditionFirstBoot=yes
+Wants=first-boot-complete.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/set-hostname-and-banner.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
