@@ -3,7 +3,7 @@
 {{ $imagesize := or .imagesize "4GiB" }}
 {{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
-{{ $timestamp := or .timestamp "current" }}
+{{ $buildid := or .buildid "current" }}
 {{ $gitinfo := or .gitinfo "unknown" }}
 
 architecture: arm64
@@ -156,7 +156,7 @@ actions:
     description: Save build ID
     chroot: true
     command: |
-      echo BUILD_ID={{ $timestamp }} >> /etc/os-release
+      echo BUILD_ID={{ $buildid }} >> /etc/os-release
       echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
 
   - action: run
@@ -181,10 +181,10 @@ actions:
 
   - action: pack
     description: Save a tarball of the root filesystem
-    file: debian-{{ $timestamp }}.tar.gz
+    file: debian-{{ $buildid }}.tar.gz
 
   - action: image-partition
-    imagename: debian-nobootloader-{{ $timestamp }}.img
+    imagename: debian-nobootloader-{{ $buildid }}.img
     imagesize: {{ $imagesize }}
     partitiontype: gpt
     partitions:
