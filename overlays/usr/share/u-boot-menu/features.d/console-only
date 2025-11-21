@@ -1,0 +1,5 @@
+#!/bin/sh
+
+add_legend "NO GUI" "No graphical user interface"
+append_name "[NO GUI]"
+add_bootargs systemd.unit=multi-user.target

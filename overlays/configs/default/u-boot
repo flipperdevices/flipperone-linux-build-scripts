@@ -1,0 +1,20 @@
+## /etc/default/u-boot - configuration file for u-boot-update(8)
+
+#U_BOOT_UPDATE="true"
+
+#U_BOOT_ALTERNATIVES="default rescue"
+#U_BOOT_DEFAULT="l0"
+#U_BOOT_PROMPT="1"
+#U_BOOT_ENTRIES="all"
+U_BOOT_MENU_TITLE="\eE\e[34;1m U-Boot menu\eE"
+#U_BOOT_MENU_LABEL="Debian GNU/Linux"
+U_BOOT_PARAMETERS="rw rootwait audit=0"
+#U_BOOT_ROOT=""
+#U_BOOT_TIMEOUT="50"
+#U_BOOT_FDT=""
+#U_BOOT_FDT_DIR="/usr/lib/linux-image-"
+#U_BOOT_FDT_OVERLAYS=""
+#U_BOOT_FDT_OVERLAYS_DIR="/boot/dtbo/"
+#U_BOOT_SYNC_DTBS="false"
+U_BOOT_DT_DETECT_SKIP_BOARD="rk3576"
+U_BOOT_FDT_VENDOR="rockchip"

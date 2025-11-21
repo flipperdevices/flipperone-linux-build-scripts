@@ -1,0 +1,5 @@
+#!/bin/sh
+
+append_name "(rescue target)"
+remove_bootargs quiet
+add_bootargs systemd.unit=rescue.target

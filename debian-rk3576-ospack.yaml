@@ -154,6 +154,16 @@ actions:
     source: overlays/usr/local
     destination: /usr/local
 
+  - action: overlay
+    description: Overlay our usr/sbin files
+    source: overlays/usr/sbin
+    destination: /usr/sbin
+
+  - action: overlay
+    description: Overlay our usr/share files
+    source: overlays/usr/share
+    destination: /usr/share
+
   - action: run
     description: Save build ID
     chroot: true
@@ -170,6 +180,11 @@ actions:
     description: Make USB NCM gadget scripts executable
     chroot: true
     command: chmod +x /usr/local/bin/usb-ncm-gadget.sh
+
+  - action: run
+    description: Make u-boot-update script executable
+    chroot: true
+    command: chmod +x /usr/sbin/u-boot-update
 
   - action: run
     description: Remove /etc/machine-id and default /etc/motd
