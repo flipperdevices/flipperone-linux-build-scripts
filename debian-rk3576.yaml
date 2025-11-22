@@ -38,6 +38,7 @@ actions:
       - edid-decode
       - evtest
       - file
+      - fio
       - firmware-mediatek
       - firmware-misc-nonfree
       - firmware-realtek
