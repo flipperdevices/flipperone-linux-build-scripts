@@ -8,8 +8,5 @@ Wants=network-pre.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/usb-ncm-gadget.sh start
-ExecStop=/usr/local/bin/usb-ncm-gadget.sh stop
+ExecStopPost=/usr/local/bin/usb-ncm-gadget.sh stop
 RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
