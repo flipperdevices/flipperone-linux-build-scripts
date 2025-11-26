@@ -7,6 +7,7 @@
 {{ $gitinfo := or .gitinfo "unknown" }}
 
 architecture: arm64
+sectorsize: 4096
 
 actions:
   - action: mmdebstrap
@@ -193,7 +194,7 @@ actions:
     partitions:
       - name: loader
         fs: none
-        start: 64s
+        start: 32KiB
         end: 16MiB
       - name: root
         fs: ext4
