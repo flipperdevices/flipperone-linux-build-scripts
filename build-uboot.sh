@@ -46,7 +46,7 @@ if [ x"$USE_BL31" = x"opensource" ]; then
 	popd
 	BL31=`realpath "$TFA_DIR"/build/rk3576/release/bl31/bl31.elf`
 else
-	BL31=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_bl31_*.elf`
+	BL31=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_bl31_v*.elf`
 fi
 
 pushd "$RKBIN_DIR"
