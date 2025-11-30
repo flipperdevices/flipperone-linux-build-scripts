@@ -1,6 +1,7 @@
 #!/bin/bash
 : "${LINUX_DIR:=src/linux-bsp}"
 : "${VENDOR_DTS:=vendor-dts}"
+: "${PATCHES_DIR:=patches/bsp}"
 : "${KEEP_SRC:=no}"
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
@@ -57,6 +58,12 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	sed -i 's/MIPI_DSI_MODE_EOT_PACKET/MIPI_DSI_MODE_NO_EOT_PACKET/' "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-*.dts*
 	mv "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-omni3576.dts "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-luckfox-omni3576.dts
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	for f in "$PATCHES_DIR"/*.patch; do
+		[ -f "$f" ] || continue
+		echo "Applying patch: $f"
+		patch -d "$LINUX_DIR" -p1 < "$f"
+	done
 fi
 
 CONFIGS=$(realpath "$CONFIGS"/*)
