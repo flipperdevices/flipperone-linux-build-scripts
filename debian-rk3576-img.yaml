@@ -36,4 +36,4 @@ actions:
   - action: run
     description: Install Linux kernel packages inside the target
     chroot: true
-    command: find /var/cache/linux-kernel -name linux-image-\* -a ! -name \*-dbg_\* -print0 | xargs -0 apt install
+    command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install

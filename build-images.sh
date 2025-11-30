@@ -31,7 +31,7 @@ fi
 mkdir -p "$IMG_OUT"
 rm -rf prebuilt/linux_tmp
 mkdir -p prebuilt/linux_tmp
-cp "$LINUX_OUT"/* prebuilt/linux_tmp/
+cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
 
 $DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" -t kerneldir:prebuilt/linux_tmp debian-rk3576-ospack.yaml
 rm -rf prebuilt/linux_tmp

@@ -58,6 +58,24 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
 fi
 
+for dtso in $(find "$VENDOR_DTS/bsp" -name \*.dtso); do
+	[ -f "$dtso" ] || continue
+
+	rel="${dtso##$VENDOR_DTS/bsp/}"
+	subdir="${rel%/*}"
+	[ "$subdir" = "$rel" ] && subdir=""
+
+    dtsofile="${dtso##*/}"
+	outfile="${subdir%/*}${subdir:+/}${dtsofile%.dtso}.dts"
+	destdir="${LINUX_DIR}/arch/arm64/boot/dts/rockchip/overlay"
+	destfile="${destdir}/${outfile}"
+
+	[ -f "${destfile}" ] ||
+		echo "dtb-\$(CONFIG_ARCH_ROCKCHIP) += overlay/${outfile%.dts}.dtbo" >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	install -pD -m 644 "${dtso}" "${destfile}"
+done
+
 pushd "$LINUX_DIR"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig rk3576.config
