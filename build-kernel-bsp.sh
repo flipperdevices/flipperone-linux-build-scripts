@@ -4,6 +4,7 @@
 : "${KEEP_SRC:=no}"
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
+: "${CONFIGS:=configs/linux-bsp}"
 
 : "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
 : "${LINUXBSP_BRANCH:=develop-6.1}"
@@ -58,6 +59,8 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
 fi
 
+CONFIGS=$(realpath "$CONFIGS"/*)
+
 for dtso in $(find "$VENDOR_DTS/bsp" -name \*.dtso); do
 	[ -f "$dtso" ] || continue
 
@@ -79,6 +82,8 @@ done
 pushd "$LINUX_DIR"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig rk3576.config
+./scripts/kconfig/merge_config.sh -m .config $CONFIGS
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) olddefconfig
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
 popd
 

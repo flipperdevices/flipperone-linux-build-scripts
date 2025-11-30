@@ -1,0 +1,4 @@
+#!/bin/sh
+
+add_legend "CEC" "HDMI CEC support"
+add_board_dtbo -z -d "hdmi-cec" -n "CEC"

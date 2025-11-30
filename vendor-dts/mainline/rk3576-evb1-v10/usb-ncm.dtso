@@ -1,0 +1,8 @@
+/dts-v1/;
+/plugin/;
+
+&usb_drd0_dwc3 {
+    dr_mode = "otg";
+	status = "okay";
+    usb-role-switch;
+};
