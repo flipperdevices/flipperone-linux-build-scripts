@@ -72,7 +72,6 @@ actions:
       - openssh-server
       - p7zip
       - pciutils
-      - plasma-mobile-core
       - powercap-utils
       - rfkill
       - rsync
