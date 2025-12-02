@@ -68,6 +68,7 @@ actions:
       - lshw
       - lsof
       - make
+      - modemmanager
       - nano
       - openssh-server
       - p7zip
