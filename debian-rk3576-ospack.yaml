@@ -56,6 +56,7 @@ actions:
       - kde-standard
       - kmscube
       - konsole
+      - kscreen
       - less
       - libdrm-tests
       - libubootenv-tool
