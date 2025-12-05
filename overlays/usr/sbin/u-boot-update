@@ -25,6 +25,7 @@ fi
 # Redirect stdout to stderr due to Debconf usage
 exec 1>&2
 
+unset U_BOOT_PROFILE_TEMPLATE
 if [ -e /etc/default/u-boot ]; then
     . /etc/default/u-boot
 fi

@@ -7,6 +7,10 @@ else
     profile_name="${_KERNEL_VERSION}"
 fi
 
+if [ -n "${U_BOOT_PROFILE_TEMPLATE}" ]; then
+    profile_name="$(eval "echo \"${U_BOOT_PROFILE_TEMPLATE}\"")"
+fi
+
 if has_config FIQ_DEBUGGER_CONSOLE; then
     remove_bootargs "console=ttyS0,1500000n8"
     add_bootargs "console=ttyFIQ0,1500000n8"
