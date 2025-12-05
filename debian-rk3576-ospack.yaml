@@ -30,6 +30,7 @@ actions:
       - build-essential
       - ca-certificates
       - curl
+      - device-tree-compiler
       - dmidecode
       - dnsmasq-base
       - drm-info
