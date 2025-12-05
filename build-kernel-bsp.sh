@@ -60,7 +60,7 @@ fi
 
 pushd "$LINUX_DIR"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
-make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig rk3576.config
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
 popd
 
