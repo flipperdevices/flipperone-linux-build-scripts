@@ -1,0 +1,15 @@
+#!/bin/sh
+
+process_feature() {
+    add_legend "TypeC DP" "TypeC DisplayPort support"
+
+    if has_config ROCKCHIP_DW_DP; then
+        add_bootargs 'dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"'
+        add_board_dtbo -z -n "TypeC DP" -d "typec-dp"
+    else
+        skip_entry=1
+    fi
+}
+
+process_feature
+unset -f process_feature

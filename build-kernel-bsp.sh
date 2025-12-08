@@ -1,9 +1,11 @@
 #!/bin/bash
 : "${LINUX_DIR:=src/linux-bsp}"
 : "${VENDOR_DTS:=vendor-dts}"
+: "${PATCHES_DIR:=patches/bsp}"
 : "${KEEP_SRC:=no}"
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
+: "${CONFIGS:=configs/linux-bsp}"
 
 : "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
 : "${LINUXBSP_BRANCH:=develop-6.1}"
@@ -56,11 +58,39 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	sed -i 's/MIPI_DSI_MODE_EOT_PACKET/MIPI_DSI_MODE_NO_EOT_PACKET/' "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-*.dts*
 	mv "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-omni3576.dts "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-luckfox-omni3576.dts
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	for f in "$PATCHES_DIR"/*.patch; do
+		[ -f "$f" ] || continue
+		echo "Applying patch: $f"
+		patch -d "$LINUX_DIR" -p1 < "$f"
+	done
 fi
+
+CONFIGS=$(realpath "$CONFIGS"/*)
+
+for dtso in $(find "$VENDOR_DTS/bsp" -name \*.dtso); do
+	[ -f "$dtso" ] || continue
+
+	rel="${dtso##$VENDOR_DTS/bsp/}"
+	subdir="${rel%/*}"
+	[ "$subdir" = "$rel" ] && subdir=""
+
+    dtsofile="${dtso##*/}"
+	outfile="${subdir%/*}${subdir:+/}${dtsofile%.dtso}.dts"
+	destdir="${LINUX_DIR}/arch/arm64/boot/dts/rockchip/overlay"
+	destfile="${destdir}/${outfile}"
+
+	[ -f "${destfile}" ] ||
+		echo "dtb-\$(CONFIG_ARCH_ROCKCHIP) += overlay/${outfile%.dts}.dtbo" >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+
+	install -pD -m 644 "${dtso}" "${destfile}"
+done
 
 pushd "$LINUX_DIR"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig rk3576.config
+./scripts/kconfig/merge_config.sh -m .config $CONFIGS
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) olddefconfig
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
 popd
 

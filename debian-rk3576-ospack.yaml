@@ -29,6 +29,7 @@ actions:
       - bsdmainutils
       - build-essential
       - ca-certificates
+      - cec-utils
       - curl
       - device-tree-compiler
       - dmidecode

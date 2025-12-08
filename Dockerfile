@@ -34,6 +34,7 @@ RUN apt-get install -y \
     libdw-dev \
     libelf-dev \
     debhelper \
+    device-tree-compiler \
     libssl-dev:arm64 \
     rsync
 

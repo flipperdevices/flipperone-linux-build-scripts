@@ -1,0 +1,126 @@
+From aef199440e54de3ae3123c96754f4a6a4acea335 Mon Sep 17 00:00:00 2001
+From: Anton Burticica <mouse@ya.ru>
+Date: Mon, 8 Dec 2025 08:32:58 +0200
+Subject: [PATCH 1/2] DEBUG: TypeC support with 4 lanes
+
+---
+ drivers/gpu/drm/rockchip/dw-dp.c         | 24 +++++++++++++++
+ drivers/usb/typec/altmodes/displayport.c | 39 +++++++++++++++++++++++-
+ 2 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/rockchip/dw-dp.c b/drivers/gpu/drm/rockchip/dw-dp.c
+index 6b32f3b9c3eb..faf1659a569e 100644
+--- a/drivers/gpu/drm/rockchip/dw-dp.c
++++ b/drivers/gpu/drm/rockchip/dw-dp.c
+@@ -1966,6 +1966,27 @@ static int dw_dp_link_probe(struct dw_dp *dp)
+ 	if (ret < 0)
+ 		return ret;
+ 
++    dev_info(dp->dev, "DPCD dump: %16ph\n", link->dpcd);
++    dev_info(dp->dev, "DPCD: rev=0x%02x rate=0x%02x lanes=0x%02x\n",
++             link->dpcd[DP_DPCD_REV],           /* [0x00] */
++             link->dpcd[DP_MAX_LINK_RATE],      /* [0x01] */
++             link->dpcd[DP_MAX_LANE_COUNT]);    /* [0x02] */		
++
++	dev_info(dp->dev, "=== DPCD Receiver Capabilities ===\n");
++	dev_info(dp->dev, "  Revision: %d.%d (0x%02x)\n",
++			(link->dpcd[0] >> 4) & 0xf, link->dpcd[0] & 0xf, link->dpcd[0]);
++	dev_info(dp->dev, "  Max Link Rate: 0x%02x (%d MHz)\n",
++			link->dpcd[1], drm_dp_max_link_rate(link->dpcd) / 100);
++	dev_info(dp->dev, "  Max Lane Count: %d (raw: 0x%02x)\n",
++			drm_dp_max_lane_count(link->dpcd), link->dpcd[2]);
++	dev_info(dp->dev, "  Enhanced Framing: %s\n",
++			drm_dp_enhanced_frame_cap(link->dpcd) ? "yes" : "no");
++	dev_info(dp->dev, "  TPS3 supported: %s\n",
++			drm_dp_tps3_supported(link->dpcd) ? "yes" : "no");
++	dev_info(dp->dev, "  TPS4 supported: %s\n",
++			drm_dp_tps4_supported(link->dpcd) ? "yes" : "no");
++	dev_info(dp->dev, "  Raw: %*ph\n", DP_RECEIVER_CAP_SIZE, link->dpcd);
++
+ 	drm_dp_read_desc(&dp->aux, &link->desc, drm_dp_is_branch(link->dpcd));
+ 
+ 	if (dw_dp_has_sink_count(link->dpcd, &link->desc)) {
+@@ -2001,6 +2022,9 @@ static int dw_dp_link_probe(struct dw_dp *dp)
+ 		      drm_dp_max_lane_count(link->dpcd));
+ 	link->rate = link->max_rate;
+ 
++	dev_info(dp->dev, "link-probe: phy_width=%u drm_max_lane=%u drm_max_rate=%u / %u MHz \n",
++		 phy_get_bus_width(dp->phy), drm_dp_max_lane_count(link->dpcd), drm_dp_max_link_rate(link->dpcd), link->rate / 100);
++
+ 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(link->dpcd);
+ 	link->caps.tps3_supported = drm_dp_tps3_supported(link->dpcd);
+ 	link->caps.tps4_supported = drm_dp_tps4_supported(link->dpcd);
+diff --git a/drivers/usb/typec/altmodes/displayport.c b/drivers/usb/typec/altmodes/displayport.c
+index c9cf3a365c7b..b6ccd90fe526 100644
+--- a/drivers/usb/typec/altmodes/displayport.c
++++ b/drivers/usb/typec/altmodes/displayport.c
+@@ -109,6 +109,26 @@ static int dp_altmode_configure(struct dp_altmode *dp, u8 con)
+ 	if (!DP_CONF_GET_PIN_ASSIGN(dp->data.conf)) {
+ 		pin_assign = get_current_pin_assignments(dp);;
+ 
++        dev_info(&dp->alt->dev,
++            "=== DP Pin Assignment Debug ===\n"
++            "  port->vdo (host):   0x%08x\n"
++            "  alt->vdo (sink):    0x%08x\n"
++            "  status:             0x%08x\n"
++            "  PREFER_MULTI_FUNC:  %s\n"
++            "  available pins:     0x%02x (A=%d B=%d C=%d D=%d E=%d F=%d)\n",
++            dp->port->vdo,
++            dp->alt->vdo,
++            dp->data.status,
++            (dp->data.status & DP_STATUS_PREFER_MULTI_FUNC) ? "YES" : "NO",
++            pin_assign,
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_A)),
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_B)),
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_C)),
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_D)),
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_E)),
++            !!(pin_assign & BIT(DP_PIN_ASSIGN_F)));
++
++#if 0
+ 		/* Is USB together with DP preferred */
+ 		if (dp->data.status & DP_STATUS_PREFER_MULTI_FUNC &&
+ 		    pin_assign & DP_PIN_ASSIGN_MULTI_FUNC_MASK)
+@@ -119,6 +139,20 @@ static int dp_altmode_configure(struct dp_altmode *dp, u8 con)
+ 			if (pin_assign & BIT(DP_PIN_ASSIGN_C))
+ 				pin_assign = BIT(DP_PIN_ASSIGN_C);
+ 		}
++#else
++		/*
++		 * Force 4-lane DP mode (Pin C/E) when available.
++		 * Ignore PREFER_MULTI_FUNC to maximize DP bandwidth.
++		 * USB3 will be unavailable, but USB2 still works.
++		 */
++		if (pin_assign & DP_PIN_ASSIGN_DP_ONLY_MASK) {
++ 			pin_assign &= DP_PIN_ASSIGN_DP_ONLY_MASK;
++			if (pin_assign & BIT(DP_PIN_ASSIGN_C))
++				pin_assign = BIT(DP_PIN_ASSIGN_C);
++		}
++#endif
++
++		dev_info(&dp->alt->dev, "  selected pin:       0x%02x\n", pin_assign);
+ 
+ 		/*
+ 		 * DFP_U never selects Pin Assignment E when Pin Assignment C
+@@ -127,6 +161,8 @@ static int dp_altmode_configure(struct dp_altmode *dp, u8 con)
+ 		if (pin_assign & (BIT(DP_PIN_ASSIGN_C) | BIT(DP_PIN_ASSIGN_D)))
+ 			pin_assign &= ~BIT(DP_PIN_ASSIGN_E);
+ 
++		dev_info(&dp->alt->dev, "  selected2 pin:       0x%02x\n", pin_assign);
++
+ 		if (!pin_assign)
+ 			return -EINVAL;
+ 
+@@ -316,7 +352,8 @@ static int dp_altmode_vdm(struct typec_altmode *alt,
+ 			break;
+ 		case DP_CMD_STATUS_UPDATE:
+ 			dp->data.status = *vdo;
+-			ret = dp_altmode_status_update(dp);
++			dev_info(&dp->alt->dev, "STATUS_UPDATE received: 0x%08x\n", *vdo);
++			ret = dp_altmode_status_update(dp);			
+ 			break;
+ 		case DP_CMD_CONFIGURE:
+ 			ret = dp_altmode_configured(dp);
+-- 
+2.51.0
+
