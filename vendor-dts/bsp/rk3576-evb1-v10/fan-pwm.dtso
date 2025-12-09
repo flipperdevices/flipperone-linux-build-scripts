@@ -1,0 +1,105 @@
+/dts-v1/;
+/plugin/;
+
+&pwm2_8ch_5 {
+    status = "okay";
+    pinctrl-names = "active";
+    pinctrl-0 = <&pwm2m1_ch5>;
+};
+
+&{/} {
+    fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm2_8ch_5 0 40000 0>;
+		cooling-levels = <0 80 120 180 255>;
+		status = "okay";
+    };
+};
+
+&little_core_thermal {
+    trips {
+		fan_low: fan-low {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_mid: fan-mid {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_high: fan-high {
+			temperature = <75000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_max: fan-max {
+			temperature = <85000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+    };
+
+    cooling-maps {
+		map-fan-low {
+			trip = <&fan_low>;
+			cooling-device = <&fan0 1 1>;
+		};
+		map-fan-mid {
+			trip = <&fan_mid>;
+			cooling-device = <&fan0 2 2>;
+		};
+		map-fan-high {
+			trip = <&fan_high>;
+			cooling-device = <&fan0 3 3>;
+		};
+		map-fan-max {
+			trip = <&fan_max>;
+			cooling-device = <&fan0 4 4>;
+		};
+    };
+};
+
+&bigcore_thermal {
+    trips {
+		bigcore_fan_on: bigcore-fan-on {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		bigcore_fan_high: bigcore-fan-high {
+			temperature = <80000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+    };
+
+    cooling-maps {
+		map-bigcore-fan-on {
+			trip = <&bigcore_fan_on>;
+			cooling-device = <&fan0 2 2>;
+		};
+		map-bigcore-fan-high {
+			trip = <&bigcore_fan_high>;
+			cooling-device = <&fan0 4 4>;
+		};
+    };
+};
+
+&gpu_thermal {
+    trips {
+		gpu_fan_on: gpu-fan-on {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+    };
+
+    cooling-maps {
+		map-gpu-fan {
+			trip = <&gpu_fan_on>;
+			cooling-device = <&fan0 2 4>;
+		};
+    };
+};

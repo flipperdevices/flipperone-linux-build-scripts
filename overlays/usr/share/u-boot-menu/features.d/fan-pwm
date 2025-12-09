@@ -1,0 +1,4 @@
+#!/bin/sh
+
+add_legend "FAN" "FAN support"
+add_board_dtbo -z -d "fan-pwm" -n "FAN"
