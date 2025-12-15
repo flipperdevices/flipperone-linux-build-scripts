@@ -33,21 +33,22 @@ rm -rf prebuilt/linux_tmp
 mkdir -p prebuilt/linux_tmp
 cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
 
-$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" -t kerneldir:prebuilt/linux_tmp debian-rk3576-ospack.yaml
-rm -rf prebuilt/linux_tmp
+$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" debian-rk3576-ospack.yaml
 
 for s in 512 4096; do
-echo "Creating images for $s-byte sector size"
-$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t sectorsize:"$s" debian-rk3576-img.yaml
+	echo "Creating images for $s-byte sector size"
+	$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t kerneldir:prebuilt/linux_tmp -t sectorsize:"$s" debian-rk3576-img.yaml
 
-for i in `basename -a "$UBOOT_OUT"/*`; do
-	echo "$i board:"
-	cp "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
-	dd if="$UBOOT_OUT"/"$i"/u-boot-rockchip.bin of="$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img seek=64 conv=notrunc
-	bmaptool create -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
-	pigz -f "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+	for i in `basename -a "$UBOOT_OUT"/*`; do
+		echo "$i board:"
+		cp "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+		dd if="$UBOOT_OUT"/"$i"/u-boot-rockchip.bin of="$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img seek=64 conv=notrunc
+		bmaptool create -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+		pigz -f "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+	done
+
+	bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
+	pigz -f "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
 done
 
-bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
-pigz -f "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
-done
+rm -rf prebuilt/linux_tmp
