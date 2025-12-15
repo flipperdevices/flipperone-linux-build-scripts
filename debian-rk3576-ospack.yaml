@@ -70,6 +70,7 @@ actions:
       - lshw
       - lsof
       - make
+      - mesa-utils
       - modemmanager
       - nano
       - openssh-server
