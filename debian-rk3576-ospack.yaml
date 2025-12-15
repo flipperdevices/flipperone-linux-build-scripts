@@ -1,6 +1,5 @@
 {{ $suite := or .suite "trixie" }}
 {{ $variant := or .variant "minbase" }}
-{{ $kerneldir := or .kerneldir "prebuilt/linux" }}
 {{ $buildid := or .buildid "current" }}
 {{ $gitinfo := or .gitinfo "unknown" }}
 
@@ -141,11 +140,6 @@ actions:
   - action: run
     chroot: true
     command: chmod +x /usr/bin/sbc-bench.sh
-
-  - action: overlay
-    description: Copy Linux kernel packages into the target
-    source: {{ $kerneldir }}
-    destination: /var/cache/linux-kernel
 
   - action: overlay
     description: Overlay our config defaults

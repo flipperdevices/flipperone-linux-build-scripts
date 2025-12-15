@@ -1,5 +1,6 @@
 {{ $sectorsize := or .sectorsize 512 }}
 {{ $imagesize := or .imagesize "4GiB" }}
+{{ $kerneldir := or .kerneldir "prebuilt/linux" }}
 {{ $cmdline := or .cmdline "console=ttyS0,1500000n8" }}
 {{ $buildid := or .buildid "current" }}
 
@@ -32,6 +33,11 @@ actions:
 
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
+
+  - action: overlay
+    description: Copy Linux kernel packages into the target
+    source: {{ $kerneldir }}
+    destination: /var/cache/linux-kernel
 
   - action: run
     description: Install Linux kernel packages inside the target
