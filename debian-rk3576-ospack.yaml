@@ -104,6 +104,7 @@ actions:
       - wireless-regdb
       - wpasupplicant
       - zstd
+      - mesa-utils
 
   - action: run
     description: Generate en_US.UTF-8 locale
