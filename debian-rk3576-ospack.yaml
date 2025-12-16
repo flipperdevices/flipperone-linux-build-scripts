@@ -2,6 +2,7 @@
 {{ $variant := or .variant "minbase" }}
 {{ $buildid := or .buildid "current" }}
 {{ $gitinfo := or .gitinfo "unknown" }}
+{{ $testsdir := or .testsdir "prebuilt/tests" }}
 
 architecture: arm64
 
@@ -193,6 +194,11 @@ actions:
     description: Copy firmware files into the target
     source: overlays/firmware
     destination: /usr/lib/firmware
+
+  - action: overlay
+    description: Copy test suite into the target
+    source: {{ $testsdir }}
+    destination: /rk3576-linux-tests
 
   - action: pack
     description: Save a tarball of the root filesystem

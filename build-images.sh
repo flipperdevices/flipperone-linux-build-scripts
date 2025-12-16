@@ -1,7 +1,14 @@
 #!/bin/bash
+: "${TESTS_DIR:=src/tests}"
+: "${KEEP_SRC:=no}"
+
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${LINUX_OUT:=prebuilt/linux}"
+: "${TESTS_OUT:=prebuilt/tests}"
 : "${IMG_OUT:=out}"
+
+: "${TESTS_GIT:=https://github.com/flipperdevices/rk3576-linux-tests.git}"
+: "${TESTS_BRANCH:=dev}"
 
 set -e
 
@@ -14,6 +21,19 @@ TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 [ -n "${GIT_BRANCH}" ] || GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "detached")
 [ -n "${GIT_MSG}" ] || GIT_MSG=$(git log -1 --pretty=format:"%s" 2>/dev/null || echo "unknown")
 [ -n "${GIT_INFO}" ] || GIT_INFO="${GIT_BRANCH}@${GIT_HASH}: ${GIT_MSG}"
+
+case "${KEEP_SRC}" in
+	update)
+		git -C "${TESTS_DIR}" pull
+		;;
+	no)
+		rm -rf "${TESTS_DIR}"
+		;;
+	*)
+		;;
+esac
+
+[ -d "${TESTS_DIR}" ] || git clone --depth 1 -b "${TESTS_BRANCH}" "${TESTS_GIT}" "${TESTS_DIR}"
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	# Have virtualization support, can use fakemachine (default, fast, safe)
@@ -29,11 +49,13 @@ else
 fi
 
 mkdir -p "$IMG_OUT"
-rm -rf prebuilt/linux_tmp
-mkdir -p prebuilt/linux_tmp
-cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
+rm -rf prebuilt/linux_tmp "${TESTS_OUT}"
+mkdir -p prebuilt/linux_tmp "${TESTS_OUT}"
 
-$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" debian-rk3576-ospack.yaml
+cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
+cp -r "${TESTS_DIR}"/* "${TESTS_OUT}/"
+
+$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" debian-rk3576-ospack.yaml
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
