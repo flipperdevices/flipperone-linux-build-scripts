@@ -24,6 +24,7 @@ actions:
       - alsa-utils
       - apt-transport-https
       - bash-completion
+      - bc
       - bluez
       - bsdextrautils
       - bsdmainutils
@@ -79,11 +80,14 @@ actions:
       - pciutils
       - plasma-nm
       - powercap-utils
+      - python3-pandas
+      - python3-plotly
       - rfkill
       - rsync
       - sddm
       - sddm-theme-breeze
       - strace
+      - stress-ng
       - sudo
       - sysstat
       - systemd
