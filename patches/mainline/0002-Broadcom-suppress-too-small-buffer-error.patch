@@ -1,0 +1,13 @@
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+index bb96b87b2a6e..e2cde8069e44 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+@@ -3702,7 +3702,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
+ 		list = (struct brcmf_scan_results *)
+ 				cfg->escan_info.escan_buf;
+ 		if (bi_length > BRCMF_ESCAN_BUF_SIZE - list->buflen) {
+-			bphy_err(drvr, "Buffer is too small: ignoring\n");
++			wiphy_dbg((drvr)->wiphy, "Buffer is too small: ignoring\n");
+ 			goto exit;
+ 		}
+ 
