@@ -56,6 +56,7 @@ actions:
       - iputils-ping
       - iw
       - iwd
+      - kde-config-screenlocker
       - kde-standard
       - kmscube
       - konsole
@@ -80,6 +81,7 @@ actions:
       - pciutils
       - plasma-nm
       - powercap-utils
+      - powerdevil
       - python3-pandas
       - python3-plotly
       - rfkill
