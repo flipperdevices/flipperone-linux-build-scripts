@@ -1,15 +1,24 @@
 #!/bin/sh
 
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    profile_name="${PRETTY_NAME:-Debian}${BUILD_ID:+[${BUILD_ID}]} ${_KERNEL_VERSION}"
-else
-    profile_name="${_KERNEL_VERSION}"
-fi
+_build_profile_name() {
+    local name=""
+    
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        name="${PRETTY_NAME:-Debian}${BUILD_ID:+[${BUILD_ID}]} ${_KERNEL_VERSION}"
+    else
+        name="${_KERNEL_VERSION}"
+    fi
 
-if [ -n "${U_BOOT_PROFILE_TEMPLATE}" ]; then
-    profile_name="$(eval "echo \"${U_BOOT_PROFILE_TEMPLATE}\"")"
-fi
+    if [ -n "${U_BOOT_PROFILE_TEMPLATE}" ]; then
+        name="$(eval "echo \"${U_BOOT_PROFILE_TEMPLATE}\"")"
+    fi
+    
+    echo "$name"
+}
+
+# Set the base profile name for default and all boards
+set_base_profile_name "$(_build_profile_name)"
 
 if has_config FIQ_DEBUGGER_CONSOLE; then
     remove_bootargs "console=ttyS0,1500000n8"

@@ -1,0 +1,34 @@
+/dts-v1/;
+/plugin/;
+
+/* ==========  HDMI in VP2 ========== */
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi_in_vp2 {
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vp2_out_hdmi>;
+};
+
+&route_dp0 {
+	status = "okay";
+	connect = <&vp0_out_dp0>;
+};
+
+/* ========== Display Path: VP0 → DP0 ========== */
+
+/* Disable default VP2 → DP0 path */
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+/* Enable VP0 → DP0 for maximum bandwidth (merged/dual-pixel mode) */
+&dp0_in_vp0 {
+	status = "okay";
+};

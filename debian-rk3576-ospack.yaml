@@ -53,6 +53,7 @@ actions:
       - initramfs-tools
       - iperf3
       - iproute2
+      - iptables
       - iputils-ping
       - iw
       - iwd
@@ -76,6 +77,7 @@ actions:
       - mesa-utils
       - modemmanager
       - nano
+      - nftables
       - openssh-server
       - p7zip
       - pciutils

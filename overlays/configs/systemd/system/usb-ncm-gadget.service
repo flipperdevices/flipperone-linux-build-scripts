@@ -5,8 +5,14 @@ Requires=sys-kernel-config.mount
 Before=network-pre.target
 Wants=network-pre.target
 
+# Don't fail the target if this service fails
+SuccessExitStatus=0 1
+
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/usb-ncm-gadget.sh start
 ExecStopPost=/usr/local/bin/usb-ncm-gadget.sh stop
 RemainAfterExit=yes
+
+[Install]
+WantedBy=usbc-router.target

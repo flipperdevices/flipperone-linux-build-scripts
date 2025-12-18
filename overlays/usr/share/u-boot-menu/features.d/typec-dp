@@ -1,11 +1,29 @@
 #!/bin/sh
 
 process_feature() {
-    add_legend "TypeC DP" "TypeC DisplayPort support"
+    local feature_name=""
+    local dtb_added=""
+
+    add_legend "HDMI-4K" "HDMI 4k@120Hz, TypeC FullHD@60Hz support"
+    add_legend "DP-4K" "TypeC 4k@120Hz, HDMI FullHD@60Hz support"
+
+    case "${BASH_SOURCE[0]##*/}" in
+        typec-dp)
+            feature_name="DP-4K"
+            dtb_added=typec-dp-hdmi
+            ;;
+        typec-hdmi)
+            feature_name="HDMI-4K"
+            dtb_added=typec-hdmi-dp
+            ;;
+        *)
+            skip_entry=1
+            return
+    esac
 
     if has_config ROCKCHIP_DW_DP; then
-        add_bootargs 'dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"'
-        add_board_dtbo -z -n "TypeC DP" -d "typec-dp"
+        add_board_dtbo -z -n "${feature_name}" -d "typec-base" -d "${dtb_added}" \
+            -A 'dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"'
     else
         skip_entry=1
     fi

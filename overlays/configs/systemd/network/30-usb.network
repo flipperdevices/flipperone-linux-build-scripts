@@ -2,14 +2,16 @@
 Name=usb0
 
 [Link]
-RequiredForOnline=routable
+RequiredForOnline=no
 
 [Network]
 Address=192.168.33.1/24
 DHCPServer=yes
+IPMasquerade=ipv4
 
 [DHCPServer]
 PoolOffset=10
 PoolSize=100
-EmitRouter=no
-EmitDNS=no
+EmitDNS=yes
+DNS=8.8.8.8 8.8.4.4
+EmitRouter=yes

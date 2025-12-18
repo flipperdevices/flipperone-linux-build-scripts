@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 BOOT_DIR="/boot"
@@ -78,10 +78,15 @@ timeout ${U_BOOT_TIMEOUT}
 
 EOF
 
+_VERBOSE=
 _NUMBER=0
+_discovered_boards=""
+# Initialize global fingerprint tracking for deduplication
+_seen_fingerprints=" "
 
 processed_legend=""
 uboot_menu_title="${U_BOOT_MENU_TITLE}"
+
 for _KERNEL_VERSION in ${_VERSIONS}; do
     echo "P: Writing config for ${BOOT_DIR}/vmlinuz-${_KERNEL_VERSION}..."
 
@@ -91,19 +96,20 @@ for _KERNEL_VERSION in ${_VERSIONS}; do
         initrd_path="${BOOT_DIR}/initramfs-${_KERNEL_VERSION}.img"
     fi
 
-    # Base variables for this kernel
-    base_initrd=
+    # Base variables for this kernel (used to initialize per-board vars)
     base_kernel="${BOOT_DIR}/vmlinuz-${_KERNEL_VERSION}"
+    base_initrd=""
     if [ -f "${initrd_path}" ]; then
         base_initrd="${BOOT_DIR}/$(basename "${initrd_path}")"
     fi
 
-    # FDT directory logic
     if [ -d "${U_BOOT_FDT_DIR}${_KERNEL_VERSION}" ]; then
-         base_fdtdir="${U_BOOT_FDT_DIR}${_KERNEL_VERSION}/"
+        base_fdtdir="${U_BOOT_FDT_DIR}${_KERNEL_VERSION}/"
     else
-         base_fdtdir=""
+        base_fdtdir=""
     fi
+
+    base_profile_name="${U_BOOT_MENU_LABEL} ${_KERNEL_VERSION}"
 
     # Iterate over enabled feature sets
     ENABLED_FILES=$(ls -1 "${ENABLED_DIR}"/* 2>/dev/null | sort)
@@ -113,14 +119,16 @@ for _KERNEL_VERSION in ${_VERSIONS}; do
     fi
 
     for enabled_file in $ENABLED_FILES; do
-        # Reset profile variables to base for this iteration
-        profile_name=""
-        profile_kernel_image="${base_kernel}"
-        profile_ramdisk_image="${base_initrd}"
-        profile_fdtdir="${base_fdtdir}"
-        profile_fdtoverlays=""
-        profile_bootargs="${DEFAULT_BOOTARGS}"
-        skip_entry=
+        # Cleanup previous iteration's board data
+        cleanup_boards
+
+        # Initialize default (non-board-specific) entry
+        init_default_entry
+
+        skip_feature=""
+        any_feature=""
+        skip_entry=""
+        global_skip_entry=""
 
         if [ -f "$enabled_file" ]; then
             # Apply features defined in the enabled file
@@ -131,18 +139,44 @@ for _KERNEL_VERSION in ${_VERSIONS}; do
 
                 feature_script="${FEATURES_DIR}/${feature}"
                 if [ -f "${feature_script}" ]; then
-                    # Source the feature script to modify variables
+                    [ -z "${_VERBOSE}" ] || echo "P:   Feature: ${feature}"
+                    skip_feature=""
+
+                    # Source the feature script
                     . "${feature_script}"
+
+                    if [ -n "$skip_feature" ]; then
+                        [ -z "${_VERBOSE}" ] || echo "P:     (skipped)"
+                        continue
+                    fi
+
+                    any_feature=1
+
+                    # Check if feature set global skip_entry
+                    if [ -n "$skip_entry" ]; then
+                        global_skip_entry=1
+                        break
+                    fi
+                else
+                    [ -z "${_VERBOSE}" ] || echo "P:   Feature: ${feature} (not found, skipping)"
                 fi
             done < "${enabled_file}"
         fi
-        if [ -n "$skip_entry" ]; then
-            echo "P: Skipping entry for $_KERNEL_VERSION for ${enabled_file##*/} set."
+
+        if [ -n "$global_skip_entry" ]; then
+            [ -z "${_VERBOSE}" ] || echo "P: Skipping all entries for ${enabled_file##*/} (skip_entry set)"
             continue
         fi
 
-        inject_record "l${_NUMBER}"
-        _NUMBER=$((_NUMBER + 1))
+        if [ -z "$any_feature" ]; then
+            [ -z "${_VERBOSE}" ] || echo "P: No features processed for ${enabled_file##*/}, skipping"
+            continue
+        fi
+
+        # Inject all entries (with deduplication)
+        if ! inject_all_entries; then
+            echo "P: No entries generated for ${enabled_file##*/}"
+        fi
     done
 done
 

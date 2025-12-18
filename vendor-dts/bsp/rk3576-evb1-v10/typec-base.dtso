@@ -1,0 +1,277 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/usb/pd.h>
+
+/*
+ * RK3576 EVB1 - 4-Lane DisplayPort over TypeC for 4K@120Hz
+ * 
+ * Hardware constraints (from datasheet):
+ * - VP0 DCLK0 max: 600 MHz (but dual-pixel mode gives 1200 MHz effective)
+ * - DP bandwidth: 25.92 Gbps (HBR3 4-lane with 8b/10b)
+ * - 4K@120Hz requires YCbCr422 (21.8 Gbps) to fit bandwidth
+ * 
+ * This overlay:
+ * 1. Routes VP0 → DP0 (highest bandwidth path)
+ * 2. Configures VPLL for 4K@120Hz pixel clock
+ * 3. Forces 4-lane DP mode (no USB3)
+ * 4. Restricts TypeC altmode to Pin C/E (4-lane only)
+ */
+
+/* ========== Disable DSI (for testing) ========== */
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vp0 {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&dsi_in_vp2 {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+/* ==========  HDMI in VPx ========== */
+
+&hdmi {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "okay";
+};
+
+&vp2 {
+	status = "okay";
+};
+
+/* ========== VOP Clock Configuration ========== */
+
+/*
+ * VPLL must provide pixel clock for 4K@120Hz
+ * Standard 4K@120Hz timing: 1188 MHz pixel clock
+ * With dual-pixel mode: DCLK0 = 1188/2 = 594 MHz (within 600 MHz limit)
+ * 
+ * Set VPLL to 1188 MHz for exact timing
+ */
+&vop {
+	assigned-clocks = <&cru PLL_VPLL>;
+	assigned-clock-rates = <1188000000>;
+};
+
+/*
+ * VP0 clock source configuration
+ * Route DCLK_VP0 from VPLL for high pixel clock support
+ */
+&vp0 {
+	status = "okay";
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+/* DP Controller needs a port for typec graph traversal */
+&dp {
+	status = "okay";
+	svid = <0xff01>;
+	
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		
+		/* Port for TypeC alt mode - REQUIRED for typec_dp_altmode binding */
+		port@0 {
+			reg = <0>;
+			dp_out: endpoint {
+				remote-endpoint = <&connector_dp_in>;
+			};
+		};
+	};
+};
+
+&dp0 {
+	status = "okay";
+};
+
+/* ========== USBDP PHY: 4-Lane DP Mode ========== */
+
+&usbdp_phy {
+	status = "okay";
+	/*
+	 * 4-lane DP configuration (Pin Assignment C/E)
+	 * All 4 PHY lanes dedicated to DisplayPort
+	 * USB3 disabled, USB2 still available via u2phy
+	 */
+	rockchip,dp-lane-mux = <0 1 2 3>;
+
+	maximum-speed = "high-speed";
+
+	/* Orientation switch for correct AUX polarity */
+	orientation-switch;
+	svid = <0xff01>;
+	sbu1-dc-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbdp_phy_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+
+		usbdp_phy_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
+		};
+	};
+};
+
+&usbdp_phy_dp {
+	status = "okay";
+};
+
+/* Disable USB3 since all lanes go to DP */
+&usbdp_phy_u3 {
+	status = "disabled";
+};
+
+/* ========== TypeC Connector: Force 4-Lane Pin Assignments ========== */
+
+&usb_con {
+	/*
+	 * VDO bits for Pin Assignments:
+	 *   Bit 8:  Pin A (4-lane)
+	 *   Bit 9:  Pin B (4-lane) 
+	 *   Bit 10: Pin C (4-lane) ← Common
+	 *   Bit 11: Pin D (2-lane + USB3)
+	 *   Bit 12: Pin E (4-lane) ← Common
+	 *   Bit 13: Pin F (2-lane + USB3)
+	 *
+	 * VDO = 0x00001400 = Pin C + E only (forces 4-lane negotiation)
+	 */
+	altmodes {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		altmode@0 {
+			reg = <0>;
+			svid = <0xff01>;
+			vdo = <0xffffffff>;
+			/* Force 4 lanes (select pins C/E) */
+/*			vdo = <0x00001400>; */
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Port 0: Orientation switch → USBDP PHY */
+		port@0 {
+			reg = <0>;
+			usbc0_orien_sw: endpoint {
+				remote-endpoint = <&usbdp_phy_orientation_switch>;
+			};
+		};
+
+		/* Port 1: DP lane mux → USBDP PHY (for PHY lane configuration) */
+		port@1 {
+			reg = <1>;
+			dp_altmode_mux: endpoint {
+				remote-endpoint = <&usbdp_phy_dp_altmode_mux>;
+			};
+		};
+
+		/* Port 2: DP Alt Mode → DP Controller (for ENTER_MODE / HPD) */
+		port@2 {
+			reg = <2>;
+			connector_dp_in: endpoint {
+				remote-endpoint = <&dp_out>;
+			};
+		};
+	};
+};
+
+/* ========== USB: USB2 Only (USB3 lanes used for DP) ========== */
+
+&usb_drd0_dwc3 {
+	status = "okay";
+	dr_mode = "otg";
+	usb-role-switch;
+	maximum-speed = "high-speed";
+/*
+	maximum-speed = "high-speed";
+	snps,dis_u3_susphy_quirk;
+*/
+	port {
+		usb_drd0_role_switch: endpoint {
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+/*	rockchip,typec-vbus-det; */
+};
+
+&gpu {
+    status = "okay";
+    compatible = "rockchip,rk3576-mali", "arm,mali-bifrost";
+    clocks = <&cru CLK_GPU>;
+    clock-names = "core";
+    assigned-clocks = <&scmi_clk CLK_GPU>;
+    assigned-clock-rates = <198000000>;
+	/* Match vendor interrupt order (349, 348, 347) with lower case for panfrost driver */
+    interrupt-names = "gpu", "mmu", "job";
+    mali-supply = <&vdd_gpu_s0>;
+	/* Use custom OPP table for panfrost */
+    operating-points-v2 = <&gpu_opp_table_panfrost>;
+};
+
+&{/} {
+    gpu_opp_table_panfrost: opp-table-gpu-panfrost {
+        compatible = "operating-points-v2";
+
+        opp-300000000 {
+            opp-hz = /bits/ 64 <300000000>;
+            opp-microvolt = <700000 700000 850000>;
+        };
+        opp-400000000 {
+            opp-hz = /bits/ 64 <400000000>;
+            opp-microvolt = <700000 700000 850000>;
+        };
+        opp-500000000 {
+            opp-hz = /bits/ 64 <500000000>;
+            opp-microvolt = <700000 700000 850000>;
+        };
+        opp-600000000 {
+            opp-hz = /bits/ 64 <600000000>;
+            opp-microvolt = <700000 700000 850000>;
+        };
+        opp-700000000 {
+            opp-hz = /bits/ 64 <700000000>;
+            opp-microvolt = <725000 725000 850000>;
+        };
+        opp-800000000 {
+            opp-hz = /bits/ 64 <800000000>;
+            opp-microvolt = <775000 775000 850000>;
+        };
+    };
+};

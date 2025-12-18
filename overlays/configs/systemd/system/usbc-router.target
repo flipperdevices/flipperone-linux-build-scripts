@@ -1,0 +1,13 @@
+[Unit]
+Description=USB-C Router Target
+Requires=multi-user.target
+After=multi-user.target
+Conflicts=graphical.target
+AllowIsolate=yes
+
+# Services for this target
+Wants=usb-ncm-gadget.service iperf3.service
+After=usb-ncm-gadget.service
+
+[Install]
+WantedBy=multi-user.target

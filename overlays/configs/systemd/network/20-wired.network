@@ -6,3 +6,4 @@ RequiredForOnline=routable
 
 [Network]
 DHCP=yes
+IPForward=yes
