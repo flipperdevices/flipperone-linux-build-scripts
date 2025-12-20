@@ -64,6 +64,7 @@ actions:
       - kscreen
       - less
       - libdrm-tests
+      - libtypec-utils
       - libubootenv-tool
       - libusb-1.0-0-dev
       - links
