@@ -1,0 +1,55 @@
+From: Alexey Charkov <alchark@gmail.com>
+Date: Mon, 22 Dec 2025 20:15:54 +0400
+Subject: [PATCH 4/4] arm64: dts: rockchip: Fix headphones widget name on
+ NanoPi M5
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20251222-rk3576-sound-v1-4-7d9b92eef488@gmail.com>
+References: <20251222-rk3576-sound-v1-0-7d9b92eef488@gmail.com>
+In-Reply-To: <20251222-rk3576-sound-v1-0-7d9b92eef488@gmail.com>
+To: Rob Herring <robh@kernel.org>, Krzysztof Kozlowski <krzk+dt@kernel.org>, 
+ Conor Dooley <conor+dt@kernel.org>, Heiko Stuebner <heiko@sntech.de>
+Cc: devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
+ linux-rockchip@lists.infradead.org, linux-kernel@vger.kernel.org, 
+ Alexey Charkov <alchark@gmail.com>
+X-Mailer: b4 0.14.3
+X-Developer-Signature: v=1; a=openpgp-sha256; l=1133; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=Y6v1tJ4TnVrz0dvSM6vDz6pC6rEAWK03ItTVT/96HDw=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR65m3TrTmU0iDDOYnx7/e1izOTq0yMLsU1rtVhPMV35
+ mGN5vVLHRNZGMS4GCzFFFnmfltiO9WIb9YuD4+vMHNYmUCGSIs0MAABCwNfbmJeqZGOkZ6ptqGe
+ oaGOsY4RAxenAEy1x0lGhmf2SQ8dDB/0ZyxWWFJ5V/SUQRvHqxOx/zfZ1bRXlMc16TEydL9Mm/q
+ 232lmOr98dH9237Sf0lZP/y//llIfuVR/j+c8VgA=
+X-Developer-Key: i=alchark@gmail.com; a=openpgp;
+ fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
+
+Fix the mismatch between the simple-audio-card routing table vs. widget
+names, which caused the following error at boot preventing the sound
+card from getting added:
+
+[    6.625634] asoc-simple-card sound: ASoC: DAPM unknown pin Headphones
+[    6.627247] asoc-simple-card sound: ASoC: Failed to add route HPOL -> Headphones(*)
+[    6.627988] asoc-simple-card sound: ASoC: Failed to add route HPOR -> Headphones(*)
+
+Signed-off-by: Alexey Charkov <alchark@gmail.com>
+---
+ arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
+index 9bfe3f092d97..c9e86360a5c9 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
+@@ -211,7 +211,7 @@ sound {
+ 			"Headphones", "HPOR",
+ 			"IN1P", "Microphone Jack";
+ 		simple-audio-card,widgets =
+-			"Headphone", "Headphone Jack",
++			"Headphone", "Headphones",
+ 			"Microphone", "Microphone Jack";
+ 
+ 		simple-audio-card,codec {
+
+-- 
+2.51.2
+

@@ -1,12 +1,12 @@
 From: Alexey Charkov <alchark@gmail.com>
-Date: Mon, 22 Dec 2025 14:58:27 +0400
-Subject: [PATCH 2/3] arm64: dts: rockchip: Enable HDMI sound on RK3576 EVB1
+Date: Mon, 22 Dec 2025 20:15:52 +0400
+Subject: [PATCH 2/4] arm64: dts: rockchip: Enable HDMI sound on RK3576 EVB1
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20251222-rk3576-sound-v1-2-3ebc9a2c0691@gmail.com>
-References: <20251222-rk3576-sound-v1-0-3ebc9a2c0691@gmail.com>
-In-Reply-To: <20251222-rk3576-sound-v1-0-3ebc9a2c0691@gmail.com>
+Message-Id: <20251222-rk3576-sound-v1-2-7d9b92eef488@gmail.com>
+References: <20251222-rk3576-sound-v1-0-7d9b92eef488@gmail.com>
+In-Reply-To: <20251222-rk3576-sound-v1-0-7d9b92eef488@gmail.com>
 To: Rob Herring <robh@kernel.org>, Krzysztof Kozlowski <krzk+dt@kernel.org>, 
  Conor Dooley <conor+dt@kernel.org>, Heiko Stuebner <heiko@sntech.de>
 Cc: devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
@@ -15,10 +15,10 @@ Cc: devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
 X-Mailer: b4 0.14.3
 X-Developer-Signature: v=1; a=openpgp-sha256; l=890; i=alchark@gmail.com;
  h=from:subject:message-id; bh=OooD6fRyFOjS0mO1YMzNXxir06GTfmMqij3dBS4dPBM=;
- b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6qgStrZyy7mTxctupqlbe55O+VE/a2eU4J+Fnuoq5s
- 3TbD2++joksDGJcDJZiiixzvy2xnWrEN2uXh8dXmDmsTCBDpEUaGICAhYEvNzGv1EjHSM9U21DP
- 0FDHWMeIgYtTAKb69TyG/6nXGiOET1qeOtN96famTedeyEeGlD9XK2S8rTRN8yTLiiyGv2LXAld
- NteYoC3+T72ZxuKE0rKJ63oXa77XSjs9Mt/rP4gYA
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR65m2rM1+o+OMU9+9Iq5kicUm7iybmbFORqd9m6m/45
+ T3vHc4XHRNZGMS4GCzFFFnmfltiO9WIb9YuD4+vMHNYmUCGSIs0MAABCwNfbmJeqZGOkZ6ptqGe
+ oaGOsY4RAxenAEw1bzDDP6sDz7P1zycETpswn19NS+CFWPIRrupZRTeqhXS4bpwWrmX4Hyu1mXe
+ 2ZEp308oFx88efmuktGvPu8VzjBr2Zfz6ctP4AAMA
 X-Developer-Key: i=alchark@gmail.com; a=openpgp;
  fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
 
