@@ -112,6 +112,7 @@ actions:
       - vim-tiny
       - wget
       - wireless-regdb
+      - wireplumber
       - wpasupplicant
       - zstd
 
