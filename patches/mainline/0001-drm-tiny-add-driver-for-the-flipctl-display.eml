@@ -1,12 +1,12 @@
 From: Alexey Charkov <alchark@gmail.com>
-Date: Fri, 19 Dec 2025 19:43:20 +0400
+Date: Mon, 22 Dec 2025 16:44:59 +0400
 Subject: [PATCH 1/2] drm/tiny: Add driver for the FlipCTL display
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20251219-flipctl-display-v1-1-1f248df370b4@gmail.com>
-References: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
-In-Reply-To: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
+Message-Id: <20251222-flipctl-display-v1-1-f261ad95366e@gmail.com>
+References: <20251222-flipctl-display-v1-0-f261ad95366e@gmail.com>
+In-Reply-To: <20251222-flipctl-display-v1-0-f261ad95366e@gmail.com>
 To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
  Maxime Ripard <mripard@kernel.org>, Thomas Zimmermann <tzimmermann@suse.de>, 
  David Airlie <airlied@gmail.com>, Simona Vetter <simona@ffwll.ch>, 
@@ -16,12 +16,12 @@ Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
  devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
  linux-rockchip@lists.infradead.org, Alexey Charkov <alchark@gmail.com>
 X-Mailer: b4 0.14.3
-X-Developer-Signature: v=1; a=openpgp-sha256; l=14031; i=alchark@gmail.com;
- h=from:subject:message-id; bh=9Vs/Eh9ovSg8tT/jack2N6QWHt7gUQPaQ3tKtuCmlJY=;
- b=owGbwMvMwCW2adGNfoHIK0sZT6slMWS6Fk3XWKx3fq8yx292Q7HFP/fxbXm8/5z+P84Fqtu2b
- c/duV7uQ8dEFgYxLgZLMUWWud+W2E414pu1y8PjK8wcViaQIdIiDQxAwMLAl5uYV2qkY6Rnqm2o
- Z2ioY6xjxMDFKQBTHfWZkeFCwZ/L82Rr80ov1mjoSl5c3ORSyBXsf/Z/H+/n39sS1qoxMrxxtTT
- d0/yjfdF2KdZt1a6draLuCgst+XLW7M5sVzlszgkA
+X-Developer-Signature: v=1; a=openpgp-sha256; l=14152; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=WEUeFH2OMHeXLxQeCjTrOJEIyHB+49OIOdsaDfXLYV4=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR62nrpcMrWfThyattHlx3V3mciny5coT3bbJttgZX4Z
+ 7lrU/ff7pjIwiDGxWAppsgy99sS26lGfLN2eXh8hZnDygQyRFqkgQEIWBj4chPzSo10jPRMtQ31
+ DA11jHWMGLg4BWCqZ25kZLg8381/DrOTUv053c0/w+N/9cgs06iWyvH5ypiT+JZR7Bsjw4LWF0n
+ 8PKkZx3tsQiPjSopVo7YI6zDZ/cr0vMYp3LybCQA=
 X-Developer-Key: i=alchark@gmail.com; a=openpgp;
  fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
 
@@ -33,8 +33,8 @@ Signed-off-by: Alexey Charkov <alchark@gmail.com>
  MAINTAINERS                            |   4 +
  drivers/gpu/drm/tiny/Kconfig           |  14 ++
  drivers/gpu/drm/tiny/Makefile          |   1 +
- drivers/gpu/drm/tiny/flipctl-display.c | 367 +++++++++++++++++++++++++++++++++
- 4 files changed, 386 insertions(+)
+ drivers/gpu/drm/tiny/flipctl-display.c | 370 +++++++++++++++++++++++++++++++++
+ 4 files changed, 389 insertions(+)
 
 diff --git a/MAINTAINERS b/MAINTAINERS
 index 0dbf349fc1ed..70e5001247db 100644
@@ -90,10 +90,10 @@ index 48d30bf6152f..fe746d7e1720 100644
  obj-$(CONFIG_TINYDRM_ILI9225)		+= ili9225.o
 diff --git a/drivers/gpu/drm/tiny/flipctl-display.c b/drivers/gpu/drm/tiny/flipctl-display.c
 new file mode 100644
-index 000000000000..06501aa1069c
+index 000000000000..24f769e07987
 --- /dev/null
 +++ b/drivers/gpu/drm/tiny/flipctl-display.c
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,370 @@
 +// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +
 +#include <drm/clients/drm_client_setup.h>
@@ -132,6 +132,7 @@ index 000000000000..06501aa1069c
 +
 +	struct gpio_desc *active_gpio;
 +
++	u32 pitch;
 +	u32 tx_buffer_size;
 +	u8 *tx_buffer;
 +};
@@ -309,7 +310,7 @@ index 000000000000..06501aa1069c
 +};
 +
 +static const struct drm_display_mode flipctl_display_mode = {
-+	DRM_SIMPLE_MODE(258, 144, 58, 38),
++	DRM_MODE_INIT(60, 256, 144, 53, 30),
 +};
 +
 +static const struct spi_device_id flipctl_ids[] = {
@@ -411,7 +412,9 @@ index 000000000000..06501aa1069c
 +
 +	drm->mode_config.funcs = &flipctl_mode_config_funcs;
 +	fctl->mode = spi_get_device_match_data(spi);
-+	fctl->tx_buffer_size = (fctl->mode->hdisplay) * (fctl->mode->vdisplay);
++	/* The controller expects 3-byte aligned buffers */
++	fctl->pitch = ((fctl->mode->hdisplay - 1) / 3 + 1) * 3;
++	fctl->tx_buffer_size = (fctl->pitch) * (fctl->mode->vdisplay);
 +
 +	fctl->tx_buffer = devm_kzalloc(dev, fctl->tx_buffer_size, GFP_KERNEL);
 +	if (!fctl->tx_buffer)

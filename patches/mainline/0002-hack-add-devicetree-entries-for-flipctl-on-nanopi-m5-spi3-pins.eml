@@ -1,13 +1,13 @@
 From: Alexey Charkov <alchark@gmail.com>
-Date: Fri, 19 Dec 2025 19:43:21 +0400
+Date: Mon, 22 Dec 2025 16:45:00 +0400
 Subject: [PATCH 2/2] HACK: Add devicetree entries for FlipCTL on NanoPi M5
  SPI3 pins
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20251219-flipctl-display-v1-2-1f248df370b4@gmail.com>
-References: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
-In-Reply-To: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
+Message-Id: <20251222-flipctl-display-v1-2-f261ad95366e@gmail.com>
+References: <20251222-flipctl-display-v1-0-f261ad95366e@gmail.com>
+In-Reply-To: <20251222-flipctl-display-v1-0-f261ad95366e@gmail.com>
 To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
  Maxime Ripard <mripard@kernel.org>, Thomas Zimmermann <tzimmermann@suse.de>, 
  David Airlie <airlied@gmail.com>, Simona Vetter <simona@ffwll.ch>, 
@@ -19,10 +19,10 @@ Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
 X-Mailer: b4 0.14.3
 X-Developer-Signature: v=1; a=openpgp-sha256; l=1350; i=alchark@gmail.com;
  h=from:subject:message-id; bh=0UG67k+7uj5tgNh/18B+QUrSDTnNath1A85kz3qTFd0=;
- b=owGbwMvMwCW2adGNfoHIK0sZT6slMWS6Fk0/fUF02y/7XlHhhLUnA9kPR5y773n92dz7FkmZ7
- a2XPsrbdExkYRDjYrAUU2SZ+22J7VQjvlm7PDy+wsxhZQIZIi3SwAAELAx8uYl5pUY6Rnqm2oZ6
- hoY6xjpGDFycAjDVHjWMDGu13cL7VnIz5NzZffFdqtsFw/mbvlh/ETjO2xuzSsLh/ilGhie755v
- kcgkIHHC0ZHu+2GYt9zWXymtM19Tr5vckaVVtYwQA
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR62npN4fx2w/gA8/QjMw//3a0QwXbxovp8H24vWc/Ws
+ N+XD1z73zGRhUGMi8FSTJFl7rcltlON+Gbt8vD4CjOHlQlkiLRIAwMQsDDw5SbmlRrpGOmZahvq
+ GRrqGOsYMXBxCsBUu81jZJhSet5mr9hRrr7lTke6nDcv5E/Q9ZYvneZ194Q4/7LNU4oZ/mc9PRs
+ lN+lyucFFcY+r0j/4xNP9JIq3GS79+oDZWNX4AAsA
 X-Developer-Key: i=alchark@gmail.com; a=openpgp;
  fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
 
