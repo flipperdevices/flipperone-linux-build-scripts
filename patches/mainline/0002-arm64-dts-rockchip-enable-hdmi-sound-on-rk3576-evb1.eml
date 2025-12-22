@@ -1,0 +1,62 @@
+From: Alexey Charkov <alchark@gmail.com>
+Date: Mon, 22 Dec 2025 14:58:27 +0400
+Subject: [PATCH 2/3] arm64: dts: rockchip: Enable HDMI sound on RK3576 EVB1
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20251222-rk3576-sound-v1-2-3ebc9a2c0691@gmail.com>
+References: <20251222-rk3576-sound-v1-0-3ebc9a2c0691@gmail.com>
+In-Reply-To: <20251222-rk3576-sound-v1-0-3ebc9a2c0691@gmail.com>
+To: Rob Herring <robh@kernel.org>, Krzysztof Kozlowski <krzk+dt@kernel.org>, 
+ Conor Dooley <conor+dt@kernel.org>, Heiko Stuebner <heiko@sntech.de>
+Cc: devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
+ linux-rockchip@lists.infradead.org, linux-kernel@vger.kernel.org, 
+ Alexey Charkov <alchark@gmail.com>
+X-Mailer: b4 0.14.3
+X-Developer-Signature: v=1; a=openpgp-sha256; l=890; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=OooD6fRyFOjS0mO1YMzNXxir06GTfmMqij3dBS4dPBM=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6qgStrZyy7mTxctupqlbe55O+VE/a2eU4J+Fnuoq5s
+ 3TbD2++joksDGJcDJZiiixzvy2xnWrEN2uXh8dXmDmsTCBDpEUaGICAhYEvNzGv1EjHSM9U21DP
+ 0FDHWMeIgYtTAKb69TyG/6nXGiOET1qeOtN96famTedeyEeGlD9XK2S8rTRN8yTLiiyGv2LXAld
+ NteYoC3+T72ZxuKE0rKJ63oXa77XSjs9Mt/rP4gYA
+X-Developer-Key: i=alchark@gmail.com; a=openpgp;
+ fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
+
+All RK3576 boards get their HDMI sound from SAI6, which is internally
+connected to the HDMI codec. Enable this for Rockchip RK3576 EVB1
+
+Signed-off-by: Alexey Charkov <alchark@gmail.com>
+---
+ arch/arm64/boot/dts/rockchip/rk3576-evb1-v10.dts | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-evb1-v10.dts b/arch/arm64/boot/dts/rockchip/rk3576-evb1-v10.dts
+index db8fef7a4f1b..deab20ff4d97 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-evb1-v10.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-evb1-v10.dts
+@@ -315,6 +315,10 @@ hdmi_out_con: endpoint {
+ 	};
+ };
+ 
++&hdmi_sound {
++	status = "okay";
++};
++
+ &hdptxphy {
+ 	status = "okay";
+ };
+@@ -835,6 +839,10 @@ wifi_wake_host: wifi-wake-host {
+ 	};
+ };
+ 
++&sai6 {
++	status = "okay";
++};
++
+ &sdhci {
+ 	bus-width = <8>;
+ 	full-pwr-cycle-in-suspend;
+
+-- 
+2.51.2
+
