@@ -1,0 +1,83 @@
+From: Alexey Charkov <alchark@gmail.com>
+Date: Fri, 19 Dec 2025 19:43:21 +0400
+Subject: [PATCH 2/2] HACK: Add devicetree entries for FlipCTL on NanoPi M5
+ SPI3 pins
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20251219-flipctl-display-v1-2-1f248df370b4@gmail.com>
+References: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
+In-Reply-To: <20251219-flipctl-display-v1-0-1f248df370b4@gmail.com>
+To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
+ Maxime Ripard <mripard@kernel.org>, Thomas Zimmermann <tzimmermann@suse.de>, 
+ David Airlie <airlied@gmail.com>, Simona Vetter <simona@ffwll.ch>, 
+ Rob Herring <robh@kernel.org>, Krzysztof Kozlowski <krzk+dt@kernel.org>, 
+ Conor Dooley <conor+dt@kernel.org>, Heiko Stuebner <heiko@sntech.de>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, 
+ devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
+ linux-rockchip@lists.infradead.org, Alexey Charkov <alchark@gmail.com>
+X-Mailer: b4 0.14.3
+X-Developer-Signature: v=1; a=openpgp-sha256; l=1350; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=0UG67k+7uj5tgNh/18B+QUrSDTnNath1A85kz3qTFd0=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWS6Fk0/fUF02y/7XlHhhLUnA9kPR5y773n92dz7FkmZ7
+ a2XPsrbdExkYRDjYrAUU2SZ+22J7VQjvlm7PDy+wsxhZQIZIi3SwAAELAx8uYl5pUY6Rnqm2oZ6
+ hoY6xjpGDFycAjDVHjWMDGu13cL7VnIz5NzZffFdqtsFw/mbvlh/ETjO2xuzSsLh/ilGhie755v
+ kcgkIHHC0ZHu+2GYt9zWXymtM19Tr5vckaVVtYwQA
+X-Developer-Key: i=alchark@gmail.com; a=openpgp;
+ fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
+
+Signed-off-by: Alexey Charkov <alchark@gmail.com>
+---
+ arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts | 28 +++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
+index cce34c541f7c..405005f92666 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
+@@ -834,6 +834,20 @@ hp_det_l: hp-det-l {
+ 		};
+ 	};
+ 
++	spi3 {
++		spi3m2_wo_miso: spi3m2-pins {
++			rockchip,pins =
++				/* spi3_clk_m2 */
++				<4 RK_PA7 9 &pcfg_pull_none>,
++				/* spi3_mosi_m2 */
++				<4 RK_PA4 9 &pcfg_pull_none>;
++		};
++
++		flipctl_gpio: spi3m2-miso {
++			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++
+ 	usb {
+ 		usb3_host_pwren_h: usb3-host-pwren-h {
+ 			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+@@ -884,6 +898,20 @@ flash@0 {
+ 	};
+ };
+ 
++&spi3 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&spi3m2_csn0 &spi3m2_wo_miso &flipctl_gpio>;
++	status = "okay";
++
++	display@0 {
++		compatible = "flipper,flipctl-display";
++		reg = <0>;
++		active-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
++		spi-max-frequency = <25000000>;
++		spi-rx-bus-width = <0>;
++	};
++};
++
+ &u2phy0 {
+ 	status = "okay";
+ };
+
+-- 
+2.51.2
+
