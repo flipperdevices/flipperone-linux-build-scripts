@@ -1,13 +1,13 @@
 From: Alexey Charkov <alchark@gmail.com>
-Date: Mon, 22 Dec 2025 18:06:13 +0400
+Date: Mon, 22 Dec 2025 20:38:49 +0400
 Subject: [PATCH 2/2] HACK: Add devicetree entries for FlipCTL on NanoPi M5
  SPI3 pins
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20251222-flipctl-display-v1-2-489d21330cdc@gmail.com>
-References: <20251222-flipctl-display-v1-0-489d21330cdc@gmail.com>
-In-Reply-To: <20251222-flipctl-display-v1-0-489d21330cdc@gmail.com>
+Message-Id: <20251222-flipctl-display-v1-2-624aad78fae5@gmail.com>
+References: <20251222-flipctl-display-v1-0-624aad78fae5@gmail.com>
+In-Reply-To: <20251222-flipctl-display-v1-0-624aad78fae5@gmail.com>
 To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
  Maxime Ripard <mripard@kernel.org>, Thomas Zimmermann <tzimmermann@suse.de>, 
  David Airlie <airlied@gmail.com>, Simona Vetter <simona@ffwll.ch>, 
@@ -17,12 +17,12 @@ Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
  devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
  linux-rockchip@lists.infradead.org, Alexey Charkov <alchark@gmail.com>
 X-Mailer: b4 0.14.3
-X-Developer-Signature: v=1; a=openpgp-sha256; l=1350; i=alchark@gmail.com;
- h=from:subject:message-id; bh=0UG67k+7uj5tgNh/18B+QUrSDTnNath1A85kz3qTFd0=;
- b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6BgQ/nv284IDKhnvlp1jsja+3LzmW+3DyVPOQl4afv
- 1VUVPb3dUxkYRDjYrAUU2SZ+22J7VQjvlm7PDy+wsxhZQIZIi3SwAAELAx8uYl5pUY6Rnqm2oZ6
- hoY6xjpGDFycAjDVazsZ/mn0fNLqPtQ1PX6NE++0sJtLhXc6/jpfw/Hs/gn5zOCC5l6Gf1Yalb/
- 2y9vPdrxT8K5t2nXpVYver/mg4immvr4oKjXzNwMA
+X-Developer-Signature: v=1; a=openpgp-sha256; l=1358; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=2VUywdBWzyFHMNyVRW+qAqiOF1o+9ZxKQRIjIstafg4=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6lkh4eBx5vfj4+pO/5NazXr0ucnTGcrEpZ16zhdu7d
+ Nu7/r8h2TGRhUGMi8FSTJFl7rcltlON+Gbt8vD4CjOHlQlkiLRIAwMQsDDw5SbmlRrpGOmZahvq
+ GRrqGOsYMXBxCsBUG35j+B/48GT8uhtBR4ISoxv/7fj8dcnxNqMSJt7kzumBsVKn93Yw/HfZ9lT
+ vFq/Q1ZKWE+2J1e/aF2iqqfxfMW/SjQCbx/Iiv3gA
 X-Developer-Key: i=alchark@gmail.com; a=openpgp;
  fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
 
@@ -32,7 +32,7 @@ Signed-off-by: Alexey Charkov <alchark@gmail.com>
  1 file changed, 28 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
-index cce34c541f7c..405005f92666 100644
+index cce34c541f7c..aaacb6d15b0a 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3576-nanopi-m5.dts
 @@ -834,6 +834,20 @@ hp_det_l: hp-det-l {
@@ -40,7 +40,7 @@ index cce34c541f7c..405005f92666 100644
  	};
  
 +	spi3 {
-+		spi3m2_wo_miso: spi3m2-pins {
++		spi3m2_wo_miso: spi3m2-pins-wo-miso {
 +			rockchip,pins =
 +				/* spi3_clk_m2 */
 +				<4 RK_PA7 9 &pcfg_pull_none>,
@@ -69,7 +69,7 @@ index cce34c541f7c..405005f92666 100644
 +		compatible = "flipper,flipctl-display";
 +		reg = <0>;
 +		active-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
-+		spi-max-frequency = <25000000>;
++		spi-max-frequency = <20000000>;
 +		spi-rx-bus-width = <0>;
 +	};
 +};

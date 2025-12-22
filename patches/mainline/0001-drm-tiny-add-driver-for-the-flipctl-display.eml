@@ -1,12 +1,12 @@
 From: Alexey Charkov <alchark@gmail.com>
-Date: Mon, 22 Dec 2025 18:06:12 +0400
+Date: Mon, 22 Dec 2025 20:38:48 +0400
 Subject: [PATCH 1/2] drm/tiny: Add driver for the FlipCTL display
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20251222-flipctl-display-v1-1-489d21330cdc@gmail.com>
-References: <20251222-flipctl-display-v1-0-489d21330cdc@gmail.com>
-In-Reply-To: <20251222-flipctl-display-v1-0-489d21330cdc@gmail.com>
+Message-Id: <20251222-flipctl-display-v1-1-624aad78fae5@gmail.com>
+References: <20251222-flipctl-display-v1-0-624aad78fae5@gmail.com>
+In-Reply-To: <20251222-flipctl-display-v1-0-624aad78fae5@gmail.com>
 To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
  Maxime Ripard <mripard@kernel.org>, Thomas Zimmermann <tzimmermann@suse.de>, 
  David Airlie <airlied@gmail.com>, Simona Vetter <simona@ffwll.ch>, 
@@ -16,12 +16,12 @@ Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
  devicetree@vger.kernel.org, linux-arm-kernel@lists.infradead.org, 
  linux-rockchip@lists.infradead.org, Alexey Charkov <alchark@gmail.com>
 X-Mailer: b4 0.14.3
-X-Developer-Signature: v=1; a=openpgp-sha256; l=14181; i=alchark@gmail.com;
- h=from:subject:message-id; bh=+0cMX8VIjQhZu/s9UpFv2l+PGRFpMQXQe/LdElXubpk=;
- b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6BgTv4TDPkuXaMLtu8/opOsl3fwsxf+ic9C+V+evn2
- tsPRSe/6pjIwiDGxWAppsgy99sS26lGfLN2eXh8hZnDygQyRFqkgQEIWBj4chPzSo10jPRMtQ31
- DA11jHWMGLg4BWCqX3Ux/DNX+hz0uGBnU9ZPY5ctTG82N8vFmK0Tz1N7kuPJpS4olMzIsPrbvi3
- xha6ZBdstZyzQUH5tL7Th2vn8zCVz5nvYVm+sZAYA
+X-Developer-Signature: v=1; a=openpgp-sha256; l=14180; i=alchark@gmail.com;
+ h=from:subject:message-id; bh=5y297dlhwG4DUMGQ6X1IUCu5eVlmCFHiSKfP8rcx2C8=;
+ b=owGbwMvMwCW2adGNfoHIK0sZT6slMWR6lki01+9bIfI9XEOSRy3s0T4Nz+uJjdYN9pwvPmw+p
+ XxhtuHajoksDGJcDJZiiixzvy2xnWrEN2uXh8dXmDmsTCBDpEUaGICAhYEvNzGv1EjHSM9U21DP
+ 0FDHWMeIgYtTAKb6wCxGhsbKxQsD9m75Mkm5+4fw2dl5j9hXCzzt4rhzYpvOypsvXYMZ/qcs+6L
+ wdP6DFZyZm79YyIb29ruKRfXcEpw4qWze/2P5NtwA
 X-Developer-Key: i=alchark@gmail.com; a=openpgp;
  fpr=9DF6A43D95320E9ABA4848F5B2A2D88F1059D4A5
 
@@ -90,7 +90,7 @@ index 48d30bf6152f..fe746d7e1720 100644
  obj-$(CONFIG_TINYDRM_ILI9225)		+= ili9225.o
 diff --git a/drivers/gpu/drm/tiny/flipctl-display.c b/drivers/gpu/drm/tiny/flipctl-display.c
 new file mode 100644
-index 000000000000..0b0825cf20d4
+index 000000000000..bc615e07f255
 --- /dev/null
 +++ b/drivers/gpu/drm/tiny/flipctl-display.c
 @@ -0,0 +1,371 @@
@@ -382,7 +382,7 @@ index 000000000000..0b0825cf20d4
 +
 +	dev = &spi->dev;
 +	spi->bits_per_word = 16;
-+	spi->mode |= SPI_CS_WORD;
++	spi->mode |= SPI_MODE_3;
 +
 +	ret = spi_setup(spi);
 +	if (ret < 0)
