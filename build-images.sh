@@ -55,7 +55,7 @@ mkdir -p prebuilt/linux_tmp "${TESTS_OUT}"
 cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
 cp -r "${TESTS_DIR}"/* "${TESTS_OUT}/"
 
-$DEBOS --artifactdir="$IMG_OUT" -t buildid:"$BUILD_ID" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" debian-rk3576-ospack.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" debian-rk3576-ospack.yaml
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"

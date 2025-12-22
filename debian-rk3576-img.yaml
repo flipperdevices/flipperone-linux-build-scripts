@@ -10,7 +10,7 @@ sectorsize: {{ $sectorsize }}
 actions:
   - action: unpack
     description: Load a tarball of the root filesystem
-    file: debian-{{ $buildid }}.tar.gz
+    file: debian-ospack.tar.gz
 
   - action: image-partition
     imagename: debian-{{ $sectorsize }}-nobootloader-{{ $buildid }}.img
@@ -33,6 +33,12 @@ actions:
 
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
+
+  - action: run
+    description: Save build ID
+    chroot: true
+    command: |
+      echo BUILD_ID={{ $buildid }} >> /etc/os-release
 
   - action: overlay
     description: Copy Linux kernel packages into the target

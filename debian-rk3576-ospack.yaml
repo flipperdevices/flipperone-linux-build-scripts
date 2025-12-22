@@ -1,6 +1,5 @@
 {{ $suite := or .suite "trixie" }}
 {{ $variant := or .variant "minbase" }}
-{{ $buildid := or .buildid "current" }}
 {{ $gitinfo := or .gitinfo "unknown" }}
 {{ $testsdir := or .testsdir "prebuilt/tests" }}
 
@@ -181,10 +180,9 @@ actions:
     destination: /usr/share
 
   - action: run
-    description: Save build ID
+    description: Save GIT info
     chroot: true
     command: |
-      echo BUILD_ID={{ $buildid }} >> /etc/os-release
       echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
 
   - action: run
@@ -219,4 +217,4 @@ actions:
 
   - action: pack
     description: Save a tarball of the root filesystem
-    file: debian-{{ $buildid }}.tar.gz
+    file: debian-ospack.tar.gz
