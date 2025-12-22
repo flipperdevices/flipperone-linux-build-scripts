@@ -84,7 +84,6 @@ actions:
       - plasma-nm
       - powercap-utils
       - powerdevil
-      - pulseaudio
       - python3-pandas
       - python3-plotly
       - rfkill
