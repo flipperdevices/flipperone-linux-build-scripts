@@ -27,6 +27,10 @@ fi
 [ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_GIT" "$LINUX_DIR"
 
 if [ ! x"$KEEP_SRC" = x"yes" ]; then
+	dir=`realpath "$PATCHES_DIR"`
+	pushd "$LINUX_DIR"
+	git am --empty=drop --no-gpg-sign "$dir"/*.eml
+	popd
 	for f in "$PATCHES_DIR"/*.patch; do
 		[ -f "$f" ] || continue
 		echo "Applying patch: $f"
