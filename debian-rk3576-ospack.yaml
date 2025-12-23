@@ -62,6 +62,7 @@ actions:
       - konsole
       - kscreen
       - less
+      - libcanberra-pulse
       - libdrm-tests
       - libtypec-utils
       - libubootenv-tool
