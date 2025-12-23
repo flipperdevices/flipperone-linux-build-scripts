@@ -2,7 +2,7 @@
 
 _build_profile_name() {
     local name=""
-    
+
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         name="${PRETTY_NAME:-Debian}${BUILD_ID:+[${BUILD_ID}]} ${_KERNEL_VERSION}"
@@ -13,7 +13,7 @@ _build_profile_name() {
     if [ -n "${U_BOOT_PROFILE_TEMPLATE}" ]; then
         name="$(eval "echo \"${U_BOOT_PROFILE_TEMPLATE}\"")"
     fi
-    
+
     echo "$name"
 }
 
@@ -23,4 +23,7 @@ set_base_profile_name "$(_build_profile_name)"
 if has_config FIQ_DEBUGGER_CONSOLE; then
     remove_bootargs "console=ttyS0,1500000n8"
     add_bootargs "console=ttyFIQ0,1500000n8"
+else
+    add_bootargs "console=ttyS0,1500000n8"
+    remove_bootargs "console=ttyFIQ0,1500000n8"
 fi
