@@ -46,11 +46,7 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 
 	# For ArmSoM Sige5
 	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dts \
-		https://raw.githubusercontent.com/ArmSoM/rk3576_linux_rkr5_sdk/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dts
-	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dtsi \
-		https://github.com/ArmSoM/rk3576_linux_rkr5_sdk/raw/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dtsi
-	wget -O "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5-camera-ov13850.dtsi \
-		https://github.com/ArmSoM/rk3576_linux_rkr5_sdk/raw/refs/heads/main/kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5-camera-ov13850.dtsi
+		https://raw.githubusercontent.com/ArmSoM/rockchip-kernel/refs/heads/linux-6.1-stan-rkr6.1/arch/arm64/boot/dts/rockchip/rk3576-armsom-sige5.dts
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-sige5.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
 
 	# For Luckfox Omni3576
