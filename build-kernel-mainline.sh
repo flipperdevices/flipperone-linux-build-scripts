@@ -1,7 +1,6 @@
 #!/bin/bash
 : "${LINUX_DIR:=src/linux}"
 : "${VENDOR_DTS:=vendor-dts}"
-: "${PATCHES_DIR:=patches/mainline}"
 : "${KEEP_SRC:=no}"
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
@@ -25,18 +24,6 @@ if [ -d "$LINUX_DIR" ]; then
 fi
 
 [ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_GIT" "$LINUX_DIR"
-
-if [ ! x"$KEEP_SRC" = x"yes" ]; then
-	dir=`realpath "$PATCHES_DIR"`
-	pushd "$LINUX_DIR"
-	git am --empty=drop --no-gpg-sign "$dir"/*.eml
-	popd
-	for f in "$PATCHES_DIR"/*.patch; do
-		[ -f "$f" ] || continue
-		echo "Applying patch: $f"
-		patch -d "$LINUX_DIR" -p1 < "$f"
-	done
-fi
 
 BASE_CONFIG=`realpath "$BASE_CONFIG"`
 CONFIGS=`realpath "$CONFIGS"/*`
