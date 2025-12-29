@@ -1,0 +1,118 @@
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-evb1.dtsi b/arch/arm64/boot/dts/rockchip/rk3576-evb1.dtsi
+index 864d5044564d..b2cd06e59b7f 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-evb1.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3576-evb1.dtsi
+@@ -10,42 +10,62 @@
+ 
+ / {
+ 	es8388_sound: es8388-sound {
+-		status = "okay";
+-		compatible = "rockchip,multicodecs-card";
+-		rockchip,card-name = "rockchip-es8388";
+-		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
+-		io-channels = <&saradc 3>;
+-		io-channel-names = "adc-detect";
+-		keyup-threshold-microvolt = <1800000>;
+-		poll-interval = <100>;
+-		spk-con-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+-		hp-con-gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
+-		rockchip,pre-power-on-delay-ms = <30>;
+-		rockchip,post-power-down-delay-ms = <40>;
+-		rockchip,format = "i2s";
+-		rockchip,mclk-fs = <256>;
+-		rockchip,cpu = <&sai1>;
+-		rockchip,codec = <&es8388>;
+-		rockchip,audio-routing =
+-			"Headphone", "LOUT1",
+-			"Headphone", "ROUT1",
+-			"Speaker", "LOUT2",
+-			"Speaker", "ROUT2",
+-			"Headphone", "Headphone Power",
+-			"Headphone", "Headphone Power",
+-			"Speaker", "Speaker Power",
+-			"Speaker", "Speaker Power",
++        compatible = "simple-audio-card";
++        status = "okay";
++        pinctrl-names = "default";
++		pinctrl-0 = <&hp_det>;
++        simple-audio-card,name = "rockchip-es8388";
++        simple-audio-card,aux-devs = <&hp_power>, <&spk_power>;
++        simple-audio-card,bitclock-master = <&masterdai>;
++        simple-audio-card,format = "i2s";
++        simple-audio-card,frame-master = <&masterdai>;
++        simple-audio-card,hp-det-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
++        simple-audio-card,mclk-fs = <256>;
++        simple-audio-card,pin-switches = "Headphones", "Speaker", "Main Mic", "Headset Mic";
++        simple-audio-card,routing =
++			"Headphone Power INL", "LOUT1",
++			"Headphone Power INR", "ROUT1",
++			"Speaker Power INL", "LOUT2",
++			"Speaker Power INR", "ROUT2",
++			"Headphones", "Headphone Power OUTL",
++			"Headphones", "Headphone Power OUTR",
++			"Speaker", "Speaker Power OUTL",
++			"Speaker", "Speaker Power OUTR",
+ 			"LINPUT1", "Main Mic",
+ 			"LINPUT2", "Main Mic",
+ 			"RINPUT1", "Headset Mic",
+ 			"RINPUT2", "Headset Mic";
++		simple-audio-card,widgets =
++			"Microphone", "Main Mic",
++			"Microphone", "Headset Mic",
++			"Headphone", "Headphones",
++			"Speaker", "Speaker";
++
++        simple-audio-card,cpu {
++            sound-dai = <&sai1>;
++        };
++
++        masterdai: simple-audio-card,codec {
++            sound-dai = <&es8388>;
++            system-clock-frequency = <12288000>;
++        };
++	};
++
++	hp_power: headphone-amplifier {
++		compatible = "simple-audio-amplifier";
++		enable-gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
+ 		pinctrl-names = "default";
+-		pinctrl-0 = <&hp_det>;
+-		play-pause-key {
+-			label = "playpause";
+-			linux,code = <KEY_PLAYPAUSE>;
+-			press-threshold-microvolt = <2000>;
+-		};
++		pinctrl-0 = <&hp_ctl>;
++		sound-name-prefix = "Headphone Power";
++	};
++
++	spk_power: speaker-amplifier {
++		compatible = "simple-audio-amplifier";
++		enable-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&spk_ctl>;
++		sound-name-prefix = "Speaker Power";
++		VCC-supply = <&vcc5v0_device>;
+ 	};
+ 
+ 	pdmics: dummy-codec {
+@@ -493,10 +513,18 @@ mipidcphy0_pwr: mipidcphy0-pwr {
+ 		};
+ 	};
+ 
+-	headphone {
++	audio {
+ 		hp_det: hp-det {
+ 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+ 		};
++
++		hp_ctl: hp-ctl {
++			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_down>;
++		};
++
++		spk_ctl: spk-ctl {
++			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
+ 	};
+ 
+ 	usb {
