@@ -556,7 +556,7 @@ add_board_dtbo() {
             set_skip_entry -b "$board"
         else
             # Only append feature name, not board name (board name added at finalize)
-            append_name -b "$board" "[${entry_name}]"
+            [ -z "${entry_name}" ] || append_name -b "$board" "[${entry_name}]"
             # Add extra bootargs only to successful boards
             [ -z "$extra_bootargs" ] || add_bootargs -b "$board" "$extra_bootargs"
         fi
@@ -572,7 +572,7 @@ add_board_dtbo() {
         if [ -n "$has_failures" ] && [ -n "$skip_if_missing" ]; then
             set_skip_entry
         else
-            append_name "[${entry_name}]"
+            [ -z "${entry_name}" ] || append_name "[${entry_name}]"
             # Add extra bootargs only if default entry is valid
             [ -z "$extra_bootargs" ] || add_bootargs "$extra_bootargs"
         fi
