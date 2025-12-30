@@ -1,2 +1,6 @@
 [AC][SuspendAndShutdown]
 AutoSuspendAction=0
+
+[AC][Display]
+TurnOffDisplayIdleTimeoutSec=-1
+TurnOffDisplayWhenIdle=false
