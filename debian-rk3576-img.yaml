@@ -1,7 +1,7 @@
 {{ $sectorsize := or .sectorsize 512 }}
 {{ $imagesize := or .imagesize "4GiB" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
-{{ $cmdline := or .cmdline "console=tty1 console=ttyS0,1500000n8" }}
+{{ $cmdline := or .cmdline "audit=0 console=tty1 console=ttyS0,1500000n8" }}
 {{ $buildid := or .buildid "current" }}
 
 architecture: arm64

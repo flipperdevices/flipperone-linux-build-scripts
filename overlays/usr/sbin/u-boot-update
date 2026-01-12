@@ -8,6 +8,7 @@ UBOOT_MENU_DIR="/usr/share/u-boot-menu"
 ENABLED_DIR="${UBOOT_MENU_DIR}/enabled.d"
 FEATURES_DIR="${UBOOT_MENU_DIR}/features.d"
 FUNCTIONS_LIB="${UBOOT_MENU_DIR}/functions.sh"
+READCONFIG="${UBOOT_MENU_DIR}/read-config"
 
 # Load common functions
 if [ -f "${FUNCTIONS_LIB}" ]; then
@@ -26,8 +27,8 @@ fi
 exec 1>&2
 
 unset U_BOOT_PROFILE_TEMPLATE
-if [ -e /etc/default/u-boot ]; then
-    . /etc/default/u-boot
+if [ -f "${READCONFIG}" ]; then
+    . "${READCONFIG}"
 fi
 
 U_BOOT_UPDATE="${U_BOOT_UPDATE:-true}"
