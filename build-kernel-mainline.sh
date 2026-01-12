@@ -7,9 +7,8 @@
 : "${BASE_CONFIG:=configs/minconfig-mainline}"
 : "${CONFIGS:=configs/linux}"
 
-# Use the Github mirror by default, as it has beefier infrastructure vs. kernel.org
-: "${LINUX_GIT:=https://github.com/torvalds/linux.git}"
-: "${LINUX_BRANCH:=master}"
+: "${LINUX_GIT:=https://github.com/flipperdevices/flipper-linux-kernel.git}"
+: "${LINUX_BRANCH:=flipper-devel}"
 
 set -e
 
