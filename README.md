@@ -51,7 +51,7 @@ For building the kernel:
 ```bash
 sudo dpkg --add-architecture arm64
 sudo apt update
-sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex libssl-dev libdw-dev libelf-dev debhelper libssl-dev:arm64 rsync
+sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex imagemagick libssl-dev libdw-dev libelf-dev debhelper libssl-dev:arm64 rsync
 ```
 
 For fetching vendor DTS files (if using a Rockchip BSP kernel):

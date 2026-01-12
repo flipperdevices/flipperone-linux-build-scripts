@@ -31,6 +31,7 @@ RUN apt-get install -y \
 # Prerequisites for building the kernel
 RUN apt-get install -y \
     bc \
+    imagemagick \
     libdw-dev \
     libelf-dev \
     debhelper \
