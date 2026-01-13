@@ -146,6 +146,11 @@ actions:
       echo "alias pastebin='curl --user-agent \"curl/7.74.0\" -F \"file=@-\" https://0x0.st'" >> /home/user/.bash_aliases
       chown user:user /home/user/.bash_aliases
 
+  - action: run
+    description: Add sbin directories to user's PATH
+    chroot: true
+    command: printf '\nexport PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin\n' >> /home/user/.bashrc
+
   - action: download
     description: Download the most recent version of sbc-bench
     url: https://raw.githubusercontent.com/ThomasKaiser/sbc-bench/master/sbc-bench.sh

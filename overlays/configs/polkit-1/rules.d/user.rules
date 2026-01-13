@@ -1,0 +1,9 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user !== "user")
+        return undefined;
+
+    var actionMatches = action.id == "org.freedesktop.login1.reboot" ||
+                        action.id == "org.freedesktop.login1.power-off";
+    if (actionMatches)
+        return polkit.Result.YES;
+});
