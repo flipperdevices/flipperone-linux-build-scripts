@@ -27,24 +27,6 @@ fi
 BASE_CONFIG=`realpath "$BASE_CONFIG"`
 CONFIGS=`realpath "$CONFIGS"/*`
 
-for dtso in $(find "$VENDOR_DTS/mainline" -name \*.dtso); do
-	[ -f "$dtso" ] || continue
-
-	rel="${dtso##$VENDOR_DTS/mainline/}"
-	subdir="${rel%/*}"
-	[ "$subdir" = "$rel" ] && subdir=""
-
-    dtsofile="${dtso##*/}"
-	outfile="${subdir%/*}${subdir:+/}${dtsofile}"
-	destdir="${LINUX_DIR}/arch/arm64/boot/dts/rockchip/overlay"
-	destfile="${destdir}/${outfile}"
-
-	[ -f "${destfile}" ] ||
-		echo "dtb-\$(CONFIG_ARCH_ROCKCHIP) += overlay/${outfile%.dtso}.dtbo" >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
-
-	install -pD -m 644 "${dtso}" "${destfile}"
-done
-
 KVER=`make -C "$LINUX_DIR" -s kernelversion`
 magick flipper_linux_boot_logo_clean.ppm -font haxrcorp-4089-cyrillic-altgr.ttf -pointsize 31 -fill '#ff8200' -gravity SouthEast -annotate +0+0 "Flipper Linux Kernel $KVER" -compress none "$LINUX_DIR"/drivers/video/logo/flipper_linux_boot_logo_versioned.ppm
 
