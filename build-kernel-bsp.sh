@@ -88,7 +88,17 @@ make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_lin
 ./scripts/kconfig/merge_config.sh -m .config $CONFIGS
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) olddefconfig
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
+rm -rf tar-install
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) dir-pkg
+pushd tar-install
+tar czf ../modules.tar.gz ./lib
+popd
 popd
 
-mkdir -p "$LINUX_OUT"
+mkdir -p "$LINUX_OUT"/linux-bsp-files/dtbs
 mv "$LINUX_DIR"/../linux-*.* "$LINUX_OUT"/
+mv "$LINUX_DIR"/modules.tar.gz "$LINUX_OUT"/linux-bsp-files/
+mv "$LINUX_DIR"/tar-install/boot/vmlinuz-* "$LINUX_OUT"/linux-bsp-files/vmlinuz
+mv "$LINUX_DIR"/tar-install/boot/config-* "$LINUX_OUT"/linux-bsp-files/config
+mv "$LINUX_DIR"/tar-install/boot/System.map-* "$LINUX_OUT"/linux-bsp-files/System.map
+mv "$LINUX_DIR"/tar-install/boot/dtbs/*/rockchip "$LINUX_OUT"/linux-bsp-files/dtbs/
