@@ -1,8 +1,0 @@
-[Match]
-Name=wl*
-
-[Link]
-RequiredForOnline=routable
-
-[Network]
-DHCP=yes
