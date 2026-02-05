@@ -39,13 +39,20 @@ for s in 512 4096; do
 
 	for i in `basename -a "$UBOOT_OUT"/*`; do
 		echo "$i board:"
+		echo " - Copying the base image"
 		cp "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+		echo " - Adding a board-specific bootloader"
 		dd if="$UBOOT_OUT"/"$i"/u-boot-rockchip.bin of="$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img seek=64 conv=notrunc
+		echo " - Creating a block map"
 		bmaptool create -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
+		echo " - Compressing the final image"
 		pigz -f "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img
 	done
 
+	echo "nobootloader image:"
+	echo " - Creating a block map"
 	bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
+	echo " - Compressing the final image"
 	pigz -f "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
 done
 
