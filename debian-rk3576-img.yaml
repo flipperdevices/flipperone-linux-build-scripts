@@ -24,7 +24,7 @@ actions:
       - name: root
         fs: ext4
         start: 16MiB
-        end: 100%
+        end: -1MiB
         flags: [ boot ]
     mountpoints:
       - mountpoint: /
