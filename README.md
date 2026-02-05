@@ -17,8 +17,6 @@ cd rk3576-linux-build
 # Build docker image and start container
 docker build -t rk3576-linux-build .
 docker run --privileged --rm -v $(pwd)/out:/artifacts \
-	-e UBOOT_GIT=https://source.denx.de/u-boot/contributors/kwiboo/u-boot.git \
-	-e UBOOT_BRANCH=rk3576 \
 	rk3576-linux-build
 
 # Flash image to Radxa 4D MicroSD card via USB
@@ -63,7 +61,9 @@ sudo apt install wget gdown repo
 For assembling complete disk images:
 
 ```bash
-sudo apt install debos systemd-resolved bmap-tools pigz
+sudo apt install debos systemd-resolved bmap-tools pigz cargo
+cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
+sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 ```
 
 For uploading images over USB:

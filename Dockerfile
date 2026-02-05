@@ -49,10 +49,15 @@ RUN apt-get install -y \
     mmdebstrap \
     systemd-resolved \
     bmap-tools \
-    pigz
+    pigz \
+    cargo
+
+RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
+
+RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
 # Clean up apt cache to reduce image size
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf ~/.cargo
 
 # Clone the rk3576-linux-build repository
 WORKDIR /rk3576-linux-build
