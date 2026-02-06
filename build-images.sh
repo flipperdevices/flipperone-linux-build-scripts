@@ -54,7 +54,7 @@ for s in 512 4096; do
 
 	echo "nobootloader image:"
 	echo " - Creating a block map"
-	bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img
+	bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 	echo " - Compressing the final image"
 	pigz -c "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img > "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.gz
 	rm -f "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
