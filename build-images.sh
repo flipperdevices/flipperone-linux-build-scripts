@@ -33,6 +33,7 @@ mkdir -p prebuilt/linux_tmp
 
 cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
 TMPDIR=`mktemp -d`
+cp -f "$IMG_OUT"/debian-ospack.tar.gz "$TMPDIR"
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
