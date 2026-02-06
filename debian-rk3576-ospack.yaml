@@ -128,11 +128,6 @@ actions:
     command: echo "LANG=en_US.UTF-8" > /etc/default/locale
 
   - action: run
-    description: Enable systemd-networkd
-    chroot: true
-    command: systemctl enable systemd-networkd
-
-  - action: run
     description: Add default user "user" with password "user"
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
