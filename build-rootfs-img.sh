@@ -1,0 +1,46 @@
+#!/bin/bash
+: "${LINUX_OUT:=prebuilt/linux}"
+: "${IMG_OUT:=out}"
+: "${IMGSIZE:=4GiB}"}
+
+set -e
+
+if [ -c /dev/kvm -a -w /dev/kvm ]; then
+	# Have virtualization support, can use fakemachine (default, fast, safe)
+	DEBOS="debos -c $(nproc) -m 6Gb"
+elif [ -f /.dockerenv ]; then
+	# Running in a container without access to virtualization, fall back to the slow method
+	DEBOS="debos -b qemu -c $(nproc) -m 6Gb"
+elif [ `id -u` -eq 0 ]; then
+	# Running as root, can use the host mode without fakemachine (fast, less safe)
+	DEBOS="debos"
+else
+	DEBOS="sudo debos"
+fi
+
+mkdir -p "$IMG_OUT"
+
+if [ ! -f "$IMG_OUT"/debian-ospack.tar.gz -o "$UPDATE_OSPACK" ]; then
+	./build-ospack.sh
+fi
+
+TMPDIR=`mktemp -d`
+cp -f "$IMG_OUT"/debian-ospack.tar.gz "$TMPDIR"
+rm -rf "$IMG_OUT"/linux_tmp
+mkdir -p "$IMG_OUT"/linux_tmp
+cp -r "$LINUX_OUT"/* "$IMG_OUT"/linux_tmp
+
+echo "Creating the root FS image"
+$DEBOS --artifactdir="$TMPDIR" -t imagesize:"$IMGSIZE" -t kerneldir:"$IMG_OUT"/linux_tmp debian-rk3576-img.yaml
+sync "$TMPDIR"/debian-nobootloader.img
+read START COUNT < <(
+	parted -s -m "$TMPDIR"/debian-nobootloader.img unit s print \
+	| awk -F: -v p="2" '$1==p { gsub(/s/,"",$2); gsub(/s/,"",$4); print $2, $4 }'
+)
+dd conv=sparse if="$TMPDIR"/debian-nobootloader.img skip="$START" count="$COUNT" \
+	of="$TMPDIR"/debian-rootfs.img
+sync "$TMPDIR"/debian-rootfs.img
+bmaptool create -o "$IMG_OUT"/debian-rootfs.img.bmap "$TMPDIR"/debian-rootfs.img
+zeekstd -f -o "$IMG_OUT"/debian-rootfs.img.zst "$TMPDIR"/debian-rootfs.img
+
+rm -rf "$TMPDIR" "$IMG_OUT"/linux_tmp

@@ -2,7 +2,6 @@
 {{ $imagesize := or .imagesize "4GiB" }}
 {{ $kerneldir := or .kerneldir "prebuilt/linux" }}
 {{ $cmdline := or .cmdline "audit=0 console=tty1 console=ttyS0,1500000n8" }}
-{{ $buildid := or .buildid "current" }}
 
 architecture: arm64
 sectorsize: {{ $sectorsize }}
@@ -13,7 +12,7 @@ actions:
     file: debian-ospack.tar.gz
 
   - action: image-partition
-    imagename: debian-{{ $sectorsize }}-nobootloader-{{ $buildid }}.img
+    imagename: debian-nobootloader.img
     imagesize: {{ $imagesize }}
     partitiontype: gpt
     partitions:
@@ -33,12 +32,6 @@ actions:
 
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
-
-  - action: run
-    description: Save build ID
-    chroot: true
-    command: |
-      echo BUILD_ID={{ $buildid }} >> /etc/os-release
 
   - action: overlay
     description: Copy Linux kernel packages into the target

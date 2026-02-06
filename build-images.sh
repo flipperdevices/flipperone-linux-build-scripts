@@ -1,7 +1,7 @@
 #!/bin/bash
 : "${UBOOT_OUT:=prebuilt/u-boot}"
-: "${LINUX_OUT:=prebuilt/linux}"
 : "${IMG_OUT:=out}"
+: "${IMGSIZE:=4GiB}"}
 
 set -e
 
@@ -9,35 +9,41 @@ TIMESTAMP=`date -u '+%Y%m%d-%H%M'`
 
 : "${BUILD_ID:=$TIMESTAMP}"
 
-if [ -c /dev/kvm -a -w /dev/kvm ]; then
-	# Have virtualization support, can use fakemachine (default, fast, safe)
-	DEBOS="debos -c $(nproc) -m 6Gb"
-elif [ -f /.dockerenv ]; then
-	# Running in a container without access to virtualization, fall back to the slow method
-	DEBOS="debos -b qemu -c $(nproc) -m 6Gb"
-elif [ `id -u` -eq 0 ]; then
-	# Running as root, can use the host mode without fakemachine (fast, less safe)
-	DEBOS="debos"
-else
-	DEBOS="sudo debos"
-fi
-
 mkdir -p "$IMG_OUT"
 
-if [ ! -f "$IMG_OUT"/debian-ospack.tar.gz -o "$UPDATE_OSPACK" ]; then
-	./build-ospack.sh
+if [ ! -f "$IMG_OUT"/debian-rootfs.img.zst -o "$UPDATE_ROOTFS" ]; then
+	./build-rootfs-img.sh
 fi
 
-rm -rf prebuilt/linux_tmp
-mkdir -p prebuilt/linux_tmp
-
-cp -r "$LINUX_OUT"/* prebuilt/linux_tmp/
 TMPDIR=`mktemp -d`
-cp -f "$IMG_OUT"/debian-ospack.tar.gz "$TMPDIR"
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
-	$DEBOS --artifactdir="$TMPDIR" -t buildid:"$BUILD_ID" -t kerneldir:prebuilt/linux_tmp -t sectorsize:"$s" debian-rk3576-img.yaml
+	truncate -s "$IMGSIZE" "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
+
+	if [ -c /dev/kvm -a -w /dev/kvm ]; then
+		cp -f partitions-script.sh "$IMG_OUT"/partitions-script.sh
+		fakemachine \
+			-b kvm \
+			-S "$s" \
+			-i "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img \
+			-e IMG:/artifacts/debian-rootfs.img.zst \
+			-e DISK:/dev/disk/by-fakemachine-label/fakedisk-0 \
+			-e PART:/dev/disk/by-fakemachine-label/fakedisk-0-part2 \
+			-e BUILD_ID:\""$BUILD_ID"\" \
+			-v "$IMG_OUT":/artifacts \
+			-- /artifacts/partitions-script.sh
+		rm -f "$IMG_OUT"/partitions-script.sh
+	else
+		LOOPDEV=`sudo losetup -b "$s" -fP --show "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img`
+		sudo \
+			IMG="$IMG_OUT"/debian-rootfs.img.zst \
+			DISK="$LOOPDEV" \
+			PART="$LOOPDEV"p2 \
+			BUILD_ID="$BUILD_ID" \
+			./partitions-script.sh
+		sudo losetup -d "$LOOPDEV"
+	fi
 
 	for i in `basename -a "$UBOOT_OUT"/*`; do
 		echo "$i board:"
