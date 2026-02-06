@@ -50,7 +50,8 @@ RUN apt-get install -y \
     systemd-resolved \
     bmap-tools \
     pigz \
-    cargo
+    cargo \
+    fakemachine
 
 RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 
