@@ -40,7 +40,6 @@ actions:
       - evtest
       - file
       - fio
-      - firmware-mediatek
       - firmware-misc-nonfree
       - firmware-realtek
       - gcc
