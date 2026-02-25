@@ -9,6 +9,7 @@ parted -s "$DISK" \
         set 2 boot on
 bmaptool -q copy "$IMG" "$PART"
 TMP=`mktemp`
+chmod 644 "$TMP"
 
 debugfs -R "cat /boot/extlinux/extlinux.conf" "$PART" | sed "/menu title/s/U-Boot menu/Flipper build $BUILD_ID/" > "$TMP"
 debugfs -w -R "rm /boot/extlinux/extlinux.conf" "$PART"
