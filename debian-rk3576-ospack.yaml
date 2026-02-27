@@ -83,6 +83,7 @@ actions:
       - p7zip
       - pciutils
       - plasma-nm
+      - plasma-systemmonitor
       - powercap-utils
       - powerdevil
       - python3-pandas
