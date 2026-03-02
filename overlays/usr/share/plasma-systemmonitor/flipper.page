@@ -77,8 +77,8 @@ highPrioritySensorIds=["lmsensors/ina4230-i2c-2-43/power1","lmsensors/ina4230-i2
 lmsensors/ina4230-i2c-2-41/power2=NPU
 lmsensors/ina4230-i2c-2-41/power3=GPU
 lmsensors/ina4230-i2c-2-41/power4=Logic
-lmsensors/ina4230-i2c-2-43/power1=CPU little cores
-lmsensors/ina4230-i2c-2-43/power4=CPU big cores
+lmsensors/ina4230-i2c-2-43/power1=CPU big cores
+lmsensors/ina4230-i2c-2-43/power4=CPU little cores
 
 [Face-187650515470576][org.kde.ksysguard.linechart][General]
 lineChartStacked=true
@@ -88,11 +88,12 @@ chartFace=org.kde.ksysguard.linechart
 title=Peripherals power use
 
 [Face-187650528379216][Sensors]
-highPrioritySensorIds=["lmsensors/ina4230-i2c-2-40/power2","lmsensors/ina4230-i2c-2-40/power4","lmsensors/ina4230-i2c-2-46/power4","lmsensors/ina4230-i2c-2-46/power3"]
+highPrioritySensorIds=["lmsensors/ina4230-i2c-2-40/power2","lmsensors/ina4230-i2c-2-40/power3","lmsensors/ina4230-i2c-2-40/power4","lmsensors/ina4230-i2c-2-46/power4","lmsensors/ina4230-i2c-2-46/power3"]
 
 [Face-187650528379216][SensorLabels]
 lmsensors/ina4230-i2c-2-40/power2=3V3 Control
 lmsensors/ina4230-i2c-2-40/power4=3V3 S3
+lmsensors/ina4230-i2c-2-40/power3=0V85 DDR
 lmsensors/ina4230-i2c-2-46/power3=1V05 DDR
 lmsensors/ina4230-i2c-2-46/power4=1V8 S3
 
