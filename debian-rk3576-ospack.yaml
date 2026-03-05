@@ -161,15 +161,6 @@ actions:
     chroot: true
     command: chmod +x /usr/bin/sbc-bench.sh
 
-  - action: download
-    description: Download the most recent version of Mediatek firmware
-    url: http://ftp.debian.org/debian/pool/non-free-firmware/f/firmware-nonfree/firmware-mediatek_20260110-1_all.deb
-    name: firmware-mediatek
-
-  - action: install-deb
-    description: Install Mediatek firmware into the target
-    origin: firmware-mediatek
-
   - action: overlay
     description: Overlay our config defaults
     source: overlays/configs
