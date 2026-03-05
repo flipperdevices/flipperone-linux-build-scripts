@@ -43,7 +43,7 @@ elif [ `id -u` -eq 0 ]; then
         # Running as root, can use the host mode without fakemachine (fast, less safe)
         DEBOS="debos"
 else
-        DEBOS="sudo debos"
+        DEBOS="sudo debos --disable-fakemachine"
 fi
 
 $DEBOS --artifactdir="$IMG_OUT" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" debian-rk3576-ospack.yaml

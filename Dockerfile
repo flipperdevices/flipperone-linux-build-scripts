@@ -45,20 +45,26 @@ RUN apt-get install -y \
 
 # Prerequisites for assembling complete disk images
 RUN apt-get install -y \
-    debos \
     mmdebstrap \
     systemd-resolved \
     bmap-tools \
     pigz \
     cargo \
+    golang \
+    libglib2.0-dev \
+    libostree-dev \
     fakemachine
+
+RUN go install -v github.com/go-debos/debos/cmd/debos@latest
+
+RUN install -m 755 ~/go/bin/debos /usr/local/bin
 
 RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 
 RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
 # Clean up apt cache to reduce image size
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf ~/.cargo
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 
 # Clone the rk3576-linux-build repository
 WORKDIR /rk3576-linux-build

@@ -61,9 +61,23 @@ sudo apt install wget gdown repo
 For assembling complete disk images:
 
 ```bash
-sudo apt install debos systemd-resolved bmap-tools pigz cargo fakemachine
+sudo apt install systemd-resolved bmap-tools pigz cargo fakemachine
 cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
+
+echo deb http://ftp.debian.org/debian testing main non-free contrib | sudo tee /etc/apt/sources.list.d/testing.list
+cat <<EOF | sudo tee /etc/apt/preferences.d/pins
+Package: *
+Pin: release a=stable
+Pin-Priority: 700
+
+Package: *
+Pin: release a=testing
+Pin-Priority: 650
+EOF
+
+sudo apt update
+sudo apt install -t testing debos
 ```
 
 For uploading images over USB:
