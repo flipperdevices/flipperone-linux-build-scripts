@@ -220,7 +220,9 @@ sudo rockusb write-bmap out/debian-<your_board>.img.gz
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/135c0fca-3dfe-4d33-b239-10184154935c"><br><sub><a href="https://radxa.com/products/rock4/4d/">Radxa ROCK 4D</a></sub></div> | rock-4d | No DisplayPort on USB-C. To enter Maskrom USB-A to USB-A cable required |
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/605a8b7f-a85e-4735-8198-81005ed4ec5c"><br><sub><a href="https://www.friendlyelec.com/index.php?route=product/product&product_id=309">NanoPi M5</a></sub></div> | nanopi-m5 |  |
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/b297e6ab-88d8-4085-a0d2-b989462414b1"><br><sub><a href="https://www.luckfox.com/EN-Luckfox-Omni3576">Luckfox Omni3576</a></sub></div> | omni3576 |  |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/82d41031-3548-42cb-8a6f-e9037fb76ea3"><br><sub><a href="https://www.luckfox.com/EN-Luckfox-Omni3576">Luckfox Omni3576</a></sub></div> | rock-pc |  |
 | <div align="center"><img width="200" src="https://dummyimage.com/200x120/cccccc/000000&text=EVB1"><br><sub>Rockchip RK3576 Evaluation Board EVB1</sub></div> | evb1 | Official Rockchip RK3576 Evaluation board EVB1. Not available for sale.  |
+
 
 
 
