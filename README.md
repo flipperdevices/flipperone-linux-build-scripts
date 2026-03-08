@@ -211,3 +211,16 @@ sudo rockusb download-boot prebuilt/u-boot/<your_board>/rk3576_spl_loader_*.bin
 
 sudo rockusb write-bmap out/debian-<your_board>.img.gz
 ```
+
+## Supported boards
+| Board name | Our target name | Comment |
+|---|---|---|
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/a05325e0-9e03-4a07-b39c-12d618a95469"><br><sub>Flipper One Prototype<br></sub></div> |flipper-one  | Our current Flipper One prototype |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/3f8d7d73-70f3-4c02-a290-6f2f51621499"><br><sub><a href="https://docs.banana-pi.org/en/BPI-M5/BananaPi_BPI-M5_Pro">Banana Pi BPI-M5 Pro</a><br>aka <a href="https://www.armsom.org/sige5">Armsom Sige5</a></sub></div> | sige5 | Don't be confused with 2 different names `Banana Pi BPI-M5 Pro` and `Armsom Sige5`, its the same product. Has DisplayPort on USB-C. Recommended board. |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/135c0fca-3dfe-4d33-b239-10184154935c"><br><sub><a href="https://radxa.com/products/rock4/4d/">Radxa ROCK 4D</a></sub></div> | rock-4d | No DisplayPort on USB-C. To enter Maskrom USB-A to USB-A cable required |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/605a8b7f-a85e-4735-8198-81005ed4ec5c"><br><sub><a href="https://www.friendlyelec.com/index.php?route=product/product&product_id=309">NanoPi M5</a></sub></div> | nanopi-m5 |  |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/b297e6ab-88d8-4085-a0d2-b989462414b1"><br><sub><a href="https://www.luckfox.com/EN-Luckfox-Omni3576">Luckfox Omni3576</a></sub></div> | omni3576 |  |
+| <div align="center"><img width="200" src="https://dummyimage.com/200x120/cccccc/000000&text=EVB1"><br><sub>Rockchip RK3576 Evaluation Board EVB1</sub></div> | evb1 | Official Rockchip RK3576 Evaluation board EVB1. Not available for sale.  |
+
+
+
