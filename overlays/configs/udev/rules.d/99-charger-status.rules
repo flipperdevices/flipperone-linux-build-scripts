@@ -1,0 +1,3 @@
+SUBSYSTEM=="power_supply", ACTION=="change", \
+ENV{POWER_SUPPLY_STATUS}!="", \
+RUN+="/usr/local/bin/battery-log.sh"
