@@ -24,6 +24,7 @@ actions:
       - apt-transport-https
       - bash-completion
       - bc
+      - bluedevil
       - bluez
       - bsdextrautils
       - bsdmainutils
