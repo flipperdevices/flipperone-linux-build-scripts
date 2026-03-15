@@ -4,14 +4,55 @@ The scripts in this repository produce disk images for Rockchip RK3576 based boa
 
 They are meant to be run on a Debian 13 (trixie) or later systems. It's probably possible to use different distributions too, but you'll need to find the right prerequisites yourself. Your mileage may vary.
 
+## Combined Build Script (Recommended)
+
+Use `build-combo.sh` to build everything in one command with board-specific configurations:
+
+```bash
+# List all supported boards
+./build-combo.sh list
+
+# Build everything for a specific board
+./build-combo.sh build rock-4d
+
+# Build everything for all boards
+./build-combo.sh build-all
+
+# Build only U-Boot for a specific board
+./build-combo.sh uboot rock-4d
+
+# Build only Linux kernel (shared across all boards)
+./build-combo.sh kernel
+
+# Build only disk images
+./build-combo.sh images
+```
+
+Board configurations are stored in `configs/boards/*.conf`. Build settings can be customized in `configs/combo.conf`.
+
+See [configs/boards/README.md](configs/boards/README.md) for details on board configurations and the `board-config.sh` utility.
+
+## Using Legacy Build Scripts with Board Configs
+
+You can also use individual build scripts with board configurations:
+
+```bash
+# Source board configuration and build
+source configs/boards/rock-4d.conf
+./build-uboot.sh
+./build-kernel-mainline.sh
+./build-images.sh
+```
+
+This approach lets you use board-specific settings (U-Boot repo, branch, defconfig, etc.) with the traditional build workflow.
 
 ## Quick start with Docker
 
 **TODO**: Move to Docker Hub
 
 ```bash
-# Clone repo 
-git clone https://github.com/flipperdevices/rk3576-linux-build 
+# Clone repo
+git clone https://github.com/flipperdevices/rk3576-linux-build
 cd rk3576-linux-build
 
 # Build docker image and start container
