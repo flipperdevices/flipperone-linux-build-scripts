@@ -1,0 +1,42 @@
+{
+  "name": "Rockchip Linux Build Environment",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "overrideCommand": true,
+  "mounts": [
+    "source=${localWorkspaceFolder}/out,target=/artifacts,type=bind,consistency=cached"
+  ],
+  "runArgs": [
+    "--privileged",
+    "--cap-add=SYS_ADMIN"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.makefile-tools",
+        "ms-azuretools.vscode-docker",
+        "mhutchie.git-graph",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "remoteUser": "root",
+  "features": {},
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/out",
+  "postCreateCommand": "echo 'Rockchip Linux Build Environment Ready'",
+  "remoteEnv": {
+    "IMG_OUT": "/artifacts/images",
+    "UBOOT_OUT": "/artifacts/u-boot",
+    "LINUX_OUT": "/artifacts/linux"
+  }
+}

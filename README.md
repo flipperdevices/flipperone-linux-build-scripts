@@ -5,6 +5,20 @@ The scripts in this repository produce disk images for Rockchip RK3576 based boa
 They are meant to be run on a Debian 13 (trixie) or later systems. It's probably possible to use different distributions too, but you'll need to find the right prerequisites yourself. Your mileage may vary.
 
 
+## Quick start with Dev Container (VS Code)
+
+1. Install [VS Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Clone this repository and open it in VS Code
+3. Press `F1` and select **"Dev Containers: Reopen in Container"**
+4. Wait for the container to build (first time only)
+5. Run build scripts from the integrated terminal:
+   ```bash
+   ./build-uboot.sh
+   ./build-kernel-mainline.sh
+   ./build-images.sh
+   ```
+6. Find build artifacts in the `out/` directory
+
 ## Quick start with Docker
 
 **TODO**: Move to Docker Hub
