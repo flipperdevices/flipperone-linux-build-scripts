@@ -1,0 +1,15 @@
+[499e477a-c004-4eac-ba76-430ec6419c46]
+Description=Settings for com.igalia.Cog
+ignoregeometry=true
+ignoregeometryrule=2
+position=0,0
+positionrule=2
+screenrule=2
+size=256,144
+sizerule=2
+wmclass=com.igalia.Cog
+wmclassmatch=1
+
+[General]
+count=1
+rules=499e477a-c004-4eac-ba76-430ec6419c46

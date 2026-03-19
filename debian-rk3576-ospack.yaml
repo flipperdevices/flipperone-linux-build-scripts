@@ -31,6 +31,7 @@ actions:
       - build-essential
       - ca-certificates
       - cec-utils
+      - cog
       - curl
       - device-tree-compiler
       - dmidecode
