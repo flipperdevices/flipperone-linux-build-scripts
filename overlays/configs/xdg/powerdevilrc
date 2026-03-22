@@ -4,6 +4,17 @@ AutoSuspendAction=0
 [AC][Display]
 TurnOffDisplayIdleTimeoutSec=-1
 TurnOffDisplayWhenIdle=false
+DimDisplayIdleTimeoutSec=-1
+
+[Battery][Display]
+TurnOffDisplayIdleTimeoutSec=-1
+TurnOffDisplayWhenIdle=false
+DimDisplayIdleTimeoutSec=-1
+
+[LowBattery][Display]
+TurnOffDisplayIdleTimeoutSec=-1
+TurnOffDisplayWhenIdle=false
+DimDisplayIdleTimeoutSec=-1
 
 [Battery][SuspendAndShutdown]
 AutoSuspendAction=0
