@@ -35,7 +35,7 @@ actions:
 
   - action: download
     description: Download the most recent version of Mediatek firmware
-    url: http://ftp.debian.org/debian/pool/non-free-firmware/f/firmware-nonfree/firmware-mediatek_20260110-1_all.deb
+    url: http://ftp.debian.org/debian/pool/non-free-firmware/f/firmware-nonfree/firmware-mediatek_20260221-1_all.deb
     name: firmware-mediatek
 
   - action: install-deb
