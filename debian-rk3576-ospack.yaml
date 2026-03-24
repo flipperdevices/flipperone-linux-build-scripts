@@ -209,6 +209,11 @@ actions:
     chroot: true
     command: rm -f /etc/machine-id /etc/motd
 
+  - action: run
+    description: Switch to upstream signed regulatory.db
+    chroot: true
+    command: update-alternatives --set regulatory.db /lib/firmware/regulatory.db-upstream
+
   - action: overlay
     description: Copy test suite into the target
     source: {{ $testsdir }}
