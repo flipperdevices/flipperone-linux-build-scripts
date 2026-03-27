@@ -34,4 +34,19 @@ Default credentials: user / user
 =============================================================
 EOF
 
+# Generate Avahi mDNS service for LAN discovery via _flipper._tcp
+mkdir -p /etc/avahi/services
+cat <<EOF >/etc/avahi/services/flipper.service
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h</name>
+  <service>
+    <type>_flipper._tcp</type>
+    <port>22</port>
+    <txt-record>serial=${serial}</txt-record>
+  </service>
+</service-group>
+EOF
+
 systemd-machine-id-setup
