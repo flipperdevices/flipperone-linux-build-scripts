@@ -11,7 +11,7 @@ Before=sddm.service
 Type=simple
 User=flipctl
 Group=flipctl
-SupplementaryGroups=input,video,render
+SupplementaryGroups=input video render
 
 PAMName=login
 RuntimeDirectory=cog
@@ -19,7 +19,6 @@ RuntimeDirectoryMode=0700
 StateDirectory=cog
 
 Environment=HOME=/var/lib/flipctl
-Environment=XDG_RUNTIME_DIR=/run/cog
 Environment=XDG_SEAT=seat1
 Environment=G_MESSAGES_DEBUG=Cog-DRM
 
@@ -29,13 +28,17 @@ CapabilityBoundingSet=
 SecureBits=noroot-locked
 PrivateTmp=yes
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
+ReadWritePaths=/var/lib/flipctl
+ReadWritePaths=/run/user/1001
 
 # Device cgroup allowlist
 DevicePolicy=closed
 DeviceAllow=/dev/dri/card0 rw
 DeviceAllow=/dev/dri/renderD128 rw
+DeviceAllow=/dev/dri/card1 rw
 DeviceAllow=/dev/input/event0 rw
+InaccessiblePaths=/dev/dri/card2
 
 ExecStartPre=/bin/sh -lc 'test -e /dev/dri/card0 && test -e /dev/input/event0'
 ExecStart=/usr/bin/cog -P drm -O renderer=gles http://localhost:8899
