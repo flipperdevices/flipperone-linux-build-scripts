@@ -139,6 +139,7 @@ actions:
 
   - action: run
     description: Add dedicated "flipctl" user
+    chroot: true
     command: useradd -s /usr/sbin/nologin -d /var/lib/flipctl -G input,video,render -m flipctl
 
   - action: run
