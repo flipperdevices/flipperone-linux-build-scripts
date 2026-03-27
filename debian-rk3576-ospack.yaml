@@ -138,6 +138,10 @@ actions:
              gpasswd -a user sudo
 
   - action: run
+    description: Add dedicated "flipctl" user
+    command: useradd -s /usr/sbin/nologin -d /var/lib/flipctl -G input,video,render -m flipctl
+
+  - action: run
     description: Create user's .bash_aliases
     chroot: true
     command: |
