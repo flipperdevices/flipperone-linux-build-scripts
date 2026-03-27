@@ -1,0 +1,47 @@
+[Unit]
+Description=Cog browser on dedicated seat1
+After=systemd-logind.service fake-flipctl-node-server.service
+Wants=systemd-logind.service fake-flipctl-node-server.service
+
+# Ensure Cog claims DRM before the display manager starts
+Before=display-manager.service
+Before=sddm.service
+
+[Service]
+Type=simple
+User=flipctl
+Group=flipctl
+SupplementaryGroups=input,video,render
+
+PAMName=login
+RuntimeDirectory=cog
+RuntimeDirectoryMode=0700
+StateDirectory=cog
+
+Environment=HOME=/var/lib/flipctl
+Environment=XDG_RUNTIME_DIR=/run/cog
+Environment=XDG_SEAT=seat1
+Environment=G_MESSAGES_DEBUG=Cog-DRM
+
+NoNewPrivileges=yes
+AmbientCapabilities=
+CapabilityBoundingSet=
+SecureBits=noroot-locked
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=true
+
+# Device cgroup allowlist
+DevicePolicy=closed
+DeviceAllow=/dev/dri/card0 rw
+DeviceAllow=/dev/dri/renderD128 rw
+DeviceAllow=/dev/input/event0 rw
+
+ExecStartPre=/bin/sh -lc 'test -e /dev/dri/card0 && test -e /dev/input/event0'
+ExecStart=/usr/bin/cog -P drm -O renderer=gles http://localhost:8899
+
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
