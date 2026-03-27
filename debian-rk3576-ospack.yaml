@@ -81,6 +81,7 @@ actions:
       - modemmanager
       - nano
       - nftables
+      - nodejs
       - openssh-server
       - p7zip
       - pciutils
