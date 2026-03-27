@@ -1,5 +1,5 @@
 #!/bin/sh
 
-add_legend "NO GUI" "No graphical user interface"
-append_name "[NO GUI]"
-add_bootargs systemd.unit=multi-user.target
+add_legend "NO GUI" "No graphical user interface, disable LCD and Wayland"
+append_name "[NO GUI disable LCD and Wayland]"
+add_bootargs initcall_blacklist=fo_spi_driver_init systemd.unit=multi-user.target
