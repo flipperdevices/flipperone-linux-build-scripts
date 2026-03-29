@@ -3,10 +3,10 @@ set -e
 
 G=/sys/kernel/config/usb_gadget/ncmg
 SERIAL="0123456789"
-MANUFACTURER="Flipper Devices Inc."
-PRODUCT="NCM Ethernet"
+MANUFACTURER="Flipper FZCO"
+PRODUCT="Flipper One USB Ethernet"
 USB_VID="0x37C1"
-USB_PID="0x1122"
+USB_PID="0xF121"
 
 usb_ncm_start()
 {
@@ -52,16 +52,11 @@ usb_ncm_start()
     [ -n "$UDC" ]
     echo "$UDC" > $G/UDC
 
-    # 6) Bring up the gadget NIC with an IP (device side)
-    ip link set dev usb0 up
-    # ip addr add 192.168.33.1/24 dev usb0
+    # NetworkManager brings up the interface via flipusb0-shared connection
 }
 
 usb_ncm_stop()
 {
-    # Bring down interface
-    ip link set dev usb0 down 2>/dev/null ||:
-
     if [ -d "$G" ]; then
         # Unbind from UDC
         echo "" > $G/UDC ||:

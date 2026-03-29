@@ -12,4 +12,4 @@ ExecStopPost=/usr/local/bin/usb-ncm-gadget.sh stop
 RemainAfterExit=yes
 
 [Install]
-WantedBy=usbc-router.target
+WantedBy=multi-user.target
