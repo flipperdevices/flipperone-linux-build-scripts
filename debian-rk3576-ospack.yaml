@@ -19,6 +19,7 @@ actions:
     include:
       - acl
       - adduser
+      - avahi-daemon
       - alsa-ucm-conf
       - alsa-utils
       - apt-transport-https
@@ -81,6 +82,7 @@ actions:
       - modemmanager
       - nano
       - nftables
+      - nodejs
       - openssh-server
       - p7zip
       - pciutils
@@ -136,6 +138,11 @@ actions:
     command: useradd -s /bin/bash -F -m user &&
              echo "user:user" | chpasswd &&
              gpasswd -a user sudo
+
+  - action: run
+    description: Add dedicated "flipctl" user
+    chroot: true
+    command: useradd -s /usr/sbin/nologin -d /var/lib/flipctl -G input,video,render -m flipctl
 
   - action: run
     description: Create user's .bash_aliases
