@@ -1,0 +1,6 @@
+[Match]
+MACAddress=02:1a:7d:01:02:03
+Type=gadget
+
+[Link]
+Name=flipusb0

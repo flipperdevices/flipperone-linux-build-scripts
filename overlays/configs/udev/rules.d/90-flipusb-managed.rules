@@ -1,0 +1,2 @@
+# Allow NetworkManager to manage the built-in USB NCM gadget interface
+SUBSYSTEM=="net", ENV{DEVTYPE}=="gadget", DRIVERS=="configfs-gadget.ncmg", ENV{NM_UNMANAGED}="0"
