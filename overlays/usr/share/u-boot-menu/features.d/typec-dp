@@ -4,9 +4,6 @@ process_feature() {
     local feature_name=""
     local dtb_added=""
 
-    add_legend "HDMI-4K" "HDMI 4k@120Hz, TypeC FullHD@60Hz support"
-    add_legend "DP-4K" "TypeC 4k@120Hz, HDMI FullHD@60Hz support"
-
     case "${BASH_SOURCE[0]##*/}" in
         typec-dp)
             feature_name="DP-4K"
