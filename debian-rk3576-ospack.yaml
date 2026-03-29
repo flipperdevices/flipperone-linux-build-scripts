@@ -224,7 +224,12 @@ actions:
   - action: overlay
     description: Copy test suite into the target
     source: {{ $testsdir }}
-    destination: /rk3576-linux-tests
+    destination: /flipperone-testing
+
+  - action: run
+    description: Make test suite writable for all users
+    chroot: true
+    command: chmod -R o+w /flipperone-testing
 
   - action: pack
     description: Save a tarball of the root filesystem
