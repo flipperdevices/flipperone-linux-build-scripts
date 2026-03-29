@@ -19,6 +19,7 @@ actions:
     include:
       - acl
       - adduser
+      - avahi-daemon
       - alsa-ucm-conf
       - alsa-utils
       - apt-transport-https
