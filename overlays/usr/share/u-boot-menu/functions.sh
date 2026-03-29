@@ -267,9 +267,9 @@ add_legend() {
     [ -z "${processed_legend}" -o -n "${no_legend}" ] || return 0
 
     [ "${uboot_menu_title}" != "${U_BOOT_MENU_TITLE}" ] ||
-        uboot_menu_title="${uboot_menu_title}\e[0m\/==================\eE"
+        uboot_menu_title="${uboot_menu_title}==================\eE"
 
-    uboot_menu_title="${uboot_menu_title}\e[0;38;5;208m - ${legend}\e[0m\e[20G${description}\eE"
+    uboot_menu_title="${uboot_menu_title} - ${legend}  ${description}\eE"
     processed_legend="${processed_legend}[${legend}]"
 }
 

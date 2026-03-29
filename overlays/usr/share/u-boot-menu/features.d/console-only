@@ -1,5 +1,7 @@
 #!/bin/sh
 
-add_legend "NO GUI" "No graphical user interface, disable LCD and Wayland"
-append_name "[NO GUI disable LCD and Wayland]"
-add_bootargs initcall_blacklist=fo_spi_driver_init systemd.unit=multi-user.target
+add_legend "NO KDE" "Same as DEFAULT but no KDE autostart"
+# Reset name to base (removes [DEFAULT] suffix added by default feature)
+set_base_profile_name "${base_profile_name}"
+append_name "[NO KDE]"
+add_bootargs systemd.unit=multi-user.target

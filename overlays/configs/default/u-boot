@@ -6,7 +6,7 @@
 #U_BOOT_DEFAULT="l0"
 #U_BOOT_PROMPT="1"
 #U_BOOT_ENTRIES="all"
-U_BOOT_MENU_TITLE="\eE\e[34;1m U-Boot menu\eE"
+U_BOOT_MENU_TITLE="\eE U-Boot menu\eE"
 #U_BOOT_MENU_LABEL="Debian GNU/Linux"
 #U_BOOT_PARAMETERS="rw rootwait audit=0"
 #U_BOOT_ROOT=""
