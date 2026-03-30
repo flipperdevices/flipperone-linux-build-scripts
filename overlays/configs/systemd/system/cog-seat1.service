@@ -30,7 +30,7 @@ PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/var/lib/flipctl
-ReadWritePaths=/run/user/1001
+ReadWritePaths=/run/user/999
 
 # Device cgroup allowlist
 DevicePolicy=closed
