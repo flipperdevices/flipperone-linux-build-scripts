@@ -197,26 +197,6 @@ actions:
       echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
 
   - action: run
-    description: Make dynamic hostname script executable and enable service
-    chroot: true
-    command: chmod +x /usr/local/bin/set-hostname-and-banner.sh && systemctl enable set-hostname-and-banner.service
-
-  - action: run
-    description: Make USB NCM gadget scripts executable and enable service
-    chroot: true
-    command: chmod +x /usr/local/bin/usb-ncm-gadget.sh && systemctl enable usb-ncm-gadget.service
-
-  - action: run
-    description: Enable iperf3 service to check network speed
-    chroot: true
-    command: systemctl enable iperf3
-
-  - action: run
-    description: Fix permissions on NetworkManager connection profiles
-    chroot: true
-    command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
-
-  - action: run
     description: Make u-boot-update script executable
     chroot: true
     command: chmod +x /usr/sbin/u-boot-update
