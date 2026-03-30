@@ -13,6 +13,7 @@ set -e
 [ -n "${GIT_BRANCH}" ] || GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "detached")
 [ -n "${GIT_MSG}" ] || GIT_MSG=$(git log -1 --pretty=format:"%s" 2>/dev/null | sed 's/[\"()]/\\&/g; s/'"'"'/\\&/g' || echo "unknown")
 [ -n "${GIT_INFO}" ] || GIT_INFO="${GIT_BRANCH}@${GIT_HASH}: ${GIT_MSG}"
+GIT_INFO=$(echo "$GIT_INFO" | tr -dc '[:alnum:][:space:]')
 
 case "${KEEP_SRC}" in
         update)
