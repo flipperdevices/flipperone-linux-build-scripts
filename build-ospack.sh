@@ -31,7 +31,7 @@ mkdir -p "$IMG_OUT"
 rm -rf "${TESTS_OUT}"
 mkdir -p "${TESTS_OUT}"
 
-cp -r "${TESTS_DIR}"/* "${TESTS_OUT}/"
+cp -a "${TESTS_DIR}/." "${TESTS_OUT}/"
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
         # Have virtualization support, can use fakemachine (default, fast, safe)
