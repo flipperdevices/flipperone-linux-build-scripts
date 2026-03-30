@@ -231,6 +231,15 @@ actions:
     chroot: true
     command: chmod -R o+w /flipperone-testing
 
+  - action: download
+    description: Download our patched Cog browser with support for seat selection
+    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/c/cog/cog_0.18.4-1%2Bseat1_arm64.deb
+    name: cog-seat
+
+  - action: install-deb
+    description: Install the patched Cog package into the target
+    origin: cog-seat
+
   - action: pack
     description: Save a tarball of the root filesystem
     file: debian-ospack.tar.gz

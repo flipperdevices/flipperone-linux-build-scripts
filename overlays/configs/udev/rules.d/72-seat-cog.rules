@@ -1,1 +1,2 @@
 SUBSYSTEM=="drm", ENV{ID_FOR_SEAT}=="drm-platform-2acf0000_spi-cs-0", ENV{ID_SEAT}="seat1"
+SUBSYSTEM=="input", ATTRS{phys}=="flipper-one-input/input0", ENV{ID_SEAT}="seat1"
