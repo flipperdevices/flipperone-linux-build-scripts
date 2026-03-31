@@ -49,4 +49,8 @@ cat <<EOF >/etc/avahi/services/flipper.service
 </service-group>
 EOF
 
+# Set WiFi AP SSID with CPU serial in NetworkManager connection profiles
+sed -i "s/WIFISSIDSERIAL/${serial}/" /etc/NetworkManager/system-connections/wifi-router*.nmconnection 2>/dev/null || true
+nmcli connection reload 2>/dev/null || true
+
 systemd-machine-id-setup
