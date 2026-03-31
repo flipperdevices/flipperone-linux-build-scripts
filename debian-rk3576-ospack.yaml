@@ -86,6 +86,7 @@ actions:
       - openssh-server
       - p7zip
       - pciutils
+      - pipewire-alsa
       - plasma-nm
       - plasma-systemmonitor
       - powercap-utils
