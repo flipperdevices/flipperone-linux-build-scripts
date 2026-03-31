@@ -1,0 +1,15 @@
+[connection]
+id=flipusb0-static
+type=ethernet
+interface-name=flipusb0
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+address1=10.0.0.1/24
+address2=169.254.0.1/16
+method=manual
+
+[ipv6]
+method=link-local
+addr-gen-mode=stable-privacy
