@@ -97,6 +97,7 @@ actions:
       - rsync
       - sddm
       - sddm-theme-breeze
+      - sox
       - strace
       - stress-ng
       - sudo
