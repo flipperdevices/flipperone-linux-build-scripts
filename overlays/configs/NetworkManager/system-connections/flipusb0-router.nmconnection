@@ -1,7 +1,8 @@
 [connection]
-id=flipusb0
+id=flipusb0-router
 type=ethernet
 interface-name=flipusb0
+autoconnect=false
 
 [ipv4]
 address1=192.168.33.1/24
