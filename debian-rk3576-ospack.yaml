@@ -192,6 +192,13 @@ actions:
     source: overlays/usr/share
     destination: /usr/share
 
+  # NetworkManager ignores connection profiles that are world-readable.
+  # Git can not track 600 permission, so we must set it here.
+  - action: run
+    description: Fix permissions on NetworkManager connection profiles
+    chroot: true
+    command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+
   - action: run
     description: Save GIT info
     chroot: true
