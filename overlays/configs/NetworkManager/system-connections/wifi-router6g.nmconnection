@@ -1,0 +1,24 @@
+# 6G doesnt work, need fix
+[connection]
+id=wifi-router6g
+type=wifi
+autoconnect=false
+
+[wifi]
+band=a
+channel=5
+channel-width=80
+mode=ap
+ssid=FlipperOne_6GHz_WIFISSIDSERIAL
+
+[wifi-security]
+key-mgmt=wpa-psk
+proto=rsn
+pairwise=ccmp
+psk=flipperone
+
+[ipv4]
+method=shared
+
+[ipv6]
+method=ignore
