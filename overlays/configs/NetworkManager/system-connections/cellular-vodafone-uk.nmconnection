@@ -1,0 +1,16 @@
+[connection]
+id=cellular-vodafone-uk
+type=gsm
+autoconnect=false
+
+[gsm]
+apn=wap.vodafone.co.uk
+
+[ipv4]
+method=auto
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
