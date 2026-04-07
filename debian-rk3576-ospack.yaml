@@ -248,6 +248,15 @@ actions:
     description: Install the updated SDDM package into the target
     origin: sddm-sid
 
+  - action: download
+    description: Download updated Mediatek firmware (sid version)
+    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/f/firmware-nonfree/firmware-mediatek_20260309-1_all.deb
+    name: firmware-sid
+
+  - action: install-deb
+    description: Install the updated Mediatek firmware into the target
+    origin: firmware-sid
+
   - action: pack
     description: Save a tarball of the root filesystem
     file: debian-ospack.tar.gz
