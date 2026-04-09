@@ -27,6 +27,9 @@ actions:
       - bc
       - bluedevil
       - bluez
+      - bluez-alsa-utils
+      - bluez-firmware
+      - bluez-meshd
       - bsdextrautils
       - bsdmainutils
       - build-essential
