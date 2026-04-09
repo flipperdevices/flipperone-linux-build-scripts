@@ -50,7 +50,7 @@ else
 fi
 
 pushd "$RKBIN_DIR"
-rm -f rk3576_spl_loader_*.bin
+rm -f rk3576_*loader_*.bin
 ./tools/boot_merger RKBOOT/RK3576MINIALL.ini
 ./tools/boot_merger RKBOOT/RK3576MINIALL_FSPI1.ini
 popd
@@ -71,5 +71,5 @@ for i in $BOARDS; do
 	rm -rf "$UBOOT_OUT"/"$i"
 	mkdir -p "$UBOOT_OUT"/"$i"
 	cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$UBOOT_OUT"/"$i"/
-	cp "$RKBIN_DIR"/rk3576_spl_loader_*.bin "$UBOOT_OUT"/"$i"
+	cp "$RKBIN_DIR"/rk3576_*loader_*.bin "$UBOOT_OUT"/"$i"
 done
