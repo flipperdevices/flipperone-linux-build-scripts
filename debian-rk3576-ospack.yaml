@@ -181,6 +181,11 @@ actions:
     destination: /etc
 
   - action: overlay
+    description: Overlay Broadcom WiFi/BT firmware files
+    source: overlays/firmware
+    destination: /usr/lib/firmware
+
+  - action: overlay
     description: Overlay our usr/local scripts
     source: overlays/usr/local
     destination: /usr/local
