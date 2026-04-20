@@ -31,13 +31,12 @@ KVER=`make -C "$LINUX_DIR" -s kernelversion`
 magick flipper_linux_boot_logo_clean.ppm -font haxrcorp-4089-cyrillic-altgr.ttf -pointsize 31 -fill '#ff8200' -gravity SouthEast -annotate +0+0 "Flipper Linux Kernel $KVER" -compress none "$LINUX_DIR"/drivers/video/logo/flipper_linux_boot_logo_versioned.ppm
 
 pushd "$LINUX_DIR"
+rm -rf tar-install
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
 ./scripts/kconfig/merge_config.sh -m "$BASE_CONFIG" "$CONFIGS"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) olddefconfig
-make ARCH=arm64 DTC_FLAGS="-@" CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg
+make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) bindeb-pkg dir-pkg
 
-rm -rf tar-install
-make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) dir-pkg
 pushd tar-install
 tar czf ../modules.tar.gz ./lib
 popd
