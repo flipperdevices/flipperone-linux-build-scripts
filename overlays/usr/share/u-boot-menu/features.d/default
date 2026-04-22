@@ -28,6 +28,8 @@ else
     # Remove first to avoid duplicates if already present in /etc/kernel/cmdline
     remove_bootargs "console=ttyS0,1500000n8"
     add_bootargs "console=ttyS0,1500000n8"
+    remove_bootargs "console=ttyS4,1500000n8"
+    add_bootargs "console=ttyS4,1500000n8"
     remove_bootargs "console=ttyFIQ0,1500000n8"
     add_bootargs "fbcon=map:1"
     append_name "[DEFAULT]"
