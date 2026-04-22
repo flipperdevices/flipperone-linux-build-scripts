@@ -153,7 +153,7 @@ actions:
     description: Create user's .bash_aliases
     chroot: true
     command: |
-      echo "alias pastebin='curl --user-agent \"curl/7.74.0\" -F \"file=@-\" https://0x0.st'" >> /home/user/.bash_aliases
+      echo "alias pastebin='curl --data-binary @- https://staging.getpost.workers.dev/'" >> /home/user/.bash_aliases
       chown user:user /home/user/.bash_aliases
 
   - action: run
