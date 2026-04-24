@@ -72,7 +72,7 @@ RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 
-# Copy the rk3576-linux-build repository
+# Copy the rk3576-linux-build folder
 WORKDIR /rk3576-linux-build
 COPY . /rk3576-linux-build
 
