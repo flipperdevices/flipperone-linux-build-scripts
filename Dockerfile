@@ -55,6 +55,12 @@ RUN apt-get install -y \
     libostree-dev \
     fakemachine
 
+RUN apt-get install -y systemd-container
+
+RUN apt-get install -y parted
+
+RUN apt-get install -y e2fsprogs util-linux
+
 RUN go install -v github.com/go-debos/debos/cmd/debos@latest
 
 RUN install -m 755 ~/go/bin/debos /usr/local/bin
@@ -66,9 +72,11 @@ RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 
-# Clone the rk3576-linux-build repository
+# Copy the rk3576-linux-build repository
 WORKDIR /rk3576-linux-build
-RUN git clone --depth=1 https://github.com/flipperdevices/rk3576-linux-build .
+COPY . /rk3576-linux-build
+
+RUN ln -s /artifacts /rk3576-linux-build/artifacts
 
 # Entry point
 ENTRYPOINT ./build-uboot.sh && ./build-kernel-mainline.sh && ./build-kernel-bsp.sh && ./build-images.sh
