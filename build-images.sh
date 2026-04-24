@@ -1,7 +1,7 @@
 #!/bin/bash
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${IMG_OUT:=out}"
-: "${IMGSIZE:=4GiB}"}
+: "${IMGSIZE:=5GiB}"}
 
 set -e
 
@@ -21,29 +21,26 @@ for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
 	truncate -s "$IMGSIZE" "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 
-	if [ -c /dev/kvm -a -w /dev/kvm ]; then
-		cp -f partitions-script.sh "$IMG_OUT"/partitions-script.sh
-		fakemachine \
-			-b kvm \
-			-S "$s" \
-			-i "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img \
-			-e IMG:/artifacts/debian-rootfs.img.zst \
-			-e DISK:/dev/disk/by-fakemachine-label/fakedisk-0 \
-			-e PART:/dev/disk/by-fakemachine-label/fakedisk-0-part2 \
-			-e BUILD_ID:\""$BUILD_ID"\" \
-			-v "$IMG_OUT":/artifacts \
-			-- /artifacts/partitions-script.sh
-		rm -f "$IMG_OUT"/partitions-script.sh
+	if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
+    	FM_BACKEND="kvm"
 	else
-		LOOPDEV=`sudo losetup -b "$s" -fP --show "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img`
-		sudo \
-			IMG="$IMG_OUT"/debian-rootfs.img.zst \
-			DISK="$LOOPDEV" \
-			PART="$LOOPDEV"p2 \
-			BUILD_ID="$BUILD_ID" \
-			./partitions-script.sh
-		sudo losetup -d "$LOOPDEV"
+    	FM_BACKEND="qemu"
 	fi
+
+	echo "Using fakemachine backend: $FM_BACKEND"
+	
+	cp -f partitions-script.sh "$IMG_OUT"/partitions-script.sh
+	fakemachine \
+	    -b "$FM_BACKEND" \
+    	-S "$s" \
+    	-i "$TMPDIR/debian-$s-nobootloader-$BUILD_ID.img" \
+    	-e IMG:/artifacts/debian-rootfs.img.zst \
+    	-e DISK:/dev/disk/by-fakemachine-label/fakedisk-0 \
+    	-e PART:/dev/disk/by-fakemachine-label/fakedisk-0-part2 \
+    	-e BUILD_ID:"$BUILD_ID" \
+    	-v "$IMG_OUT":/artifacts \
+    	-- /artifacts/partitions-script.sh
+	rm -f "$IMG_OUT"/partitions-script.sh
 
 	for i in `basename -a "$UBOOT_OUT"/*`; do
 		echo "$i board:"
