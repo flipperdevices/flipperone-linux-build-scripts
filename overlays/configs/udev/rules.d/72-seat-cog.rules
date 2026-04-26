@@ -1,2 +1,7 @@
 SUBSYSTEM=="drm", ENV{ID_FOR_SEAT}=="drm-platform-2acf0000_spi-cs-0", ENV{ID_SEAT}="seat1"
+
+# /dev/input/event0: Flipper One Buttons
 SUBSYSTEM=="input", ATTRS{phys}=="flipper-one-input/input0", ENV{ID_SEAT}="seat1"
+
+# /dev/input/event1: Flipper One Touchpad
+SUBSYSTEM=="input", ATTRS{phys}=="flipper-one-input/input1", ENV{ID_SEAT}="seat1"
