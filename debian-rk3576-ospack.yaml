@@ -228,6 +228,20 @@ actions:
     chroot: true
     command: update-alternatives --set regulatory.db /lib/firmware/regulatory.db-upstream
 
+  - action: run
+    description: Disable KDE drkonqi coredump handling
+    chroot: true
+    command: |
+      systemctl --global mask \
+        drkonqi-coredump-launcher.socket \
+        drkonqi-coredump-cleanup.service \
+        drkonqi-coredump-cleanup.timer \
+        drkonqi-coredump-pickup.service \
+        drkonqi-sentry-postman.path \
+        drkonqi-sentry-postman.service \
+        drkonqi-sentry-postman.timer
+      systemctl mask drkonqi-coredump-processor@.service
+
   - action: overlay
     description: Copy test suite into the target
     source: {{ $testsdir }}
