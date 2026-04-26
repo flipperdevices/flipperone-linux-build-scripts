@@ -225,3 +225,187 @@ sudo rockusb download-boot prebuilt/u-boot/<your_board>/rk3576_spl_loader_*.bin
 
 sudo rockusb write-bmap out/debian-<your_board>.img.gz
 ```
+
+---
+
+## Troubleshooting
+
+The following errors have been observed during builds and have confirmed fixes.
+
+---
+
+### `execv(sh) failed: Exec format error`
+
+**Cause:** `binfmt_misc` is not mounted or ARM binary handlers are not registered. The build runs ARM binaries on the host during the rootfs stage and they fail immediately.
+
+**Fix:**
+
+```sh
+mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+update-binfmts --enable
+```
+
+Run these once per boot (or per WSL2 session). To make persistent, add both lines to `/etc/rc.local` or a systemd unit.
+
+---
+
+### `lstat .../linux_tmp: no such file or directory`
+
+**Cause:** `IMG_OUT` is set to an absolute path. Internal scripts construct intermediate paths by concatenating `IMG_OUT` with relative suffixes, which breaks when `IMG_OUT` is absolute and the working directory changes mid-build.
+
+**Fix:** Use a relative path:
+
+```sh
+export IMG_OUT=out
+```
+
+The `out/` directory will be created under the repository root.
+
+---
+
+### `fallocate: fallocate failed: Operation not supported`
+
+**Cause:** `IMG_OUT` or `TMPDIR` points to an NTFS-backed path (e.g. a Windows-mounted drive under `/mnt/c`). NTFS does not support `fallocate`.
+
+**Fix:** Keep `IMG_OUT` and `TMPDIR` on a Linux ext4 filesystem:
+
+```sh
+export IMG_OUT=out
+export TMPDIR=/root/build-tmp
+mkdir -p $TMPDIR
+```
+
+Never point these at `/mnt/c/...` or any other Windows-backed path.
+
+---
+
+### `fakemachine: command not found`
+
+**Cause:** WSL2 exposes `/dev/kvm` as a character device. The build script detects this and tries to use `fakemachine`, which is not installed.
+
+**Fix:** Patch the condition to `false` so the build falls through to the `losetup` path:
+
+```sh
+sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-rootfs-img.sh
+sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-images.sh
+```
+
+---
+
+### `bmaptool: image size X will not fit block device Y`
+
+**Cause:** `IMGSIZE` defaults differ between `build-rootfs-img.sh` and `build-images.sh`. The rootfs image is created at one size, then `build-images.sh` tries to flash it into a smaller block device.
+
+**Fix:** Set `IMGSIZE=8GiB` in both scripts:
+
+```sh
+sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
+sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-images.sh
+```
+
+---
+
+### `cp: Input/output error` when copying the board image
+
+**Cause:** WSL2 kernel EIO on loop-device-written files. After a large image file has been written through a loop device and unmounted, a subsequent `cp` of that file triggers an I/O error. The data is intact.
+
+**Fix:** `mv` is a rename operation and avoids the read path entirely. In `build-images.sh`, find the `cp` line that copies the nobootloader image to the board-specific image and replace it:
+
+```sh
+# Find the line
+grep -n 'cp.*nobootloader.*\.img' build-images.sh
+# Replace cp with mv on that line (N = line number from above)
+sed -i 'Ns/\bcp\b/mv/' build-images.sh
+```
+
+Since only one board is being built, the nobootloader image is no longer needed after the rename.
+
+---
+
+### `No space left on device` during kernel install
+
+**Cause:** Default `IMGSIZE` of 4 GiB in `build-rootfs-img.sh` is too small to hold the rootfs and kernel packages.
+
+**Fix:**
+
+```sh
+sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
+```
+
+Apply the same change to `build-images.sh` to keep sizes consistent (see the bmaptool error above).
+
+---
+
+## Building on WSL2 (Windows)
+
+The following procedure builds a working image on Ubuntu 24.04 WSL2 on Windows 10/11. It incorporates all fixes from the Troubleshooting section above. Run as root inside the WSL2 terminal.
+
+**Requirements:**
+- Windows 10 21H2+ or Windows 11 with WSL2 enabled
+- Ubuntu 24.04 from the Microsoft Store
+- At least 60 GB free on the WSL2 virtual disk
+- Dependencies: `apt install debos bmap-tools pigz parted kpartx zstd qemu-user-static binfmt-support systemd-container git python3`
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 1. ARM binary emulation
+mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+update-binfmts --enable
+
+# 2. Loop device nodes (WSL2 does not pre-create /dev/loop*)
+for i in $(seq 0 32); do
+    [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i
+done
+
+# 3. kpartx background daemon - creates /dev/mapper/loopNpX partition nodes
+(while true; do
+    for L in /dev/loop[0-9]*; do
+        [[ $L =~ p ]] && continue
+        N=$(basename $L)
+        ls /dev/mapper/${N}p* >/dev/null 2>&1 && continue
+        kpartx -a $L 2>/dev/null && for M in /dev/mapper/${N}p*; do
+            [ -e $M ] && ln -sf $M /dev/${N}${M##*${N}} 2>/dev/null
+        done
+    done
+    sleep 0.3
+done) &
+
+# 4. Environment - must be on ext4, not NTFS
+export IMG_OUT=out
+export TMPDIR=/root/build-tmp
+mkdir -p "$TMPDIR"
+
+# 5. Patches
+sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-rootfs-img.sh
+sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-images.sh
+sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
+sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-images.sh
+
+# 6. Build rootfs (20-40 min - output: out/debian-rootfs.img.zst)
+./build-rootfs-img.sh
+
+# 7. Assemble board images
+./build-images.sh
+```
+
+If step 7 fails with `cp: Input/output error`, apply the `mv` fix from the Troubleshooting section and rerun `./build-images.sh` - no need to rerun `build-rootfs-img.sh`.
+
+---
+
+## Checkpoint and Build Reuse
+
+`build-rootfs-img.sh` produces `out/debian-rootfs.img.zst`. This is the expensive step (20-40 min).
+
+`build-images.sh` consumes it to assemble the final board images. It is the faster step.
+
+**If `build-images.sh` fails, you do not need to rerun `build-rootfs-img.sh`.** Fix the error and rerun `./build-images.sh` directly, as long as `out/debian-rootfs.img.zst` exists.
+
+Verify the checkpoint file is intact:
+
+```sh
+zstd --test out/debian-rootfs.img.zst && echo "OK"
+```
+
+To reuse across machines or CI runs, copy `out/debian-rootfs.img.zst` to the new environment, place it at `out/debian-rootfs.img.zst` relative to the repo root, and run `./build-images.sh`.
