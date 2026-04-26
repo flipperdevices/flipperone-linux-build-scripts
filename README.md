@@ -1,4 +1,4 @@
-# Linux system image build scripts for RK3576 based boards
+﻿# Linux system image build scripts for RK3576 based boards
 
 The scripts in this repository produce disk images for Rockchip RK3576 based boards, ready to be flashed to an SD card or uploaded to internal storage via a USB connection and Maskrom mode.
 
@@ -208,8 +208,8 @@ Rockchip devices include a special built-in mode called Maskrom, which allows fl
 
 This mode is activated by holding down a MASKROM button when the power supply gets connected.
 
-- Instructions for Radxa Rock 4D: https://docs.radxa.com/en/rock4/rock4d/hardware-use/maskrom?maskrom-display=Linux%2FMacOS. Connect a USB A to A cable (or Type C to USB A, depending on you host computer’s available USB ports) to the top USB 3.0 blue port, hold the MASKROM button and apply power to the board as usual via its Type C DC IN. Note that eMMC modules cannot be used together with the onboard SPI flash, as they share pins internally
-- Instructions for ArmSoM Sige5: https://docs.armsom.org/getting-start/flash-img#241-device-connection. Connect a USB A to Type C cable (or Type C to Type C, depending on your host computer’s available USB ports) to the Type C OTG port (marked TYPEC on the board), hold the MASKROM button and apply power to the board as usual via its Type C DC IN
+- Instructions for Radxa Rock 4D: https://docs.radxa.com/en/rock4/rock4d/hardware-use/maskrom?maskrom-display=Linux%2FMacOS. Connect a USB A to A cable (or Type C to USB A, depending on you host computerâ€™s available USB ports) to the top USB 3.0 blue port, hold the MASKROM button and apply power to the board as usual via its Type C DC IN. Note that eMMC modules cannot be used together with the onboard SPI flash, as they share pins internally
+- Instructions for ArmSoM Sige5: https://docs.armsom.org/getting-start/flash-img#241-device-connection. Connect a USB A to Type C cable (or Type C to Type C, depending on your host computerâ€™s available USB ports) to the Type C OTG port (marked TYPEC on the board), hold the MASKROM button and apply power to the board as usual via its Type C DC IN
 
 You should then see something like this in `lsusb` command output:
 
@@ -299,8 +299,8 @@ sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-images.sh
 **Fix:** Set `IMGSIZE=8GiB` in both scripts:
 
 ```sh
-sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
-sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-images.sh
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-rootfs-img.sh
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-images.sh
 ```
 
 ---
@@ -329,7 +329,7 @@ Since only one board is being built, the nobootloader image is no longer needed 
 **Fix:**
 
 ```sh
-sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-rootfs-img.sh
 ```
 
 Apply the same change to `build-images.sh` to keep sizes consistent (see the bmaptool error above).
@@ -380,8 +380,8 @@ mkdir -p "$TMPDIR"
 # 5. Patches
 sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-rootfs-img.sh
 sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-images.sh
-sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-rootfs-img.sh
-sed -i 's/${IMGSIZE:=4GiB}/${IMGSIZE:=8GiB}/' build-images.sh
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-rootfs-img.sh
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-images.sh
 
 # 6. Build rootfs (20-40 min - output: out/debian-rootfs.img.zst)
 ./build-rootfs-img.sh
