@@ -64,7 +64,7 @@ fi
 for i in $BOARDS; do
 	pushd "$UBOOT_DIR"
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" clean
-	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$i"-rk3576_defconfig
+	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$i"-rk3576_defconfig rockchip-ramboot.config
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL"
 	popd
 
