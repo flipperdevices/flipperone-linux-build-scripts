@@ -38,6 +38,7 @@ DeviceAllow=/dev/dri/card0 rw
 DeviceAllow=/dev/dri/renderD128 rw
 DeviceAllow=/dev/dri/card1 rw
 DeviceAllow=/dev/input/event0 rw
+DeviceAllow=/dev/input/event1 rw
 InaccessiblePaths=/dev/dri/card2
 
 ExecStartPre=/bin/sh -lc 'test -e /dev/dri/card0 && test -e /dev/input/event0'
