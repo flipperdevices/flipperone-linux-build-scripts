@@ -229,64 +229,32 @@ sudo rockusb write-bmap out/debian-<your_board>.img.gz
 
 ## Building on WSL2 (Windows)
 
-The build scripts work on Ubuntu 24.04 WSL2 with a few one-time setup steps. WSL2 does not pre-mount `binfmt_misc`, does not pre-create loop device nodes, and exposes `/dev/kvm` via Hyper-V even though `fakemachine` is not installed. Apply the following before running any build script.
+If you followed the prerequisites above, `fakemachine` is already installed. On WSL2, ARM binary handlers for QEMU user-mode emulation must be registered before running the rootfs build. Install `qemu-user-binfmt` and activate its systemd unit:
 
 ```bash
-# Register ARM binary handlers (required for rootfs build)
-mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
-update-binfmts --enable
-
-# Create loop device nodes (WSL2 does not create these automatically)
-for i in $(seq 0 32); do
-    [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i
-done
-
-# Disable the fakemachine path - WSL2 exposes /dev/kvm but fakemachine is not installed
-sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-rootfs-img.sh build-images.sh
-
-# Keep IMG_OUT on the WSL2 virtual disk (ext4), not a Windows-mounted path
-# NTFS does not support fallocate, which the image assembly step requires
-export IMG_OUT=out
-export TMPDIR=/root/build-tmp
-mkdir -p "$TMPDIR"
+sudo apt install qemu-user-binfmt
+sudo systemctl enable --now systemd-binfmt
 ```
 
-Both `binfmt_misc` registration and the loop device creation need to be repeated after each WSL2 session restart (or added to `/etc/rc.local` to persist).
+This persists across WSL2 session restarts automatically.
 
 ## Troubleshooting
 
 ### `execv(sh) failed: Exec format error`
 
-`binfmt_misc` is not mounted or ARM binary handlers are not registered. The rootfs build runs ARM binaries on the host and they fail immediately.
+ARM binary handlers are not registered. The rootfs build runs ARM binaries on the host via QEMU and they fail immediately if the `binfmt_misc` entries are missing.
 
 ```bash
-mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
-update-binfmts --enable
-```
-
-### `lstat .../linux_tmp: no such file or directory`
-
-`IMG_OUT` is set to an absolute path. Internal scripts construct intermediate paths by appending relative suffixes, which breaks when the working directory changes mid-build.
-
-```bash
-export IMG_OUT=out   # relative to repo root
+sudo apt install qemu-user-binfmt
+sudo systemctl enable --now systemd-binfmt
 ```
 
 ### `fallocate: fallocate failed: Operation not supported`
 
-`IMG_OUT` or `TMPDIR` points to an NTFS-backed path (e.g. `/mnt/c/...`). NTFS does not support `fallocate`. Keep both on a Linux ext4 filesystem:
+`IMG_OUT` points to an NTFS-backed path (e.g. `/mnt/c/...`). NTFS does not support `fallocate`. The default value `out` stores files on the WSL2 virtual disk (ext4) — unset any override:
 
 ```bash
-export IMG_OUT=out
-export TMPDIR=/root/build-tmp && mkdir -p "$TMPDIR"
-```
-
-### `fakemachine: command not found`
-
-WSL2 exposes `/dev/kvm` via Hyper-V. The build script detects this and tries `fakemachine`, which is not installed. Patch the condition:
-
-```bash
-sed -i 's/if \[ -c \/dev\/kvm -a -w \/dev\/kvm \]/if false/' build-rootfs-img.sh build-images.sh
+unset IMG_OUT
 ```
 
 ### `bmaptool: image size X will not fit block device Y`
@@ -307,21 +275,16 @@ sed -i 's/^IMGSIZE=.*/IMGSIZE=8GiB/' build-rootfs-img.sh
 
 Apply the same fix to `build-images.sh` to keep sizes consistent (see `bmaptool` error above).
 
-### `cp: Input/output error` copying the board image
+## Reusing build artifacts
 
-WSL2 kernel bug: a large file written through a loop device triggers EIO on a subsequent `cp`. The data is intact. Use `mv` instead:
+Each build stage writes its output to a known location. If a stage's output already exists, the next stage skips it automatically. You can re-run any individual stage without repeating earlier ones:
 
-```bash
-grep -n 'cp.*\.img' build-images.sh
-# Replace cp with mv on that line (N):
-sed -i 'Ns/\bcp\b/mv/' build-images.sh
-```
-
-`mv` is a rename and bypasses the page cache read path entirely.
-
-## Reusing the rootfs image
-
-`build-rootfs-img.sh` produces `out/debian-rootfs.img.zst`. This step installs all Debian packages and takes 20-40 minutes. `build-images.sh` consumes it to assemble the final board images and is much faster.
+| Stage | Output | How to skip |
+|---|---|---|
+| Kernel | `prebuilt/linux/` | `KEEP_SRC=yes ./build-kernel-*.sh` rebuilds without re-cloning |
+| U-boot | `prebuilt/u-boot/<board>/` | `KEEP_SRC=yes ./build-uboot.sh` rebuilds without re-cloning |
+| OS pack | `out/debian-ospack.tar.gz` | Skipped by `build-rootfs-img.sh` automatically if this file exists |
+| Root filesystem | `out/debian-rootfs.img.zst` | Skipped by `build-images.sh` automatically if this file exists |
 
 **If `build-images.sh` fails, you do not need to rerun `build-rootfs-img.sh`.** Fix the error and rerun `build-images.sh` directly as long as `out/debian-rootfs.img.zst` exists:
 
