@@ -20,6 +20,7 @@ StateDirectory=cog
 
 Environment=HOME=/var/lib/flipctl
 Environment=XDG_SEAT=seat1
+Environment=COG_PLATFORM_DRM_POINTER=1
 Environment=G_MESSAGES_DEBUG=Cog-DRM
 
 NoNewPrivileges=yes
