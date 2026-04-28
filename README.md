@@ -226,3 +226,70 @@ sudo rockusb write-bmap out/debian-<your_board>.img.gz
 
 
 
+
+## Building on WSL2 (Windows)
+
+If you followed the prerequisites above, `fakemachine` is already installed. On WSL2, ARM binary handlers for QEMU user-mode emulation must be registered before running the rootfs build. Install `qemu-user-binfmt` and activate its systemd unit:
+
+```bash
+sudo apt install qemu-user-binfmt
+sudo systemctl enable --now systemd-binfmt
+```
+
+This persists across WSL2 session restarts automatically.
+
+## Troubleshooting
+
+### `execv(sh) failed: Exec format error`
+
+ARM binary handlers are not registered. The rootfs build runs ARM binaries on the host via QEMU and they fail immediately if the `binfmt_misc` entries are missing.
+
+```bash
+sudo apt install qemu-user-binfmt
+sudo systemctl enable --now systemd-binfmt
+```
+
+### `fallocate: fallocate failed: Operation not supported`
+
+`IMG_OUT` points to an NTFS-backed path (e.g. `/mnt/c/...`). NTFS does not support `fallocate`. The default value `out` stores files on the WSL2 virtual disk (ext4) — unset any override:
+
+```bash
+unset IMG_OUT
+```
+
+### `bmaptool: image size X will not fit block device Y`
+
+`IMGSIZE` defaults differ between `build-rootfs-img.sh` and `build-images.sh`. Set it explicitly in both:
+
+```bash
+sed -i 's/IMGSIZE:=4GiB/IMGSIZE:=8GiB/g' build-rootfs-img.sh build-images.sh
+```
+
+### `No space left on device` during kernel install
+
+The default 4 GiB rootfs is too small once kernel modules and headers are installed. Increase to 8 GiB:
+
+```bash
+sed -i 's/^IMGSIZE=.*/IMGSIZE=8GiB/' build-rootfs-img.sh
+```
+
+Apply the same fix to `build-images.sh` to keep sizes consistent (see `bmaptool` error above).
+
+## Reusing build artifacts
+
+Each build stage writes its output to a known location. If a stage's output already exists, the next stage skips it automatically. You can re-run any individual stage without repeating earlier ones:
+
+| Stage | Output | How to skip |
+|---|---|---|
+| Kernel | `prebuilt/linux/` | `KEEP_SRC=yes ./build-kernel-*.sh` rebuilds without re-cloning |
+| U-boot | `prebuilt/u-boot/<board>/` | `KEEP_SRC=yes ./build-uboot.sh` rebuilds without re-cloning |
+| OS pack | `out/debian-ospack.tar.gz` | Skipped by `build-rootfs-img.sh` automatically if this file exists |
+| Root filesystem | `out/debian-rootfs.img.zst` | Skipped by `build-images.sh` automatically if this file exists |
+
+**If `build-images.sh` fails, you do not need to rerun `build-rootfs-img.sh`.** Fix the error and rerun `build-images.sh` directly as long as `out/debian-rootfs.img.zst` exists:
+
+```bash
+ls -lh out/debian-rootfs.img.zst    # confirm it exists
+zstd --test out/debian-rootfs.img.zst   # verify it is not corrupted
+./build-images.sh
+```
