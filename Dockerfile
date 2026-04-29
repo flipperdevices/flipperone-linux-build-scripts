@@ -40,7 +40,7 @@ RUN apt-get install -y \
     mmdebstrap \
     systemd-container \
     systemd-resolved \
-    bmap-tools \
+    pipx \
     pigz \
     cargo \
     golang \
@@ -55,6 +55,8 @@ RUN install -m 755 ~/go/bin/debos /usr/local/bin
 RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 
 RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
+
+RUN pipx install --global git+https://github.com/flipperdevices/bmaptool.git@flipper-devel
 
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
