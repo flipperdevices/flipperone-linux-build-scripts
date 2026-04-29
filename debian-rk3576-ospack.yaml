@@ -240,7 +240,7 @@ actions:
 
   - action: download
     description: Download our patched Cog browser with support for seat selection
-    url: http://zhovner.com/tmp/cog_0.19.1+git20260428.4fdf9dc-1_arm64.deb
+    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/c/cog/cog_0.19.1%2Bgit20260428.4fdf9dc-1_arm64.deb
     name: cog-seat
 
   - action: install-deb
