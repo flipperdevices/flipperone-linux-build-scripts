@@ -1,0 +1,1 @@
+deb [signed-by=/etc/apt/keyrings/alchark.gpg] https://dl-linux-images.flipp.dev/flipperone-deb stable main

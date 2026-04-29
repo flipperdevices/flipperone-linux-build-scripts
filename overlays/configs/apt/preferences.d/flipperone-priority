@@ -1,0 +1,4 @@
+Explanation: Prefer packages from flipperone custom APT repository
+Package: *
+Pin: release n=stable
+Pin-Priority: 1001

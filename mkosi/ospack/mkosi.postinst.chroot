@@ -1,0 +1,47 @@
+#!/bin/bash
+set -e
+
+GIT_INFO="${GIT_INFO:-unknown}"
+
+if [ -f /etc/locale.gen ]; then
+    sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
+    locale-gen
+fi
+echo "LANG=en_US.UTF-8" > /etc/default/locale
+
+# Pre-populate skel so useradd -m creates user files with correct ownership.
+# Avoids chown of non-root UIDs which fails inside mkosi user namespaces.
+echo "alias pastebin='curl --data-binary @- https://staging.getpost.workers.dev/'" > /etc/skel/.bash_aliases
+printf '\nexport PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin\n' >> /etc/skel/.bashrc
+
+if ! id -u user >/dev/null 2>&1; then
+    useradd -s /bin/bash -F -m user
+    echo "user:user" | chpasswd
+fi
+gpasswd -a user sudo
+
+if ! id -u flipctl >/dev/null 2>&1; then
+    useradd -s /usr/sbin/nologin -d /var/lib/flipctl -G input,video,render -m -r flipctl
+fi
+
+# sbc-bench.sh is pre-downloaded by the host build script and injected via extra-tree
+
+if ls /etc/NetworkManager/system-connections/*.nmconnection >/dev/null 2>&1; then
+    chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+fi
+
+echo "BUILD_GIT=${GIT_INFO}" >> /etc/os-release
+
+if [ -f /usr/sbin/u-boot-update ]; then
+    chmod +x /usr/sbin/u-boot-update
+fi
+
+rm -f /etc/machine-id /etc/motd
+
+if [ -e /lib/firmware/regulatory.db-upstream ]; then
+    update-alternatives --set regulatory.db /lib/firmware/regulatory.db-upstream || true
+fi
+
+if [ -d /flipperone-testing ]; then
+    chmod -R o+w /flipperone-testing
+fi
