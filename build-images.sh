@@ -16,34 +16,50 @@ if [ ! -f "$IMG_OUT"/debian-rootfs.img.zst -o "$UPDATE_ROOTFS" ]; then
 fi
 
 TMPDIR=`mktemp -d`
+cleanup() {
+	rm -rf "$TMPDIR"
+}
+trap cleanup EXIT
+
+bmaptool copy "$IMG_OUT"/debian-rootfs.img.zst "$IMG_OUT"/debian-rootfs.img
+sync "$IMG_OUT"/debian-rootfs.img
+TMP=`mktemp`
+chmod 644 "$TMP"
+
+debugfs -R "cat /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img | sed "/menu title/s/U-Boot menu/Flipper One $BUILD_ID/" > "$TMP"
+debugfs -w -R "rm /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img
+debugfs -w -R "write $TMP /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img
+
+debugfs -R "cat /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img | sed "/U_BOOT_MENU_TITLE/s/U-Boot menu/Flipper One $BUILD_ID/" > "$TMP"
+debugfs -w -R "rm /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img
+debugfs -w -R "write $TMP /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img
+
+debugfs -R "cat /usr/lib/os-release"  "$IMG_OUT"/debian-rootfs.img > "$TMP"
+echo "BUILD_ID=$BUILD_ID" >> "$TMP"
+debugfs -w -R "rm /usr/lib/os-release" "$IMG_OUT"/debian-rootfs.img
+debugfs -w -R "write $TMP /usr/lib/os-release" "$IMG_OUT"/debian-rootfs.img
+sync "$IMG_OUT"/debian-rootfs.img
+
+rm -f "$TMP"
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
 	truncate -s "$IMGSIZE" "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
+	sfdisk --sector-size $s "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img << EOF
+label: gpt
+first-lba: $((32768 / s))
+start=32KiB, size=16352KiB, name=loader, type=3DE21764-95BD-54BD-A5C3-4ABE786F38A8
+start=16MiB, size=+,        name=root,   type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, attrs="LegacyBIOSBootable"
+EOF
 
-	if [ -c /dev/kvm -a -w /dev/kvm ]; then
-		cp -f partitions-script.sh "$IMG_OUT"/partitions-script.sh
-		fakemachine \
-			-b kvm \
-			-S "$s" \
-			-i "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img \
-			-e IMG:/artifacts/debian-rootfs.img.zst \
-			-e DISK:/dev/disk/by-fakemachine-label/fakedisk-0 \
-			-e PART:/dev/disk/by-fakemachine-label/fakedisk-0-part2 \
-			-e BUILD_ID:\""$BUILD_ID"\" \
-			-v "$IMG_OUT":/artifacts \
-			-- /artifacts/partitions-script.sh
-		rm -f "$IMG_OUT"/partitions-script.sh
-	else
-		LOOPDEV=`sudo losetup -b "$s" -fP --show "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img`
-		sudo \
-			IMG="$IMG_OUT"/debian-rootfs.img.zst \
-			DISK="$LOOPDEV" \
-			PART="$LOOPDEV"p2 \
-			BUILD_ID="$BUILD_ID" \
-			./partitions-script.sh
-		sudo losetup -d "$LOOPDEV"
-	fi
+	read START COUNT < <(
+		sfdisk -d --sector-size $s "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img \
+		| awk -F'[, =:]+' '/name="root"/ { print $3, $5 }'
+	)
+	start_bytes=$((START * s))
+	count_bytes=$((COUNT * s))
+
+	bmaptool subrange --dest-seek $start_bytes --length $count_bytes "$IMG_OUT"/debian-rootfs.img "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 
 	for i in `basename -a "$UBOOT_OUT"/*`; do
 		echo "$i board:"
@@ -66,4 +82,4 @@ for s in 512 4096; do
 	rm -f "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 done
 
-rm -rf "$TMPDIR"
+rm -rf "$TMPDIR" "$IMG_OUT"/debian-rootfs.img
