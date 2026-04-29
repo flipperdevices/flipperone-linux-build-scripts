@@ -39,22 +39,13 @@ if [ "$owner" -ne "$whoami" ]; then
 fi
 
 read START COUNT < <(
-	parted -s -m "$IMG_OUT"/debian-nobootloader.img unit s print \
-	| awk -F: -v p="2" '$1==p { gsub(/s/,"",$2); gsub(/s/,"",$4); print $2, $4 }'
+	sfdisk -d "$IMG_OUT"/debian-nobootloader.img \
+	| awk -F'[, =:]+' '/name="root"/ { print $3, $5 }'
 )
 start_bytes=$((START * 512))
 count_bytes=$((COUNT * 512))
-end_bytes=$((start_bytes + count_bytes))
-img_size_bytes=$(stat -c %s "$IMG_OUT"/debian-nobootloader.img)
-tail_bytes=$((img_size_bytes - end_bytes))
-if [ "$tail_bytes" -gt 0 ]; then
-	truncate -c -s "$end_bytes" "$IMG_OUT"/debian-nobootloader.img
-fi
-if [ "$start_bytes" -gt 0 ]; then
-	fallocate --collapse-range -o 0 -l "$start_bytes" "$IMG_OUT"/debian-nobootloader.img
-fi
-sync "$IMG_OUT"/debian-nobootloader.img
-bmaptool create -o "$IMG_OUT"/debian-rootfs.img.bmap "$IMG_OUT"/debian-nobootloader.img
-zeekstd -f -o "$IMG_OUT"/debian-rootfs.img.zst "$IMG_OUT"/debian-nobootloader.img
+bmaptool subrange --start $start_bytes --length $count_bytes "$IMG_OUT"/debian-nobootloader.img "$IMG_OUT"/debian-rootfs.img
+bmaptool create -o "$IMG_OUT"/debian-rootfs.img.bmap "$IMG_OUT"/debian-rootfs.img
+zeekstd -f -o "$IMG_OUT"/debian-rootfs.img.zst "$IMG_OUT"/debian-rootfs.img
 
-rm -rf "$IMG_OUT"/linux_tmp "$IMG_OUT"/debian-nobootloader.img
+rm -rf "$IMG_OUT"/linux_tmp "$IMG_OUT"/debian-nobootloader.img "$IMG_OUT"/debian-rootfs.img
