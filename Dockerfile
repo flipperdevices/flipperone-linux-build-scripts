@@ -13,7 +13,7 @@ RUN dpkg --add-architecture arm64 && apt-get update
 # Upgrade base system
 RUN apt-get upgrade -y
 
-# Prerequisites for building the bootloader
+# Prerequisites
 RUN apt-get install -y \
     git \
     build-essential \
@@ -26,10 +26,8 @@ RUN apt-get install -y \
     swig \
     libssl-dev \
     gnutls-dev \
-    python3-pyelftools
-
-# Prerequisites for building the kernel
-RUN apt-get install -y \
+    python3-pyelftools \
+    qemu-user-binfmt \
     bc \
     imagemagick \
     libdw-dev \
@@ -37,15 +35,10 @@ RUN apt-get install -y \
     debhelper \
     device-tree-compiler \
     libssl-dev:arm64 \
-    rsync
-
-# Prerequisites for fetching vendor DTS files (if using a Rockchip BSP kernel)
-RUN apt-get install -y \
-    wget
-
-# Prerequisites for assembling complete disk images
-RUN apt-get install -y \
+    rsync \
+    wget \
     mmdebstrap \
+    systemd-container \
     systemd-resolved \
     bmap-tools \
     pigz \
