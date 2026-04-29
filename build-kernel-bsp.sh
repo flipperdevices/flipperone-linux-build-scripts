@@ -82,6 +82,8 @@ for dtso in $(find "$VENDOR_DTS/bsp" -name \*.dtso); do
 	install -pD -m 644 "${dtso}" "${destfile}"
 done
 
+rm -rf "$LINUX_OUT"/linux-bsp-files
+
 pushd "$LINUX_DIR"
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) clean
 make ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" -j$(nproc) defconfig rockchip_linux_defconfig
