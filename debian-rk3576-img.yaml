@@ -36,6 +36,7 @@ actions:
   - action: overlay
     description: Copy Linux kernel packages into the target
     source: {{ $kerneldir }}
+    origin: artifacts
     destination: /var/cache/linux-kernel
 
   - action: run

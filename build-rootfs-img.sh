@@ -29,7 +29,7 @@ mkdir -p "$IMG_OUT"/linux_tmp
 cp -r "$LINUX_OUT"/* "$IMG_OUT"/linux_tmp
 
 echo "Creating the root FS image"
-$DEBOS --artifactdir="$IMG_OUT" -t imagesize:"$IMGSIZE" -t kerneldir:"$IMG_OUT"/linux_tmp debian-rk3576-img.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t imagesize:"$IMGSIZE" -t kerneldir:linux_tmp debian-rk3576-img.yaml
 sync "$IMG_OUT"/debian-nobootloader.img
 
 owner=$(stat -c %u "$IMG_OUT"/debian-nobootloader.img)
