@@ -1,7 +1,7 @@
 #!/bin/bash
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${IMG_OUT:=out}"
-: "${IMGSIZE:=4GiB}"}
+: "${IMGSIZE:=6GiB}"
 
 set -e
 

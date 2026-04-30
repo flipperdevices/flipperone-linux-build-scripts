@@ -1,7 +1,7 @@
 #!/bin/bash
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${IMG_OUT:=out}"
-: "${IMGSIZE:=4GiB}"}
+: "${IMGSIZE:=6GiB}"
 
 set -e
 
