@@ -20,6 +20,7 @@ RUN apt-get install -y \
     crossbuild-essential-arm64 \
     bison \
     flex \
+    parted \
     python3-dev \
     python3-libfdt \
     python3-setuptools \
