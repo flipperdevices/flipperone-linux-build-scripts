@@ -75,7 +75,7 @@ sudo apt install wget gdown repo
 For assembling complete disk images:
 
 ```bash
-sudo apt install systemd-resolved pipx pigz cargo parted
+sudo apt install systemd-resolved pipx pigz cargo parted fdisk
 cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 sudo pipx install --global git+https://github.com/flipperdevices/bmaptool.git@flipper-devel

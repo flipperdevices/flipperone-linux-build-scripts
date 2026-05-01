@@ -21,6 +21,7 @@ RUN apt-get install -y \
     bison \
     flex \
     parted \
+    fdisk \
     python3-dev \
     python3-libfdt \
     python3-setuptools \
