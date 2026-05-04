@@ -4,6 +4,8 @@ The scripts in this repository produce disk images for Rockchip RK3576 based boa
 
 They are meant to be run on a Debian 13 (trixie) or later systems. It's probably possible to use different distributions too, but you'll need to find the right prerequisites yourself. Your mileage may vary.
 
+Note that while you can compile all of this software by hand by running the scripts in this repository, you don't necessarily have to. Most commits include a small green checkmark in the GitHub interface next to the commit message (or a red cross if we are less lucky), which link to a page in our [Buildbot web interface](https://linux-images.flipp.dev/) with full build logs and links to [pre-built images for all relevant boards](https://dl-linux-images.flipp.dev/full-img/), which our automated build system produces whenever something updates either in this repository or in one of its dependencies.
+
 
 ## Quick start with Dev Container (VS Code)
 
