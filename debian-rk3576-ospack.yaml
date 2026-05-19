@@ -142,6 +142,8 @@ actions:
     chroot: true
     command: useradd -s /bin/bash -F -m user &&
              echo "user:user" | chpasswd &&
+             gpasswd -a user audio &&
+             gpasswd -a user bluetooth &&
              gpasswd -a user sudo
 
   - action: run
