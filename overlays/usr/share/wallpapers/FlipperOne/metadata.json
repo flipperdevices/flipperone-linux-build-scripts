@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Flipper Devices"
+            }
+        ],
+        "Id": "FlipperOne",
+        "License": "Proprietary",
+        "Name": "FlipperOne"
+    },
+    "X-KDE-PluginInfo-Name": "FlipperOne"
+}
