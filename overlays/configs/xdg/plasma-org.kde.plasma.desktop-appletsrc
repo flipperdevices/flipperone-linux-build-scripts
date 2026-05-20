@@ -1,10 +1,6 @@
-[Daemon]
-Autolock=false
-Timeout=0
+[Containments][1]
+wallpaperplugin=org.kde.image
 
-[Greeter]
-WallpaperPlugin=org.kde.image
-
-[Greeter][Wallpaper][org.kde.image][General]
+Containments][1][Wallpaper][org.kde.image][General]
 Image=/usr/share/wallpapers/FlipperOne/contents/images/wallpaper.jpg
 PreviewImage=/usr/share/wallpapers/FlipperOne/contents/images/wallpaper.jpg
