@@ -8,7 +8,7 @@ index 864d5044564d..b2cd06e59b7f 100644
  	es8388_sound: es8388-sound {
 -		status = "okay";
 -		compatible = "rockchip,multicodecs-card";
--		rockchip,card-name = "rockchip-es8388";
+-		rockchip,card-name = "flipper-one-nau8822";
 -		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
 -		io-channels = <&saradc 3>;
 -		io-channel-names = "adc-detect";
@@ -35,7 +35,7 @@ index 864d5044564d..b2cd06e59b7f 100644
 +        status = "okay";
 +        pinctrl-names = "default";
 +		pinctrl-0 = <&hp_det>;
-+        simple-audio-card,name = "rockchip-es8388";
++        simple-audio-card,name = "flipper-one-nau8822";
 +        simple-audio-card,aux-devs = <&hp_power>, <&spk_power>;
 +        simple-audio-card,bitclock-master = <&masterdai>;
 +        simple-audio-card,format = "i2s";
