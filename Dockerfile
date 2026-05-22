@@ -54,7 +54,8 @@ RUN go install -v github.com/go-debos/debos/cmd/debos@latest
 
 RUN install -m 755 ~/go/bin/debos /usr/local/bin
 
-RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
+# v0.4.5-cli+ needs Rust 1.91 (Path::with_added_extension); see https://github.com/rorosen/zeekstd/tags
+RUN cargo install --git https://github.com/rorosen/zeekstd.git --tag v0.4.4-cli zeekstd_cli
 
 RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
