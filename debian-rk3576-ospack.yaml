@@ -27,7 +27,6 @@ actions:
       - bc
       - bluedevil
       - bluez
-      - bluez-alsa-utils
       - bluez-firmware
       - bluez-meshd
       - bsdextrautils
@@ -69,6 +68,7 @@ actions:
       - kscreen
       - less
       - libcanberra-pulse
+      - libspa-0.2-bluetooth
       - libdrm-tests
       - libtypec-utils
       - libubootenv-tool
