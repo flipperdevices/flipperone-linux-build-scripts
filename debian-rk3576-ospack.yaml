@@ -68,6 +68,12 @@ actions:
       - kscreen
       - less
       - libcanberra-pulse
+      - libfreeaptx0 
+      - libldacbt-abr2 
+      - libldacbt-enc2
+      - liblc3-1
+      - libsbc1
+      - libopus0   
       - libspa-0.2-bluetooth
       - libdrm-tests
       - libtypec-utils
