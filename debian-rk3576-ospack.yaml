@@ -26,6 +26,7 @@ actions:
       - bash-completion
       - bc
       - bluedevil
+      - blueman
       - bluez
       - bluez-firmware
       - bluez-meshd
