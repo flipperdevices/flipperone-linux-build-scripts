@@ -41,6 +41,8 @@ actions:
       - dmidecode
       - dnsmasq-base
       - drm-info
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-tools
       - e2fsprogs
       - edid-decode
       - evtest
