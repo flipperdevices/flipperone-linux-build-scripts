@@ -30,6 +30,7 @@ actions:
       - bluez
       - bluez-firmware
       - bluez-meshd
+      - breeze-gtk-theme
       - bsdextrautils
       - bsdmainutils
       - build-essential
@@ -63,6 +64,7 @@ actions:
       - iputils-ping
       - iw
       - iwd
+      - kde-config-gtk-style
       - kde-config-screenlocker
       - kde-spectacle
       - kde-standard
