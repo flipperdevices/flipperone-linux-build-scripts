@@ -1,0 +1,6 @@
+#!/bin/sh
+# Reset name to base (removes [DEFAULT] suffix added by default feature)
+set_base_profile_name "${base_profile_name}"
+append_name "[TV MEDIA BOX]"
+add_bootargs systemd.unit=tv-media-box.target
+add_board_dtbo -d "hdmi-cec" -n "CEC"

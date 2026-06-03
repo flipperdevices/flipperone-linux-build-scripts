@@ -1,0 +1,5 @@
+[Unit]
+Description=TV Media Box
+Requires=multi-user.target
+After=multi-user.target
+AllowIsolate=yes
