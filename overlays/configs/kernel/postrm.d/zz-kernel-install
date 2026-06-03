@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -e
+
+echo "Removing kernel version $1 with systemd kernel-install..."
+
+kernel-install remove "$1"

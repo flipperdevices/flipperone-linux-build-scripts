@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -e
+
+echo "Installing kernel version $1 with systemd kernel-install..."
+
+kernel-install add "$1" "$2"
