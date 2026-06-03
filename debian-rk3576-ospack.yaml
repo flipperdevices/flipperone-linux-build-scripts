@@ -69,6 +69,7 @@ actions:
       - kde-spectacle
       - kde-standard
       - kmscube
+      - kodi
       - konsole
       - kscreen
       - less
@@ -156,7 +157,10 @@ actions:
              echo "user:user" | chpasswd &&
              gpasswd -a user audio &&
              gpasswd -a user bluetooth &&
-             gpasswd -a user sudo
+             gpasswd -a user sudo &&
+             gpasswd -a user input &&
+             gpasswd -a user video &&
+             gpasswd -a user render
 
   - action: run
     description: Add dedicated "flipctl" user

@@ -1,0 +1,17 @@
+[Unit]
+Description=Kodi standalone (GBM)
+After=remote-fs.target systemd-user-sessions.service sound.target
+Conflicts=getty@tty1.service
+
+[Service]
+User=user
+Group=user
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+ExecStart=/usr/bin/kodi-standalone
+Restart=on-abort
+
+[Install]
+WantedBy=tv-media-box.target
