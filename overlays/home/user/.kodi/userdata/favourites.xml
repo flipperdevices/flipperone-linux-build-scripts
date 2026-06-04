@@ -1,0 +1,3 @@
+<favourites>
+    <favourite name="Chromium" thumb="/usr/share/icons/hicolor/256x256/apps/chromium.png">System.Exec(/home/user/.kodi/userdata/launch-chromium.sh)</favourite>
+</favourites>
