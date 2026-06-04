@@ -95,6 +95,7 @@ actions:
       - mesa-utils
       - modemmanager
       - nano
+      - network-manager-config-connectivity-debian
       - nftables
       - nodejs
       - openssh-server
