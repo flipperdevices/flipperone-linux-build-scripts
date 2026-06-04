@@ -34,8 +34,10 @@ actions:
       - bsdextrautils
       - bsdmainutils
       - build-essential
+      - cage
       - ca-certificates
       - cec-utils
+      - chromium
       - cog
       - curl
       - device-tree-compiler
@@ -282,6 +284,16 @@ actions:
   - action: install-deb
     description: Install the updated Mediatek firmware into the target
     origin: firmware-sid
+
+  - action: overlay
+    description: Overlay Kodi Chromium kiosk launcher
+    source: overlays/home/user/
+    destination: /home/user/
+    
+  - action: run
+    description: Fix ownership of overlaid home files
+    chroot: true
+    command: chown -R user:user /home/user
 
   - action: pack
     description: Save a tarball of the root filesystem
