@@ -109,6 +109,7 @@ actions:
       - plasma-systemmonitor
       - powercap-utils
       - powerdevil
+      - python3-evdev
       - python3-pandas
       - python3-plotly
       - rfkill
