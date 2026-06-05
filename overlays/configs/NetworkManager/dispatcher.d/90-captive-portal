@@ -1,0 +1,11 @@
+#!/bin/sh
+[ "$2" = connectivity-change ] && [ "$CONNECTIVITY_STATE" = PORTAL ] || exit 0
+uid=$(loginctl list-sessions --no-legend | awk '/seat0/{print $2; exit}')
+exec sudo -u "#$uid" env \
+  XDG_RUNTIME_DIR="/run/user/$uid" \
+  WAYLAND_DISPLAY=wayland-0 \
+  chromium --ozone-platform=wayland \
+  --password-store=basic \
+  --user-data-dir=/home/user/.config/chromium-standalone \
+  --force-dark-mode \
+  --start-maximized http://network-test.debian.org/nm
