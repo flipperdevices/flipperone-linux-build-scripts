@@ -19,10 +19,10 @@ actions:
       - name: loader
         fs: none
         start: 32KiB
-        end: 16MiB
+        end: 64MiB
       - name: root
         fs: ext4
-        start: 16MiB
+        start: 64MiB
         end: -1MiB
         flags: [ boot ]
     mountpoints:
