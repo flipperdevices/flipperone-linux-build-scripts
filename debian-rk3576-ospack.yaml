@@ -270,8 +270,8 @@ actions:
     origin: cog-seat
 
   - action: download
-    description: Download SDDM from Debian Sid rebuilt against Trixie libraries
-    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/s/sddm/sddm_0.21.0%2Bgit20251101.dfa5315-1_arm64.deb
+    description: Download SDDM from Debian Sid rebuilt against Trixie libraries (with seat patch)
+    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/s/sddm/sddm_0.21.0+git20251101.dfa5315-1+flipper1_arm64.deb
     name: sddm-sid
 
   - action: install-deb
