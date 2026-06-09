@@ -1,0 +1,8 @@
+#!/bin/sh
+# Block until at least one card2 connector is connected, then exit 0.
+while :; do
+    for c in DP-1 HDMI-A-1; do
+        [ "$(cat /sys/class/drm/card2-$c/status 2>/dev/null)" = connected ] && exit 0
+    done
+    sleep 1
+done

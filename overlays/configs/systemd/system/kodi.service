@@ -10,6 +10,8 @@ PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 StandardOutput=journal
+TimeoutStartSec=infinity
+ExecStartPre=/home/user/.kodi/kodi-display-gate
 ExecStart=/usr/bin/cage -- /usr/bin/kodi-standalone
 Restart=on-abort
 
