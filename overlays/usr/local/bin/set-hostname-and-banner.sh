@@ -13,7 +13,7 @@ device=$(echo "$compat" | sed 's/-rev-.*//; s/,//')
 device=${device:-rk3576}
 
 # CPU serial from device tree, falls back to systemd machine-id for non-DT boards
-serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || cat /etc/machine-id)
+serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || rk3576_cpu_serial.sh | tail -n1 | awk -F"\t" '{ print $2; }' || cat /etc/machine-id)
 
 # First 3 bytes (6 hex chars) of serial for hostname
 serial_prefix=$(printf '%.6s' "$serial")
