@@ -73,12 +73,12 @@ actions:
       - kscreen
       - less
       - libcanberra-pulse
-      - libfreeaptx0 
-      - libldacbt-abr2 
+      - libfreeaptx0
+      - libldacbt-abr2
       - libldacbt-enc2
       - liblc3-1
       - libsbc1
-      - libopus0   
+      - libopus0
       - libspa-0.2-bluetooth
       - libdrm-tests
       - libtypec-utils
@@ -254,7 +254,7 @@ actions:
 
   - action: download
     description: Download our patched Cog browser with support for seat selection
-    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/c/cog/cog_0.19.1%2Bgit20260428.4fdf9dc-1_arm64.deb
+    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/c/cog/cog_0.19.1+git20260610.e2c2fab-1~flipper1_arm64.deb
     name: cog-seat
 
   - action: install-deb
