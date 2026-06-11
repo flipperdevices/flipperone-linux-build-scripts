@@ -64,9 +64,9 @@ RUN pipx install --global git+https://github.com/flipperdevices/bmaptool.git@fli
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 
-# Clone the rk3576-linux-build repository
-WORKDIR /rk3576-linux-build
-RUN git clone --depth=1 https://github.com/flipperdevices/rk3576-linux-build .
+# Clone the flipperone-linux-build-scripts repository
+WORKDIR /flipperone-linux-build-scripts
+RUN git clone --depth=1 https://github.com/flipperdevices/flipperone-linux-build-scripts .
 
 # Entry point
 ENTRYPOINT ./build-uboot.sh && ./build-kernel-mainline.sh && ./build-kernel-bsp.sh && ./build-images.sh
