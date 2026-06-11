@@ -1,7 +1,11 @@
 #!/bin/sh
 [ "$2" = connectivity-change ] && [ "$CONNECTIVITY_STATE" = PORTAL ] || exit 0
-uid=$(loginctl list-sessions --no-legend | awk '/seat0/{print $2; exit}')
-exec sudo -u "#$uid" env \
+session=$(loginctl show-seat seat0 -p ActiveSession --value)
+[ -n "$session" ] || exit 0
+[ "$(loginctl show-session "$session" -p Class --value)" = user ]   || exit 0
+
+uid=$(id -u user)
+exec sudo -u user env \
   XDG_RUNTIME_DIR="/run/user/$uid" \
   WAYLAND_DISPLAY=wayland-0 \
   chromium --ozone-platform=wayland \
