@@ -129,7 +129,7 @@ cargo install --git https://github.com/rorosen/zeekstd.git --tag v0.4.4-cli zeek
 sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
 # bmaptool (Flipper fork)
-pipx install --global git+https://github.com/flipperdevices/bmaptool.git@flipper-devel
+sudo pipx install --global git+https://github.com/flipperdevices/bmaptool.git@flipper-devel
 ```
 
 For flashing images to boards over USB:
@@ -236,7 +236,7 @@ If you have a built-in SD card slot, you may use that, and the card will likely 
 If you are using a USB card reader, the card will likely show up as `/dev/sdX` (where `X` is a lowercase letter). In this latter case you need to be triple careful, because any SATA or SCSI storage devices will also share the same naming scheme, and if you have important data on any other `/dev/sdX` device (such as your main system disk being called something like `/dev/sda`) you might end up inadvertently overwriting it if you pick the wrong one in the below commands, losing all your data. Please be careful.
 
 ```bash
-sudo bmaptool copy out/images/debian-512-<your_board>-*.img.gz /dev/sdX
+sudo bmaptool copy out/debian-512-<your_board>-*.img.gz /dev/sdX
 ```
 
 #### Flashing to eMMC using a USB cable and Maskrom
@@ -258,12 +258,12 @@ Your device is now ready for programming over the Rockusb protocol.
 
 ```bash
 # Boot the board in USB upload mode
-sudo rockusb download-boot out/u-boot/<your_board>/rk3576_loader_v*.bin
+sudo rockusb download-boot prebuilt/u-boot/<your_board>/rk3576_loader_v*.bin
 
-sudo rockusb write-bmap out/images/debian-512-<your_board>-*.img.gz
+sudo rockusb write-bmap out/debian-512-<your_board>-*.img.gz
 ```
 
-If you built manually rather than via the container, the bootloader files are in `prebuilt/u-boot/<board>/` instead of `out/u-boot/<board>/`.
+Container builds place bootloaders in `out/u-boot/<board>/` and disk images in `out/images/` instead.
 
 ##### Flashing Radxa Rock 4D eMMC
 
@@ -271,8 +271,8 @@ Switch Radxa 4D into Maskrom mode, then:
 
 ```bash
 rockusb list
-rockusb download-boot out/u-boot/rock-4d/rk3576_loader_v*.bin
-rockusb write-bmap out/images/debian-512-rock-4d-*.img.gz
+rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_loader_v*.bin
+rockusb write-bmap out/debian-512-rock-4d-*.img.gz
 rockusb reset-device
 ```
 
