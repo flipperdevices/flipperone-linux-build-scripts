@@ -13,8 +13,8 @@
 : "${TFA_GIT:=https://github.com/ARM-software/arm-trusted-firmware.git}"
 : "${TFA_BRANCH:=master}"
 
-: "${RKBIN_GIT:=https://github.com/radxa/rkbin}"
-: "${RKBIN_BRANCH:=develop-v2025.04}"
+: "${RKBIN_GIT:=https://github.com/flipperdevices/rkbin}"
+: "${RKBIN_BRANCH:=master}"
 
 : "${USE_BL31:=opensource}"
 

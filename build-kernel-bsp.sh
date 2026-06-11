@@ -7,8 +7,8 @@
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 : "${CONFIGS:=configs/linux-bsp}"
 
-: "${LINUXBSP_GIT:=https://github.com/rockchip-linux/kernel.git}"
-: "${LINUXBSP_BRANCH:=develop-6.1}"
+: "${LINUXBSP_GIT:=https://github.com/flipperdevices/rockchip-linux}"
+: "${LINUXBSP_BRANCH:=release-6.1}"
 
 set -e
 
