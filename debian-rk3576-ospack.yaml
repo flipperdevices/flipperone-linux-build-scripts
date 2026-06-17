@@ -259,7 +259,11 @@ actions:
   - action: apt
     packages:
       - cog
+      - ffmpeg
       - firmware-mediatek
+      - libavcodec-extra
+      - libavfilter-extra
+      - libavformat-extra
       - mesa-teflon-delegate
       - sddm
       - sddm-theme-breeze
