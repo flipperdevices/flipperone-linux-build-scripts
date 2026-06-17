@@ -7,6 +7,8 @@ They are meant to be run on Debian 13 (trixie) or later. It's probably possible 
 Note that while you can compile all of this software by hand by running the scripts in this repository, you don't necessarily have to. Most commits include a small green checkmark in the GitHub interface next to the commit message (or a red cross if we are less lucky), which link to a page in our [Buildbot web interface](https://linux-images.flipp.dev/) with full build logs and links to [pre-built images for all relevant boards](https://dl-linux-images.flipp.dev/full-img/), which our automated build system produces whenever something updates either in this repository or in one of its dependencies.
 > Pre-built images for all supported boards are available at [dl-linux-images.flipp.dev](https://dl-linux-images.flipp.dev/full-img/) and are updated automatically on every commit. Building from source is only necessary if you want to modify the system.
 
+For a maintained walkthrough of the Flipper One Linux image build flow, see the official [How to build Linux image](https://docs.flipper.net/one/cpu-software/how-to-build-linux-image) documentation.
+
 ## Related repositories
 
 This repo contains build scripts only. The full system is assembled from several components:
