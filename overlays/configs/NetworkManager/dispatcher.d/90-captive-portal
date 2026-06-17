@@ -4,12 +4,18 @@ session=$(loginctl show-seat seat0 -p ActiveSession --value)
 [ -n "$session" ] || exit 0
 [ "$(loginctl show-session "$session" -p Class --value)" = user ]   || exit 0
 
-uid=$(id -u user)
-exec sudo -u user env \
+uid=$(loginctl show-session "$session" -p User --value)
+name=$(loginctl show-session "$session" -p Name --value)
+[ -n "$uid" ] && [ -n "$name" ] || exit 0
+home=$(getent passwd "$name" | cut -d: -f6)
+[ -n "$home" ] || exit 0
+[ -S "/run/user/$uid/wayland-0" ] || exit 0
+
+exec sudo -u "$name" env \
   XDG_RUNTIME_DIR="/run/user/$uid" \
   WAYLAND_DISPLAY=wayland-0 \
   chromium --ozone-platform=wayland \
   --password-store=basic \
-  --user-data-dir=/home/user/.config/chromium-standalone \
+  --user-data-dir="$home/.config/chromium-standalone" \
   --force-dark-mode \
   --start-maximized http://network-test.debian.org/nm
