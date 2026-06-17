@@ -264,6 +264,7 @@ actions:
       - libavcodec-extra
       - libavfilter-extra
       - libavformat-extra
+      - lpac
       - mesa-teflon-delegate
       - sddm
       - sddm-theme-breeze
