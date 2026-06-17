@@ -38,7 +38,6 @@ actions:
       - ca-certificates
       - cec-utils
       - chromium
-      - cog
       - curl
       - device-tree-compiler
       - dmidecode
@@ -52,7 +51,6 @@ actions:
       - file
       - fio
       - firmware-misc-nonfree
-      - firmware-realtek
       - gcc
       - git
       - glmark2-wayland
@@ -115,8 +113,6 @@ actions:
       - python3-plotly
       - rfkill
       - rsync
-      - sddm
-      - sddm-theme-breeze
       - sox
       - strace
       - stress-ng
@@ -260,38 +256,19 @@ actions:
     chroot: true
     command: chmod -R o+w /flipperone-testing
 
-  - action: download
-    description: Download our patched Cog browser with support for seat selection
-    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/c/cog/cog_0.19.1+git20260610.e2c2fab-1~flipper1_arm64.deb
-    name: cog-seat
-
-  - action: install-deb
-    description: Install the patched Cog package into the target
-    origin: cog-seat
-
-  - action: download
-    description: Download SDDM from Debian Sid rebuilt against Trixie libraries (with seat patch)
-    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/s/sddm/sddm_0.21.0+git20251101.dfa5315-1+flipper1_arm64.deb
-    name: sddm-sid
-
-  - action: install-deb
-    description: Install the updated SDDM package into the target
-    origin: sddm-sid
-
-  - action: download
-    description: Download updated Mediatek firmware (sid version)
-    url: https://dl-linux-images.flipp.dev/flipperone-deb/pool/main/f/firmware-nonfree/firmware-mediatek_20260309-1_all.deb
-    name: firmware-sid
-
-  - action: install-deb
-    description: Install the updated Mediatek firmware into the target
-    origin: firmware-sid
+  - action: apt
+    packages:
+      - cog
+      - firmware-mediatek
+      - mesa-teflon-delegate
+      - sddm
+      - sddm-theme-breeze
 
   - action: overlay
     description: Overlay Kodi Chromium kiosk launcher
     source: overlays/home/user/
     destination: /home/user/
-    
+
   - action: run
     description: Fix ownership of overlaid home files
     chroot: true
