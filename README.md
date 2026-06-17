@@ -15,6 +15,9 @@ This repo contains build scripts only. The full system is assembled from several
 | **flipperone-linux-build-scripts** | Build scripts that assemble complete disk images for RK3576-based boards (this repo) |
 | [flipper-linux-kernel](https://github.com/flipperdevices/flipper-linux-kernel) | Linux kernel patches and configuration for Flipper One RK3576-based boards |
 | [flipperone-mcu-firmware](https://github.com/flipperdevices/flipperone-mcu-firmware) | Firmware for the low-power RP2350 MCU |
+| [flipperdevices/u-boot](https://github.com/flipperdevices/u-boot) | Flipper fork of U-Boot; adds defconfigs for Flipper One and EVB1 on top of upstream |
+| [flipperdevices/rkbin](https://github.com/flipperdevices/rkbin) | Rockchip binary firmware blobs (BL31) — used when `USE_BL31=vendor` |
+| [ARM-software/arm-trusted-firmware](https://github.com/ARM-software/arm-trusted-firmware) | Open-source Trusted Firmware-A; used as BL31 by default |
 
 The build scripts pull the kernel and other components automatically — you don't need to clone other repos manually unless you want to modify them.
 
@@ -52,10 +55,10 @@ Every push to this repository (and to the tracked branches of its dependencies) 
 |---|---|---|
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/a05325e0-9e03-4a07-b39c-12d618a95469"><br><sub>Flipper One Prototype</sub></div> | `flipper-one` | Our current Flipper One prototype |
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/3f8d7d73-70f3-4c02-a290-6f2f51621499"><br><sub><a href="https://docs.banana-pi.org/en/BPI-M5/BananaPi_BPI-M5_Pro">Banana Pi BPI-M5 Pro</a><br>aka <a href="https://www.armsom.org/sige5">ArmSoM Sige5</a></sub></div> | `sige5` | Same hardware sold under two names. Has DisplayPort on USB-C. Recommended for development. |
-| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/135c0fca-3dfe-4d33-b239-10184154935c"><br><sub><a href="https://radxa.com/products/rock4/4d/">Radxa ROCK 4D</a></sub></div> | `rock-4d` | No DisplayPort on USB-C. Entering Maskrom requires a USB-A to USB-A cable. |
-| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/605a8b7f-a85e-4735-8198-81005ed4ec5c"><br><sub><a href="https://www.friendlyelec.com/index.php?route=product/product&product_id=309">FriendlyElec NanoPi M5</a></sub></div> | `nanopi-m5` | |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/135c0fca-3dfe-4d33-b239-10184154935c"><br><sub><a href="https://radxa.com/products/rock4/4d/">Radxa ROCK 4D</a></sub></div> | `rock-4d` | No DisplayPort on USB-C. Entering Maskrom requires a USB-A to USB-A cable. Available with eMMC or UFS storage — see [eMMC note below](#flashing-radxa-rock-4d-emmc). |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/605a8b7f-a85e-4735-8198-81005ed4ec5c"><br><sub><a href="https://www.friendlyelec.com/index.php?route=product/product&product_id=309">FriendlyElec NanoPi M5</a></sub></div> | `nanopi-m5` | Available with optional UFS storage module. UFS module part number differs from Flipper One prototypes, so there may be subtle behavior differences. |
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/b297e6ab-88d8-4085-a0d2-b989462414b1"><br><sub><a href="https://www.luckfox.com/EN-Luckfox-Omni3576">Luckfox Omni3576</a></sub></div> | `omni3576` | |
-| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/82d41031-3548-42cb-8a6f-e9037fb76ea3"><br><sub><a href="https://www.firefly.io/products/ROC-RK3576-PC.html">Firefly ROC-RK3576-PC</a></sub></div> | `roc-pc` | The only RK3576 board supported by unmodified upstream U-Boot (as of mid-2025). |
+| <div align="center"><img width="200" src="https://github.com/user-attachments/assets/82d41031-3548-42cb-8a6f-e9037fb76ea3"><br><sub><a href="https://www.firefly.io/products/ROC-RK3576-PC.html">Firefly ROC-RK3576-PC</a></sub></div> | `roc-pc` | |
 | Rockchip RK3576 EVB1 | `evb` | Official Rockchip evaluation board. Not available for sale. |
 
 ---
@@ -146,7 +149,7 @@ To fetch and build U-Boot with open-source TF-A:
 ./build-uboot.sh
 ```
 
-The default source is the Flipper fork of U-Boot (`flipperdevices/u-boot`, branch `rk3576`), which has defconfigs for all supported boards. Note that as of mid-2025, only the Firefly ROC-RK3576-PC (`roc-pc`) is supported by vanilla upstream U-Boot; all other boards require either the Flipper fork or a board-specific tree.
+The default source is the Flipper fork of U-Boot (`flipperdevices/u-boot`, branch `rk3576`), which has defconfigs for all supported boards. Upstream U-Boot now supports most boards listed here — NanoPi M5, NanoPi R76S, Luckfox Omni3576, ArmSoM Sige5, Firefly ROC-RK3576-PC, and Radxa Rock 4D. The Flipper fork is needed for Flipper One and EVB1.
 
 To build for a specific board instead of all boards:
 
@@ -223,8 +226,6 @@ This produces compressed images for each board whose bootloader is present. The 
 
 Don't run the mainline and BSP kernel scripts in parallel against the same output directory — both write to the same `prebuilt/linux/` path and the final packaging step will fail. Run one, then the other (or set separate `LINUX_OUT` paths).
 
-Note that as of mid-2025, upstream U-Boot doesn't have a driver for the Rockchip UFS controller, so boards with UFS cannot boot from it.
-
 ### Writing the image to SD/eMMC
 
 #### Flashing to an SD card
@@ -267,6 +268,8 @@ Container builds place bootloaders in `out/u-boot/<board>/` and disk images in `
 
 ##### Flashing Radxa Rock 4D eMMC
 
+The Rock 4D's eMMC and FSPI0 (SPI flash) share the same pins — only one can be active at a time. Upstream DTS enables FSPI0 by default, so images built without further modification will not work with eMMC storage on this board. If you need eMMC, make sure the device tree enables the eMMC controller and disables FSPI0. UFS storage does not have this restriction.
+
 Switch Radxa 4D into Maskrom mode, then:
 
 ```bash
@@ -282,16 +285,24 @@ rockusb reset-device
 
 ### Branch model
 
-The default branch is `dev`. Branch off it, then open a PR back to `dev`:
+Push access to this repository is limited to Flipper developers. To contribute, fork the repository first, then work on a branch in your fork and open a PR from there to `dev` in the main repo:
 
 ```bash
-git checkout dev && git pull
+# Fork on GitHub, then clone your fork
+git clone https://github.com/<your-username>/flipperone-linux-build-scripts
+cd flipperone-linux-build-scripts
+git remote add upstream https://github.com/flipperdevices/flipperone-linux-build-scripts
+
+# Keep your fork's dev up to date
+git fetch upstream && git checkout dev && git merge upstream/dev
+
+# Branch and push to your fork
 git checkout -b your-feature-name
 # make changes, then:
 git push origin your-feature-name
 ```
 
-Don't push directly to `dev`.
+Open a PR from `<your-username>/flipperone-linux-build-scripts:your-feature-name` to `flipperdevices/flipperone-linux-build-scripts:dev`.
 
 ### CI
 
@@ -315,8 +326,15 @@ Files go in `overlays/`, mirroring the target filesystem: `overlays/configs/` �
 
 ### Adding a new board
 
-1. **U-Boot**: If the board needs a custom U-Boot tree, note the `UBOOT_GIT`/`UBOOT_BRANCH`/`BOARD` values in the PR description. If it uses the Rockchip binary BL31, note `USE_BL31=vendor`.
-2. **Device tree (mainline kernel)**: If a DTS is already upstream, nothing extra is needed. If not, add the source to the appropriate location and document it.
-3. **Device tree (BSP kernel)**: Vendor DTS files go in `vendor-dts/` (see `vendor-dts/omni3576/` for the layout). Device tree overlays go in `vendor-dts/bsp/` as `.dtso` files.
-4. **Kernel config**: Board-specific options go as a fragment in `configs/linux/` or `configs/linux-bsp/`.
-5. Open a PR with a description of the board and how you tested that the image boots.
+Adding a board properly means getting it upstream in Linux first, then in U-Boot. BL31 is not board-specific and doesn't need to be touched.
+
+The rough sequence:
+
+1. **Linux device tree bindings**: Add a vendor prefix binding to upstream Linux (if the vendor isn't already there), a compatible binding for the board, and bindings for any board-specific devices not yet upstream.
+2. **Linux drivers**: Add drivers for any board-specific devices not yet upstream.
+3. **Linux DTS**: Add the board DTS to upstream Linux and get it merged to master.
+4. **U-Boot defconfig**: Once the DTS is in Linux master (pulled into U-Boot via `dts/upstream`), add a defconfig for the board in the Flipper U-Boot fork. If the DTS is in linux-next but not yet in master, a temporary `[HACK]` commit can import it directly into the Flipper dev branch — but that commit must be dropped before submitting upstream.
+5. **Kernel config fragment**: Add any board-specific kernel options as a fragment in `configs/linux/`.
+6. **Device tree (BSP kernel, if needed)**: Vendor DTS files go in `vendor-dts/` (see `vendor-dts/omni3576/` for the layout). Device tree overlays go in `vendor-dts/bsp/` as `.dtso` files.
+
+Open a PR with a description of the board and how you tested that the image boots.
