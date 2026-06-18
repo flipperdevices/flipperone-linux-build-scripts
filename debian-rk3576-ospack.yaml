@@ -266,6 +266,7 @@ actions:
       - libavformat-extra
       - lpac
       - mesa-teflon-delegate
+      - mpv
       - sddm
       - sddm-theme-breeze
 
