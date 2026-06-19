@@ -2,20 +2,22 @@
 [ "$2" = connectivity-change ] && [ "$CONNECTIVITY_STATE" = PORTAL ] || exit 0
 session=$(loginctl show-seat seat0 -p ActiveSession --value)
 [ -n "$session" ] || exit 0
-[ "$(loginctl show-session "$session" -p Class --value)" = user ]   || exit 0
-
+[ "$(loginctl show-session "$session" -p Class --value)" = user ] || exit 0
 uid=$(loginctl show-session "$session" -p User --value)
 name=$(loginctl show-session "$session" -p Name --value)
 [ -n "$uid" ] && [ -n "$name" ] || exit 0
 home=$(getent passwd "$name" | cut -d: -f6)
 [ -n "$home" ] || exit 0
-[ -S "/run/user/$uid/wayland-0" ] || exit 0
-
+for s in "/run/user/$uid"/wayland-[0-9]*; do
+    [ -S "$s" ] && { wd=${s##*/}; break; }
+done
+[ -n "$wd" ] || exit 0
 exec sudo -u "$name" env \
   XDG_RUNTIME_DIR="/run/user/$uid" \
-  WAYLAND_DISPLAY=wayland-0 \
+  WAYLAND_DISPLAY="$wd" \
   chromium --ozone-platform=wayland \
   --password-store=basic \
   --user-data-dir="$home/.config/chromium-standalone" \
   --force-dark-mode \
   --start-maximized http://network-test.debian.org/nm
+  
