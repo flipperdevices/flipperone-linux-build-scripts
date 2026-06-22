@@ -64,20 +64,26 @@ fi
 
 CONFIGS=$(realpath "$CONFIGS"/*)
 
+# DT overlays install flat next to the base DTBs (upstream layout), with the board
+# (the vendor-dts/bsp/<board>/ subdir) folded into the filename as a prefix, so names
+# stay unique across boards in the shared rockchip/ dir (we build all boards here).
+# They end up at /usr/lib/linux-image-<ver>/rockchip/<board>-<name>.dtbo. Overlays
+# placed directly under vendor-dts/bsp/ are board-agnostic and keep their plain name.
 for dtso in $(find "$VENDOR_DTS/bsp" -name \*.dtso); do
 	[ -f "$dtso" ] || continue
 
-	rel="${dtso##$VENDOR_DTS/bsp/}"
-	subdir="${rel%/*}"
-	[ "$subdir" = "$rel" ] && subdir=""
-
-    dtsofile="${dtso##*/}"
-	outfile="${subdir%/*}${subdir:+/}${dtsofile%.dtso}.dts"
-	destdir="${LINUX_DIR}/arch/arm64/boot/dts/rockchip/overlay"
-	destfile="${destdir}/${outfile}"
+	rel="${dtso#"$VENDOR_DTS"/bsp/}"
+	board="${rel%/*}"; [ "$board" = "$rel" ] && board=""
+	base="${dtso##*/}"; base="${base%.dtso}"
+	if [ -n "$board" ]; then
+		name="$(printf '%s' "$board" | tr / -)-${base}"
+	else
+		name="$base"
+	fi
+	destfile="${LINUX_DIR}/arch/arm64/boot/dts/rockchip/${name}.dts"
 
 	[ -f "${destfile}" ] ||
-		echo "dtb-\$(CONFIG_ARCH_ROCKCHIP) += overlay/${outfile%.dts}.dtbo" >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
+		echo "dtb-\$(CONFIG_ARCH_ROCKCHIP) += ${name}.dtbo" >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
 
 	install -pD -m 644 "${dtso}" "${destfile}"
 done

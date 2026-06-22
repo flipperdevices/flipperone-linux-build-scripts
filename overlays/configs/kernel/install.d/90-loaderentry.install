@@ -1,22 +1,14 @@
 #!/bin/sh
-# -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
-# ex: ts=8 sw=4 sts=4 et filetype=sh
 # SPDX-License-Identifier: LGPL-2.1-or-later
 #
-# This file is part of systemd.
+# Flipper One BLS boot-entry generator (kernel-install plugin, layout=bls).
 #
-# systemd is free software; you can redistribute it and/or modify it
-# under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation; either version 2.1 of the License, or
-# (at your option) any later version.
+# The kernel/initrd staging and devicetree(dir) handling are derived from systemd's
+# 90-loaderentry.install (LGPL-2.1-or-later).
 #
-# systemd is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with systemd; If not, see <https://www.gnu.org/licenses/>.
+# Keys written: standard BLS (title, version, machine-id, sort-key, options, linux,
+# devicetree, devicetree-overlay, initrd) plus 'devicetreedir' - a U-Boot extension
+# (DTB directory for cross-board fdtdir auto-selection; a U-Boot alias of 'fdtdir').
 
 set -e
 
@@ -24,308 +16,253 @@ COMMAND="${1:?}"
 KERNEL_VERSION="${2:?}"
 ENTRY_DIR_ABS="${3:?}"
 KERNEL_IMAGE="$4"
-INITRD_OPTIONS_SHIFT=4
+INITRD_SHIFT=4
 
-if [ "$KERNEL_INSTALL_LAYOUT" != "bls" ]; then
-    [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-        echo "KERNEL_INSTALL_LAYOUT=$KERNEL_INSTALL_LAYOUT, quitting."
+[ "$KERNEL_INSTALL_LAYOUT" = "bls" ] || exit 0
+
+BOOT_ROOT="${KERNEL_INSTALL_BOOT_ROOT:?}"
+ENTRY_TOKEN="${KERNEL_INSTALL_ENTRY_TOKEN:?}"
+MACHINE_ID="${KERNEL_INSTALL_MACHINE_ID:-}"
+CONF_ROOT="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}"
+ENTRIES="$BOOT_ROOT/loader/entries"
+ENTRY_STEM="$ENTRIES/$ENTRY_TOKEN-$KERNEL_VERSION"
+PROFILES="${FLIPPER_PROFILES:-/etc/kernel/flipper-profiles}"
+KCONFIG="$BOOT_ROOT/config-$KERNEL_VERSION"
+VENDOR=rockchip
+TITLE_MAX="${FLIPPER_TITLE_MAX:-26}"
+
+# Where the kernel package installs DTBs/overlays: primary dir + the modules fallback.
+DTB_DIR="/usr/lib/linux-image-$KERNEL_VERSION"
+DTB_DIRS="$DTB_DIR /usr/lib/modules/$KERNEL_VERSION/dtb"
+
+log() { [ "${KERNEL_INSTALL_VERBOSE:-0}" -gt 0 ] && echo "flipper-bls: $*" >&2; return 0; }
+die() { echo "flipper-bls: $*" >&2; exit 1; }
+trim() { printf '%s' "$1" | sed 's/^ *//; s/ *$//'; }
+# copy a file into the entry dir as root:root 0644
+stage_file() { install -m 0644 -o root -g root "$1" "$2" || die "could not copy '$1'"; }
+
+# remove: drop the base entry and all profile variants for this kernel
+if [ "$COMMAND" = "remove" ]; then
+    rm -f "$ENTRY_STEM.conf" "$ENTRY_STEM-"*.conf
+    _id="" && [ -r /etc/os-release ] && _id="$(. /etc/os-release; printf '%s' "${IMAGE_ID:-$ID}")" || :
+    if [ -n "$_id" ] && [ "$_id" != "$ENTRY_TOKEN" ]; then
+        _alt="$ENTRIES/$_id-$KERNEL_VERSION"
+        rm -f "$_alt.conf" "$_alt-"*.conf
+    fi
     exit 0
 fi
+[ "$COMMAND" = "add" ] || exit 0
 
-MACHINE_ID="${KERNEL_INSTALL_MACHINE_ID:?}"
-ENTRY_TOKEN="${KERNEL_INSTALL_ENTRY_TOKEN:?}"
-BOOT_ROOT="${KERNEL_INSTALL_BOOT_ROOT:?}"
-
+# --- locate the boot mount, so in-entry paths are relative to the boot partition --
 [ -n "$BOOT_MNT" ] || BOOT_MNT="$(stat -c %m "$BOOT_ROOT")"
-if [ "$BOOT_MNT" = '/' ]; then
-    ENTRY_DIR="$ENTRY_DIR_ABS"
-else
-    ENTRY_DIR="${ENTRY_DIR_ABS#"$BOOT_MNT"}"
-fi
 
-KERNEL_DEST="$ENTRY_DIR_ABS/linux"
-KERNEL_ENTRY="$ENTRY_DIR/linux"
-LOADER_ENTRY="$BOOT_ROOT/loader/entries/$ENTRY_TOKEN-$KERNEL_VERSION.conf"
+# absolute path under BOOT_ROOT -> path as it must appear inside a BLS entry (relative
+# to the boot partition; identical to the absolute path when /boot is on the rootfs).
+boot_rel() { if [ "$BOOT_MNT" = "/" ]; then printf '%s\n' "$1"; else printf '%s\n' "${1#"$BOOT_MNT"}"; fi; }
 
-case "$COMMAND" in
-    remove)
-        if [ -f "/lib/modules/$KERNEL_VERSION/vmlinuz" ] && [ "$KERNEL_INSTALL_BOOT_ENTRY_TYPE" = "type2" ]; then
-            [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-                echo "BOOT_ENTRY_TYPE=type2, not removing loader entries."
-            exit 0
-        fi
-        [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-            echo "Removing ${LOADER_ENTRY%.conf}*.conf"
-        exec rm -f \
-            "$LOADER_ENTRY" \
-            "${LOADER_ENTRY%.conf}"*".conf"
-        ;;
-    add)
-        ;;
-    *)
-        exit 0
-        ;;
-esac
+ENTRY_DIR="$(boot_rel "$ENTRY_DIR_ABS")"
+[ -d "$ENTRY_DIR_ABS" ] || die "entry directory '$ENTRY_DIR_ABS' does not exist"
 
-if [ -f /etc/os-release ]; then
-    # shellcheck source=/dev/null
-    . /etc/os-release
-elif [ -f /usr/lib/os-release ]; then
-    # shellcheck source=/dev/null
-    . /usr/lib/os-release
-fi
+# The loader entries dir may not exist yet on a fresh boot partition.
+mkdir -p "$ENTRIES" || die "could not create '$ENTRIES'"
 
-[ -n "$PRETTY_NAME" ] || PRETTY_NAME="Linux $KERNEL_VERSION"
+has_config() { [ -f "$KCONFIG" ] && grep -q "^CONFIG_$1=[ym]" "$KCONFIG"; }
 
-SORT_KEY="$IMAGE_ID"
-[ -z "$SORT_KEY" ] && SORT_KEY="$ID"
+# ===========================================================================
+# Stage the artifacts shared by every entry (kernel, initrd(s), devicetree[dir]).
+# ===========================================================================
 
-if [ -n "$KERNEL_INSTALL_CONF_ROOT" ]; then
-    if [ -f "$KERNEL_INSTALL_CONF_ROOT/cmdline" ]; then
-        BOOT_OPTIONS="$(grep -Gv '^\s*#' "$KERNEL_INSTALL_CONF_ROOT/cmdline" | tr -s "$IFS" ' ')"
-    fi
-elif [ -f /etc/kernel/cmdline ]; then
-    BOOT_OPTIONS="$(grep -Gv '^\s*#' /etc/kernel/cmdline | tr -s "$IFS" ' ')"
+# Base kernel command line (profiles append to this).
+if [ -f "$CONF_ROOT/cmdline" ]; then
+    BASE_OPTS="$(grep -Gv '^\s*#' "$CONF_ROOT/cmdline" | tr -s '[:space:]' ' ')"
 elif [ -f /usr/lib/kernel/cmdline ]; then
-    BOOT_OPTIONS="$(grep -Gv '^\s*#' /usr/lib/kernel/cmdline | tr -s "$IFS" ' ')"
-elif ! systemd-detect-virt --container --quiet; then
-    BOOT_OPTIONS="$(tr -s "$IFS" '\n' </proc/cmdline | grep -ve '^BOOT_IMAGE=' -e '^initrd=' | tr '\n' ' ')"
+    BASE_OPTS="$(grep -Gv '^\s*#' /usr/lib/kernel/cmdline | tr -s '[:space:]' ' ')"
 else
-    BOOT_OPTIONS=""
+    BASE_OPTS=""
+fi
+BASE_OPTS="$(trim "$BASE_OPTS")"
+
+# If the boot entries are named after the machine ID, pin systemd.machine_id= on the
+# kernel command line so the machine ID stays stable inside the initrd (where it isn't
+# directly accessible yet) and across factory reset on a volatile root.
+# (No-op unless entry-token == machine-id, e.g. machine-id-based entry naming.)
+if [ -n "$MACHINE_ID" ] && [ "$ENTRY_TOKEN" = "$MACHINE_ID" ] && ! echo "$BASE_OPTS" | grep -q "systemd.machine_id="; then
+    BASE_OPTS="$BASE_OPTS systemd.machine_id=$MACHINE_ID"
 fi
 
-BOOT_OPTIONS="${BOOT_OPTIONS% }"
-
-# If the boot entries are named after the machine ID, then suffix the kernel
-# command line with the machine ID we use, so that the machine ID remains
-# stable, even during factory reset, in the initrd (where the system's machine
-# ID is not directly accessible yet), and if the root file system is volatile.
-if [ "$ENTRY_TOKEN" = "$MACHINE_ID" ] && ! echo "$BOOT_OPTIONS" | grep -q "systemd.machine_id="; then
-    BOOT_OPTIONS="$BOOT_OPTIONS systemd.machine_id=$MACHINE_ID"
+# Console selection replicating the old features.d/default logic:
+# FIQ kernel  -> console=ttyFIQ0,1500000n8
+# mainline    -> console=ttyS0,1500000n8 console=ttyS4,1500000n8 fbcon=map:1
+if has_config FIQ_DEBUGGER_CONSOLE; then
+    BASE_OPTS="$(echo " $BASE_OPTS " | sed 's/ console=ttyS0,1500000n8 / /g')"
+    BASE_OPTS="$(trim "$BASE_OPTS") console=ttyFIQ0,1500000n8"
+else
+    BASE_OPTS="$(echo " $BASE_OPTS " | sed 's/ console=ttyS0,1500000n8 / /g')"
+    BASE_OPTS="$(trim "$BASE_OPTS") console=ttyS0,1500000n8"
+    BASE_OPTS="$(echo " $BASE_OPTS " | sed 's/ console=ttyS4,1500000n8 / /g')"
+    BASE_OPTS="$(trim "$BASE_OPTS") console=ttyS4,1500000n8"
+    BASE_OPTS="$(echo " $BASE_OPTS " | sed 's/ console=ttyFIQ0,1500000n8 / /g')"
+    BASE_OPTS="$(trim "$BASE_OPTS") fbcon=map:1"
 fi
 
-TRIES_FILE="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}/tries"
+# Standard BLS sort-key (os-release IMAGE_ID, else ID): a spec-compliant reader uses
+# it to order entries
+SORT_KEY=""
+[ -r /etc/os-release ] && SORT_KEY="$(. /etc/os-release; printf '%s' "${IMAGE_ID:-$ID}")" || :
 
-if [ -f "$TRIES_FILE" ]; then
-    read -r TRIES <"$TRIES_FILE"
-    if ! echo "$TRIES" | grep -q '^[0-9][0-9]*$'; then
-        echo "$TRIES_FILE does not contain an integer." >&2
-        exit 1
-    fi
-    if [ -f "$LOADER_ENTRY" ]; then
-        [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-            echo "Removing previous loader entry '$LOADER_ENTRY' without boot counting." >&2
-        rm -f "$LOADER_ENTRY"
-    fi
-    for loaderentry in "${LOADER_ENTRY%.conf}+"*.conf; do
-        [ "$loaderentry" = "${LOADER_ENTRY%.conf}+*.conf" ] && break
-        [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-            echo "Removing previous loader entry '$loaderentry' that has not yet booted successfully." >&2
-        rm -f "$loaderentry"
-    done
-    LOADER_ENTRY="${LOADER_ENTRY%.conf}+$TRIES.conf"
-fi
+# Kernel image.
+stage_file "$KERNEL_IMAGE" "$ENTRY_DIR_ABS/linux"
+KERNEL_ENTRY="$ENTRY_DIR/linux"
 
-if ! [ -d "$ENTRY_DIR_ABS" ]; then
-    echo "Error: entry directory '$ENTRY_DIR_ABS' does not exist" >&2
-    exit 1
-fi
-
-install -m 0644 "$KERNEL_IMAGE" "$KERNEL_DEST" || {
-    echo "Error: could not copy '$KERNEL_IMAGE' to '$KERNEL_DEST'." >&2
-    exit 1
-}
-chown root:root "$KERNEL_DEST" || :
-
-if [ -n "$KERNEL_INSTALL_CONF_ROOT" ]; then
-    if [ -f "$KERNEL_INSTALL_CONF_ROOT/devicetree" ]; then
-        read -r DEVICETREE <"$KERNEL_INSTALL_CONF_ROOT/devicetree"
-    fi
-elif [ -f /etc/kernel/devicetree ]; then
-    read -r DEVICETREE </etc/kernel/devicetree
-elif [ -f /usr/lib/kernel/devicetree ]; then
-    read -r DEVICETREE </usr/lib/kernel/devicetree
-fi
+# devicetree (single, optional) — copied into the entry dir.
+DEVICETREE=""; DEVICETREE_ENTRY=""
+[ -f "$CONF_ROOT/devicetree" ] && read -r DEVICETREE <"$CONF_ROOT/devicetree" || :
 if [ -n "$DEVICETREE" ]; then
-    for prefix in \
-        "$KERNEL_INSTALL_CONF_ROOT" \
-        "/usr/lib/firmware/$KERNEL_VERSION/device-tree" \
-        "/usr/lib/linux-image-$KERNEL_VERSION" \
-        "/usr/lib/modules/$KERNEL_VERSION/dtb"
-    do
-        [ -n "$prefix" ] || continue
-        [ -f "$prefix/$DEVICETREE" ] || continue
-        DEVICETREE_SRC="$prefix/$DEVICETREE"
+    for p in "$CONF_ROOT" $DTB_DIRS; do
+        [ -f "$p/$DEVICETREE" ] || continue
+        stage_file "$p/$DEVICETREE" "$ENTRY_DIR_ABS/${DEVICETREE##*/}"
+        DEVICETREE_ENTRY="$ENTRY_DIR/${DEVICETREE##*/}"
         break
     done
-
-    [ -n "$DEVICETREE_SRC" ] || {
-        echo "Error: could not find device tree blob '$DEVICETREE'." >&2
-        exit 1
-    }
-
-    DEVICETREE_DEST="$ENTRY_DIR_ABS/${DEVICETREE##*/}"
-    DEVICETREE_ENTRY="$ENTRY_DIR/${DEVICETREE##*/}"
-
-    install -m 0644 "$DEVICETREE_SRC" "$DEVICETREE_DEST" || {
-        echo "Error: could not copy '$DEVICETREE_SRC' to '$DEVICETREE_DEST'." >&2
-        exit 1
-    }
-    chown root:root "$DEVICETREE_DEST" || :
+    [ -n "$DEVICETREE_ENTRY" ] || die "device tree blob '$DEVICETREE' not found"
 fi
 
-# Optionally emit a 'devicetreedir' directive (a U-Boot extlinux extension; not part of
-# the BLS spec, hence opt-in). Activated by a 'devicetreedir' file alongside the other
-# kernel-install configuration whose contents parse as a true boolean (1/yes/true/on).
-# Only done when no explicit DEVICETREE was configured. The standard DTB search prefixes
-# are scanned for a directory containing at least one DTB. If the source directory
-# already lives on the same filesystem as the loader entries it is referenced in place;
-# otherwise the tree is copied into a 'dtbs/' subdirectory of the entry.
-DEVICETREEDIR_ENTRY=
-DEVICETREEDIR_ENABLED=
-if [ -z "$DEVICETREE" ]; then
-    DEVICETREEDIR_FILE=
-    if [ -n "$KERNEL_INSTALL_CONF_ROOT" ]; then
-        [ -f "$KERNEL_INSTALL_CONF_ROOT/devicetreedir" ] && \
-            DEVICETREEDIR_FILE="$KERNEL_INSTALL_CONF_ROOT/devicetreedir"
-    elif [ -f /etc/kernel/devicetreedir ]; then
-        DEVICETREEDIR_FILE=/etc/kernel/devicetreedir
-    elif [ -f /usr/lib/kernel/devicetreedir ]; then
-        DEVICETREEDIR_FILE=/usr/lib/kernel/devicetreedir
-    fi
-    if [ -n "$DEVICETREEDIR_FILE" ]; then
-        DEVICETREEDIR_VALUE=
-        read -r DEVICETREEDIR_VALUE <"$DEVICETREEDIR_FILE" || :
-        case "$DEVICETREEDIR_VALUE" in
-            1|[Yy]|[Yy][Ee][Ss]|[Tt]|[Tt][Rr][Uu][Ee]|[Oo][Nn])
-                DEVICETREEDIR_ENABLED=yes
-                ;;
-            0|[Nn]|[Nn][Oo]|[Ff]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff])
-                ;;
-            *)
-                echo "Error: '$DEVICETREEDIR_FILE' does not contain a boolean value." >&2
-                exit 1
-                ;;
+# devicetreedir (U-Boot fdtdir extension) — referenced in place, opt-in via a
+# /etc/kernel/devicetreedir file containing a true boolean. Only when no single
+# devicetree was configured.
+DEVICETREEDIR_SRC=""; DEVICETREEDIR_ENTRY=""
+if [ -z "$DEVICETREE" ] && [ -f "$CONF_ROOT/devicetreedir" ]; then
+    _v=""; read -r _v <"$CONF_ROOT/devicetreedir" || :
+    case "$_v" in
+        1|[Yy]|[Yy][Ee][Ss]|[Tt]|[Tt][Rr][Uu][Ee]|[Oo][Nn])
+            for p in $DTB_DIRS; do
+                [ -d "$p" ] || continue
+                for d in "$p"/*.dtb "$p"/*/*.dtb "$p"/*/*/*.dtb; do
+                    [ -f "$d" ] && { DEVICETREEDIR_SRC="$p"; break; }
+                done
+                [ -n "$DEVICETREEDIR_SRC" ] && break
+            done
+            [ -n "$DEVICETREEDIR_SRC" ] || die "no device-tree directory for $KERNEL_VERSION"
+            DEVICETREEDIR_ENTRY="$(boot_rel "$DEVICETREEDIR_SRC")"
+            ;;
+    esac
+fi
+# Overlay directory: DT overlays sit flat next to the .dtb files (upstream layout),
+# i.e. in the same vendor dir the DTBs live in. Path == entry path while /boot is on
+# the rootfs.
+OVERLAY_DIR="${DEVICETREEDIR_SRC:-$DTB_DIR}/$VENDOR"
+
+# initrd(s): from the kernel-install staging area, positional args, or the
+# distro's well-known names. Collect the in-entry paths once for reuse.
+shift "$INITRD_SHIFT"
+INITRD_ENTRIES=""
+add_initrd() { INITRD_ENTRIES="$INITRD_ENTRIES${INITRD_ENTRIES:+ }$1"; }
+for i in "$KERNEL_INSTALL_STAGING_AREA"/microcode* "$@" "$KERNEL_INSTALL_STAGING_AREA"/initrd*; do
+    if [ ! -f "$i" ]; then
+        case "$i" in
+            "$KERNEL_INSTALL_STAGING_AREA"/initrd* | "$KERNEL_INSTALL_STAGING_AREA"/microcode*) continue ;;
         esac
+        die "'$i' is not a file"
     fi
-fi
-if [ -n "$DEVICETREEDIR_ENABLED" ]; then
-    for prefix in \
-        "/usr/lib/firmware/$KERNEL_VERSION/device-tree" \
-        "/usr/lib/linux-image-$KERNEL_VERSION" \
-        "/usr/lib/modules/$KERNEL_VERSION/dtb"
-    do
-        [ -d "$prefix" ] || continue
-        # Ensure the directory actually contains a DTB somewhere before using it.
-        found=
-        for dtb in "$prefix"/*.dtb "$prefix"/*/*.dtb "$prefix"/*/*/*.dtb; do
-            [ -f "$dtb" ] || continue
-            found=yes
-            break
-        done
-        [ -n "$found" ] || continue
-        DEVICETREEDIR_SRC="$prefix"
-        break
-    done
-
-    if [ -n "$DEVICETREEDIR_SRC" ]; then
-        DTB_MNT="$(stat -c %m "$DEVICETREEDIR_SRC")"
-        if [ "$DTB_MNT" = "$BOOT_MNT" ]; then
-            if [ "$BOOT_MNT" = '/' ]; then
-                DEVICETREEDIR_ENTRY="$DEVICETREEDIR_SRC"
-            else
-                DEVICETREEDIR_ENTRY="${DEVICETREEDIR_SRC#"$BOOT_MNT"}"
-            fi
-            [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-                echo "Referencing device tree directory '$DEVICETREEDIR_SRC' in place as '$DEVICETREEDIR_ENTRY'."
-        else
-            DTBS_DEST="$ENTRY_DIR_ABS/dtbs"
-            [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && \
-                echo "Copying device tree directory '$DEVICETREEDIR_SRC' to '$DTBS_DEST'."
-            rm -rf -- "$DTBS_DEST"
-            mkdir -p "$DTBS_DEST" || {
-                echo "Error: could not create directory '$DTBS_DEST'." >&2
-                exit 1
-            }
-            cp -r -- "$DEVICETREEDIR_SRC"/. "$DTBS_DEST/" || {
-                echo "Error: could not copy '$DEVICETREEDIR_SRC' to '$DTBS_DEST'." >&2
-                exit 1
-            }
-            find "$DTBS_DEST" -type d -exec chmod 0755 {} +
-            find "$DTBS_DEST" -type f -exec chmod 0644 {} +
-            chown -R root:root "$DTBS_DEST" || :
-            DEVICETREEDIR_ENTRY="$ENTRY_DIR/dtbs"
-        fi
-    else
-        echo "Error: could not find a device tree directory for $KERNEL_VERSION." >&2
-        exit 1
-    fi
-fi
-
-shift "$INITRD_OPTIONS_SHIFT"
-# All files listed as arguments, and staged files starting with "initrd" are installed as initrds.
-for initrd in "${KERNEL_INSTALL_STAGING_AREA}"/microcode* "${@}" "${KERNEL_INSTALL_STAGING_AREA}"/initrd*; do
-    [ -f "$initrd" ] || {
-        case "$initrd" in
-            "${KERNEL_INSTALL_STAGING_AREA}/initrd*" | "${KERNEL_INSTALL_STAGING_AREA}/microcode*")
-            continue ;;
-        esac
-        echo "Error: '$initrd' is not a file." >&2
-        exit 1
-    }
-
-    initrd_basename="${initrd##*/}"
-    [ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && echo "Installing $ENTRY_DIR_ABS/$initrd_basename"
-    install -m 0644 "$initrd" "$ENTRY_DIR_ABS/$initrd_basename" || {
-        echo "Error: could not copy '$initrd' to '$ENTRY_DIR_ABS/$initrd_basename'." >&2
-        exit 1
-    }
-    chown root:root "$ENTRY_DIR_ABS/$initrd_basename" || :
+    _bn="${i##*/}"
+    stage_file "$i" "$ENTRY_DIR_ABS/$_bn"
+    add_initrd "$ENTRY_DIR/$_bn"
 done
+# Fallbacks when no initrd was staged into kernel-install (e.g. initramfs-tools).
+[ -z "$INITRD_ENTRIES" ] && [ -f "$ENTRY_DIR_ABS/initrd" ] && add_initrd "$ENTRY_DIR/initrd"
+[ -z "$INITRD_ENTRIES" ] && [ -f "$BOOT_ROOT/initramfs-$KERNEL_VERSION.img" ] && add_initrd "$(boot_rel "$BOOT_ROOT/initramfs-$KERNEL_VERSION.img")"
+[ -z "$INITRD_ENTRIES" ] && [ -f "$BOOT_ROOT/initrd.img-$KERNEL_VERSION" ] && add_initrd "$(boot_rel "$BOOT_ROOT/initrd.img-$KERNEL_VERSION")"
 
-mkdir -p "${LOADER_ENTRY%/*}" || {
-    echo "Error: could not create loader entry directory '${LOADER_ENTRY%/*}'." >&2
-    exit 1
+# ===========================================================================
+# Entry writer + overlay discovery.
+# ===========================================================================
+
+# write_entry FILE TITLE OPTIONS FDTOVERLAYS
+write_entry() {
+    _f="$1"; _title="$2"; _opts="$3"; _fdtov="$4"
+    {
+        echo "# Boot Loader Specification type#1 entry (Flipper One)"
+        echo "title      $_title"
+        echo "version    $KERNEL_VERSION"
+        [ -n "$MACHINE_ID" ] && [ "$ENTRY_TOKEN" = "$MACHINE_ID" ] && echo "machine-id $MACHINE_ID"
+        [ -n "$SORT_KEY" ] && echo "sort-key   $SORT_KEY"
+        [ -n "$_opts" ]  && echo "options    $_opts"
+        echo "linux      $KERNEL_ENTRY"
+        [ -n "$DEVICETREE_ENTRY" ]    && echo "devicetree    $DEVICETREE_ENTRY"
+        [ -n "$DEVICETREEDIR_ENTRY" ] && echo "devicetreedir $DEVICETREEDIR_ENTRY"
+        [ -n "$_fdtov" ]              && echo "devicetree-overlay $_fdtov"
+        for _i in $INITRD_ENTRIES; do echo "initrd     $_i"; done
+    } >"$_f"
+    return 0   # don't let a trailing empty conditional's status abort `set -e`
 }
 
-[ "$KERNEL_INSTALL_VERBOSE" -gt 0 ] && echo "Creating $LOADER_ENTRY"
-{
-    echo "# Boot Loader Specification type#1 entry"
-    echo "# File created by $0 (systemd {{VERSION_TAG}})"
-    echo "title      $PRETTY_NAME"
-    echo "version    $KERNEL_VERSION"
-    if [ "$ENTRY_TOKEN" = "$MACHINE_ID" ]; then
-        # See similar logic above for the systemd.machine_id= kernel command line option
-        echo "machine-id $MACHINE_ID"
-    fi
-    [ -n "$SORT_KEY" ] && echo "sort-key   $SORT_KEY"
-    [ -n "$BOOT_OPTIONS" ] && echo "options    $BOOT_OPTIONS"
-    echo "linux      $KERNEL_ENTRY"
-    [ -n "$DEVICETREE_ENTRY" ] && echo "devicetree $DEVICETREE_ENTRY"
-    [ -n "$DEVICETREEDIR_ENTRY" ] && echo "devicetreedir $DEVICETREEDIR_ENTRY"
-
-    have_initrd=
-    for initrd in "${KERNEL_INSTALL_STAGING_AREA}"/microcode* "${@}" "${KERNEL_INSTALL_STAGING_AREA}"/initrd*; do
-        [ -f "$initrd" ] || continue
-        echo "initrd     $ENTRY_DIR/${initrd##*/}"
-        have_initrd=yes
+# Echo the space-separated paths of the named DT overlays (flat, next to the DTBs).
+# Returns non-zero with no output if any one is missing.
+overlay_paths() {
+    _paths=""
+    for _n in "$@"; do
+        [ -f "$OVERLAY_DIR/$_n.dtbo" ] || return 1
+        _paths="$_paths${_paths:+ }$OVERLAY_DIR/$_n.dtbo"
     done
-
-    # Try a few variations that are generated by various initrd generators in their kernel-install hooks if
-    # no initrds were supplied.
-
-    if [ -z "$have_initrd" ] && [ -f "$ENTRY_DIR_ABS/initrd" ]; then
-        echo "initrd     $ENTRY_DIR/initrd"
-        have_initrd=yes
-    fi
-
-    if [ -z "$have_initrd" ] && [ -f "$BOOT_ROOT/initramfs-$KERNEL_VERSION.img" ]; then
-        echo "initrd     /initramfs-$KERNEL_VERSION.img"
-        have_initrd=yes
-    fi
-    :
-} >"$LOADER_ENTRY" || {
-    echo "Error: could not create loader entry '$LOADER_ENTRY'." >&2
-    exit 1
+    printf '%s' "$_paths"
 }
+
+# ===========================================================================
+# Write the entries.
+# ===========================================================================
+
+# Menu titles must fit the device's small screen. A title is "<version> <profile>";
+# cap the TOTAL length at TITLE_MAX chars by trimming the (long) version while keeping
+# the profile suffix intact. Entry filenames and the 'version' field keep the full
+# kernel version, which kernel-install needs to stay consistent with /lib/modules.
+make_title() {
+    _suf="$1"
+    _avail=$(( TITLE_MAX - ${#_suf} - 1 ))
+    if [ "$_avail" -ge 1 ]; then
+        printf '%s %s' "$(printf '%s' "$KERNEL_VERSION" | cut -c"1-$_avail")" "$_suf"
+    else
+        printf '%s' "$_suf" | cut -c"1-$TITLE_MAX"
+    fi
+}
+
+# Base entry == the [DEFAULT] profile.
+write_entry "$ENTRY_STEM.conf" "$(make_title '[DEFAULT]')" "$BASE_OPTS" ""
+
+[ -f "$PROFILES" ] || { log "$PROFILES not found, only the [DEFAULT] entry written"; exit 0; }
+
+while IFS='|' read -r tok suf extra gate dtbos legend; do
+    tok="$(echo "$tok" | tr -d '[:space:]')"
+    case "$tok" in ''|\#*) continue ;; esac
+
+    suf="$(trim "$suf")"
+    extra="$(trim "$extra")"
+    gate="$(trim "$gate")"
+    dtbos="$(trim "$dtbos")"
+
+    # gate may list several config symbols; all must be present.
+    gated_out=0; _failed_g=""
+    for g in $gate; do has_config "$g" || { gated_out=1; _failed_g="$g"; break; }; done
+    if [ "$gated_out" = 1 ]; then log "skip $tok (CONFIG_$_failed_g not set for $KERNEL_VERSION)"; continue; fi
+
+    opts="$BASE_OPTS"
+    [ -n "$extra" ] && opts="$opts $extra"
+
+    if [ -z "$dtbos" ]; then
+        write_entry "$ENTRY_STEM-$tok.conf" "$(make_title "$suf")" "$opts" ""
+        continue
+    fi
+
+    # A leading '!' on the overlay list = required (skip if overlays absent, like the
+    # old add_board_dtbo -z); otherwise optional (entry is still written, sans overlay).
+    required=0
+    case "$dtbos" in '!'*) required=1; dtbos="$(trim "${dtbos#\!}")" ;; esac
+
+    paths="$(overlay_paths $dtbos)" || paths=""
+    if [ -z "$paths" ] && [ "$required" = 1 ]; then
+        log "skip $tok (overlays not found for $KERNEL_VERSION)"
+        continue
+    fi
+    write_entry "$ENTRY_STEM-$tok.conf" "$(make_title "$suf")" "$opts" "$paths"
+done <"$PROFILES"
+
 exit 0

@@ -26,13 +26,8 @@ sync "$IMG_OUT"/debian-rootfs.img
 TMP=`mktemp`
 chmod 644 "$TMP"
 
-debugfs -R "cat /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img | sed "/menu title/s/U-Boot menu/Flipper One $BUILD_ID/" > "$TMP"
-debugfs -w -R "rm /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img
-debugfs -w -R "write $TMP /boot/extlinux/extlinux.conf" "$IMG_OUT"/debian-rootfs.img
-
-debugfs -R "cat /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img | sed "/U_BOOT_MENU_TITLE/s/U-Boot menu/Flipper One $BUILD_ID/" > "$TMP"
-debugfs -w -R "rm /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img
-debugfs -w -R "write $TMP /etc/default/u-boot" "$IMG_OUT"/debian-rootfs.img
+# Boot entries are pure BLS in /boot/loader/entries, read directly by U-Boot's
+# 'bls' bootmeth (no extlinux.conf). Nothing to rewrite here for the boot menu.
 
 debugfs -R "cat /usr/lib/os-release"  "$IMG_OUT"/debian-rootfs.img > "$TMP"
 echo "BUILD_ID=$BUILD_ID" >> "$TMP"
