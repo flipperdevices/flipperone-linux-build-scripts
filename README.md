@@ -16,7 +16,7 @@ This repo contains build scripts only. The full system is assembled from several
 | [flipper-linux-kernel](https://github.com/flipperdevices/flipper-linux-kernel) | Linux kernel patches and configuration for Flipper One RK3576-based boards |
 | [flipperone-mcu-firmware](https://github.com/flipperdevices/flipperone-mcu-firmware) | Firmware for the low-power RP2350 MCU |
 | [flipperdevices/u-boot](https://github.com/flipperdevices/u-boot) | Flipper fork of U-Boot; adds defconfigs for Flipper One and EVB1 on top of upstream |
-| [flipperdevices/rkbin](https://github.com/flipperdevices/rkbin) | Rockchip binary firmware blobs (BL31) — used when `USE_BL31=vendor` |
+| [flipperdevices/rkbin](https://github.com/flipperdevices/rkbin) | Rockchip binary firmware blobs — DDR init blob and prebuilt Maskrom USB loader (always required), plus vendor BL31 when `USE_BL31=vendor` |
 | [ARM-software/arm-trusted-firmware](https://github.com/ARM-software/arm-trusted-firmware) | Open-source Trusted Firmware-A; used as BL31 by default |
 
 The build scripts pull the kernel and other components automatically — you don't need to clone other repos manually unless you want to modify them.
