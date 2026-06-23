@@ -1,7 +1,0 @@
-#!/bin/sh
-
-add_legend "NO KDE" "Same as DEFAULT but no KDE autostart"
-# Reset name to base (removes [DEFAULT] suffix added by default feature)
-set_base_profile_name "${base_profile_name}"
-append_name "[NO KDE]"
-add_bootargs systemd.unit=multi-user.target

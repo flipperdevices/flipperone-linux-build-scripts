@@ -1,0 +1,31 @@
+# Flipper One boot profiles -> one BLS entry per profile per kernel.
+#
+# Each profile is derived from the base ("[DEFAULT]") entry that
+# 90-loaderentry.install generates: it reuses the same linux/initrd/devicetreedir
+# and only adds a title suffix, extra kernel cmdline, and/or DTB overlays.
+#
+# This replaces the old u-boot-menu enabled.d/features.d profile engine.
+#
+# Columns (pipe-separated; '#' starts a comment line):
+#   1 token        short id, used in the entry filename + sort ordering
+#   2 suffix       appended to the menu title, e.g. "[ROUTER]"
+#   3 cmdline      extra kernel command-line fragment (may be empty)
+#   4 gate         required kernel config symbol(s) (=y/=m in /boot/config-<ver>);
+#                  space-separated = ALL must be present; the profile is skipped
+#                  for kernels that lack any of them (may be empty)
+#   5 dtbos        space-separated overlay names = the .dtbo basenames as installed
+#                  flat in <dtbdir>/rockchip/ (board-prefixed by build-kernel-bsp.sh,
+#                  e.g. rk3576-evb1-v10-typec-base). Prefix the whole list with '!' to
+#                  make overlays REQUIRED: the profile is skipped on kernels missing
+#                  them (else the entry is still produced without overlays).
+#   6 legend       short description shown in the menu header (may be empty)
+#
+# Order here = order in the generated menu (after the [DEFAULT] entry).
+
+nokde |[NO KDE]      |systemd.unit=multi-user.target  |               |          |Same as DEFAULT but no KDE autostart
+tvbox |[TV MEDIA BOX]|systemd.unit=tv-media-box.target|               |hdmi-cec  |Kodi media-box session
+router|[ROUTER]      |systemd.unit=router.target      |               |          |Wi-Fi router mode
+#hdmi4k|[HDMI-4K]     |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-hdmi-dp|HDMI 4k
+dp4k  |[DP-4K]       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k
+#fan  |[FAN]         |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
+#ncm   |[USB NCM]     |systemd.wants=usb-ncm-gadget.service|USB_CONFIGFS_NCM USB_F_NCM|usb-ncm|USB NCM Ethernet gadget

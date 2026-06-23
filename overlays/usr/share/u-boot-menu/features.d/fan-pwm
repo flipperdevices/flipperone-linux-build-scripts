@@ -1,3 +1,0 @@
-#!/bin/sh
-
-add_board_dtbo -d "fan-pwm" -n "FAN"
