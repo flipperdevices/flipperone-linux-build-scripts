@@ -119,7 +119,7 @@ sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex \
 For assembling disk images — debos, bmaptool, and zeekstd all need to be installed from source:
 
 ```bash
-sudo apt install golang pipx pigz cargo parted fdisk mmdebstrap \
+sudo apt install golang pipx pigz cargo parted fdisk btrfs-progs mmdebstrap \
     systemd-resolved systemd-container qemu-user-binfmt \
     libglib2.0-dev libostree-dev fakemachine
 

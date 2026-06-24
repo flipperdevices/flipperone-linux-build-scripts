@@ -23,19 +23,9 @@ trap cleanup EXIT
 
 bmaptool copy "$IMG_OUT"/debian-rootfs.img.zst "$IMG_OUT"/debian-rootfs.img
 sync "$IMG_OUT"/debian-rootfs.img
-TMP=`mktemp`
-chmod 644 "$TMP"
 
 # Boot entries are pure BLS in /boot/loader/entries, read directly by U-Boot's
 # 'bls' bootmeth (no extlinux.conf). Nothing to rewrite here for the boot menu.
-
-debugfs -R "cat /usr/lib/os-release"  "$IMG_OUT"/debian-rootfs.img > "$TMP"
-echo "BUILD_ID=$BUILD_ID" >> "$TMP"
-debugfs -w -R "rm /usr/lib/os-release" "$IMG_OUT"/debian-rootfs.img
-debugfs -w -R "write $TMP /usr/lib/os-release" "$IMG_OUT"/debian-rootfs.img
-sync "$IMG_OUT"/debian-rootfs.img
-
-rm -f "$TMP"
 
 for s in 512 4096; do
 	echo "Creating images for $s-byte sector size"
