@@ -22,6 +22,7 @@ RUN apt-get install -y \
     flex \
     parted \
     fdisk \
+    btrfs-progs \
     python3-dev \
     python3-libfdt \
     python3-setuptools \

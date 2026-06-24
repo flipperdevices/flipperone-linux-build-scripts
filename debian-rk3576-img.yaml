@@ -21,14 +21,18 @@ actions:
         start: 32KiB
         end: 64MiB
       - name: root
-        fs: ext4
+        fs: btrfs
         start: 64MiB
         end: -1MiB
-        flags: [ boot ]
     mountpoints:
       - mountpoint: /
         partition: root
-        options: [ x-systemd.growfs ]
+        options: [ compress=zstd, x-systemd.growfs ]
+
+  - action: run
+    description: Enable zstd compression on the image mount
+    chroot: false
+    command: mount -o remount,compress=zstd "$IMAGEMNTDIR"
 
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
@@ -43,3 +47,4 @@ actions:
     description: Install Linux kernel packages inside the target
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
+    
