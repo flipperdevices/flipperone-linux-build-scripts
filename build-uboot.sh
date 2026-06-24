@@ -9,6 +9,7 @@
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 : "${CROSS_COMPILE64:=aarch64-linux-gnu-}"
 : "${CROSS_COMPILE32:=arm-linux-gnueabihf-}"
+: "${CONFIGS:=configs/u-boot}"
 
 : "${UBOOT_GIT:=https://github.com/flipperdevices/u-boot.git}"
 : "${UBOOT_BRANCH:=rk3576}"
@@ -50,6 +51,7 @@ make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64
 TEE=`realpath out/arm-plat-rockchip/core/tee.bin`
 popd
 
+CONFIGS=`realpath "$CONFIGS"/*`
 ROCKCHIP_TPL=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_ddr_*.bin | tail -n1`
 BL31=
 
@@ -79,7 +81,7 @@ for i in $BOARDS; do
 	pushd "$UBOOT_DIR"
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" clean
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$i"-rk3576_defconfig rockchip-ramboot.config
-	echo "CONFIG_OPTEE_TZDRAM_SIZE=0x2000000" >> .config
+	./scripts/kconfig/merge_config.sh -m .config "$CONFIGS"
 	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE"
 	popd
 
