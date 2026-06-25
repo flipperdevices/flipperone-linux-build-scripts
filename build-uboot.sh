@@ -77,16 +77,48 @@ else
 	BOARDS="$BOARD"
 fi
 
-for i in $BOARDS; do
-	pushd "$UBOOT_DIR"
-	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" clean
-	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" "$i"-rk3576_defconfig rockchip-ramboot.config
-	./scripts/kconfig/merge_config.sh -m .config "$CONFIGS"
-	make -j$(nproc) CROSS_COMPILE="$CROSS_COMPILE" BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE"
-	popd
+NPROC=$(nproc)
+NBOARDS=$(set -- $BOARDS; echo $#)
 
-	rm -rf "$UBOOT_OUT"/"$i"
-	mkdir -p "$UBOOT_OUT"/"$i"
-	cp "$UBOOT_DIR"/u-boot-rockchip*.bin "$UBOOT_OUT"/"$i"/
-	cp "$RKBIN_DIR"/rk3576_*loader_*.bin "$UBOOT_OUT"/"$i"
+# Run as many boards in parallel as we have cores, but never more than
+# the number of boards. Give each build an even slice of the cores
+# (rounded up so we don't leave cores idle). Memory/IO assumed not to bind.
+MAX_PAR=$(( NBOARDS < NPROC ? NBOARDS : NPROC ))
+[ "$MAX_PAR" -lt 1 ] && MAX_PAR=1
+JOBS=$(( (NPROC + MAX_PAR - 1) / MAX_PAR ))
+
+# Track temp build dirs so we can clean them all up on exit.
+TMPDIRS=""
+cleanup() { [ -n "$TMPDIRS" ] && rm -rf $TMPDIRS; }
+trap cleanup EXIT
+
+build_board() {
+	local i="$1"
+	local out="$2"	# out-of-tree temp build dir
+
+	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+		CROSS_COMPILE="$CROSS_COMPILE" \
+		"$i"-rk3576_defconfig rockchip-ramboot.config || return 1
+	"$UBOOT_DIR"/scripts/kconfig/merge_config.sh -m -O "$out" "$out/.config" "$CONFIGS" || return 1
+	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+		CROSS_COMPILE="$CROSS_COMPILE" \
+		BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" || return 1
+
+	rm -rf "$UBOOT_OUT/$i"
+	mkdir -p "$UBOOT_OUT/$i"
+	cp "$out"/u-boot-rockchip*.bin "$UBOOT_OUT/$i"/
+	cp "$RKBIN_DIR"/rk3576_*loader_*.bin "$UBOOT_OUT/$i"/
+}
+
+rc=0
+for i in $BOARDS; do
+	# Throttle: wait until fewer than MAX_PAR jobs are running.
+	while [ "$(jobs -rp | wc -l)" -ge "$MAX_PAR" ]; do wait -n; done
+	out=$(mktemp -d) || { rc=1; break; }
+	TMPDIRS="$TMPDIRS $out"
+	build_board "$i" "$out" &
 done
+
+# Collect results from all remaining jobs.
+for pid in $(jobs -rp); do wait "$pid" || rc=1; done
+exit "$rc"
