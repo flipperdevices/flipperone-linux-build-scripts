@@ -65,10 +65,6 @@ actions:
                "$IMAGEMNTDIR/var/log" \
                "$IMAGEMNTDIR/var/cache"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
-      # Keep /boot uncompressed so U-Boot can read the kernel/dtb/initrd regardless
-      # of whether its btrfs driver was built with zstd support. The property is
-      # stored on the subvolume and inherited by files added later (kernel updates).
-      btrfs property set "$IMAGEMNTDIR/boot" compression none
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@snapshots" "$ROOTPART" "$IMAGEMNTDIR/.snapshots"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
