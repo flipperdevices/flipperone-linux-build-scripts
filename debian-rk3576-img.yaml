@@ -67,6 +67,7 @@ actions:
                "$IMAGEMNTDIR/var/log" \
                "$IMAGEMNTDIR/var/cache"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
+      btrfs property set "$IMAGEMNTDIR/boot" compression none
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@snapshots" "$ROOTPART" "$IMAGEMNTDIR/.snapshots"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
@@ -93,6 +94,17 @@ actions:
       UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
       UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
       EOF
+
+  # journald's append-heavy writes fragment badly under btrfs copy-on-write. Pre-create
+  # the journal dir with NODATACOW (chattr +C) while it's still empty, so the journal
+  # files written on first boot inherit it. (+C also implies no compression.)
+  - action: run
+    description: Disable CoW on the systemd journal directory
+    chroot: false
+    command: |
+      set -eu
+      mkdir -p "$IMAGEMNTDIR/var/log/journal"
+      chattr +C "$IMAGEMNTDIR/var/log/journal"
 
   - action: overlay
     description: Copy Linux kernel packages into the target
