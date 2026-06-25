@@ -1,16 +1,21 @@
 {{ $sectorsize := or .sectorsize 512 }}
-{{ $imagesize := or .imagesize "4GiB" }}
-{{ $kerneldir := or .kerneldir "prebuilt/linux" }}
-{{ $cmdline := or .cmdline "audit=0 console=tty1 console=ttyS0,1500000n8" }}
-
+{{ $imagesize  := or .imagesize  "4GiB" }}
+{{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
+{{ $cmdline    := or .cmdline    "audit=0 console=tty1 console=ttyS0,1500000n8" }}
+{{ $fslabel    := or .fslabel    "flipperos" }}
+{{- /* fs-wide btrfs mount options. ssd is FORCED (loopback/eMMC isn't reliably
+       detected as non-rotational). */ -}}
+{{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
 architecture: arm64
 sectorsize: {{ $sectorsize }}
-
 actions:
   - action: unpack
     description: Load a tarball of the root filesystem
     file: debian-ospack.tar.gz
 
+  # debos formats btrfs (default flags, random FSUUID), mounts the top level at
+  # $IMAGEMNTDIR, and records the standard root fstab line + root=UUID.
+  # fsck:false -> passno 0 (no boot-time fsck for btrfs).
   - action: image-partition
     imagename: debian-nobootloader.img
     imagesize: {{ $imagesize }}
@@ -22,21 +27,74 @@ actions:
         end: 64MiB
       - name: root
         fs: btrfs
+        fslabel: {{ $fslabel }}
+        fsck: false
         start: 64MiB
         end: -1MiB
-        flags: [ boot ]
+        # No flags: on GPT parted's "boot" is an alias for "esp" and would stamp the
+        # btrfs root with the EFI System Partition type GUID. Boot is via the
+        # explicit root=UUID= cmdline, so no partition flag is needed.
     mountpoints:
       - mountpoint: /
         partition: root
-        options: [ compress=zstd, x-systemd.growfs ]
+        options: [ compress=zstd, noatime, ssd, discard=async, x-systemd.growfs ]
 
+  # Subvolume layout (no reformat). /boot is a TOP-LEVEL subvolume named "boot"
+  # (not "@boot") so it sits outside @ -> a single shared /boot that root snapshots
+  # never capture, and so U-Boot, which reads the default (top-level) subvolume,
+  # resolves /boot/extlinux/... straight into it. Keep the default subvolume as the
+  # top level (do NOT set-default @) or U-Boot won't see this sibling /boot.
   - action: run
-    description: Enable zstd compression on the image mount
+    description: Create subvolumes and mount the layout
     chroot: false
-    command: mount -o remount,compress=zstd "$IMAGEMNTDIR"
+    command: |
+      set -eu
+      ROOTPART="$(findmnt -fn -o SOURCE --target "$IMAGEMNTDIR")"
 
+      # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
+      for sv in @ boot @home @snapshots @var-log @var-cache; do
+        btrfs subvolume create "$IMAGEMNTDIR/$sv"
+      done
+      umount "$IMAGEMNTDIR"
+
+      # Mount @ at the mount point debos owns, then nest the rest under it.
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@" "$ROOTPART" "$IMAGEMNTDIR"
+      mkdir -p "$IMAGEMNTDIR/boot" \
+               "$IMAGEMNTDIR/home" \
+               "$IMAGEMNTDIR/.snapshots" \
+               "$IMAGEMNTDIR/var/log" \
+               "$IMAGEMNTDIR/var/cache"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
+      # Keep /boot uncompressed so U-Boot can read the kernel/dtb/initrd regardless
+      # of whether its btrfs driver was built with zstd support. The property is
+      # stored on the subvolume and inherited by files added later (kernel updates).
+      btrfs property set "$IMAGEMNTDIR/boot" compression none
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@snapshots" "$ROOTPART" "$IMAGEMNTDIR/.snapshots"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
+
+  # debos writes the standard root line into /etc/fstab and root=UUID into the
+  # cmdline; the root subvolume is selected by the appended rootflags=subvol=@.
   - action: filesystem-deploy
-    append-kernel-cmdline: {{ $cmdline }}
+    append-kernel-cmdline: rootflags=subvol=@ {{ $cmdline }}
+
+  # Add fstab entries for the non-root subvolumes (debos only generated the root
+  # line). The FSUUID is read back at build time.
+  - action: run
+    description: Append subvolume entries to /etc/fstab
+    chroot: false
+    command: |
+      set -eu
+      ROOTPART="$(findmnt -fn -o SOURCE --target "$IMAGEMNTDIR" | sed 's/\[[^]]*\]$//')"
+      FSUUID="$(blkid -o value -s UUID -p -c none "$ROOTPART")"
+      cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
+      UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
+      UUID=$FSUUID  /home        btrfs  {{ $btrfsopts }},subvol=@home       0  0
+      UUID=$FSUUID  /.snapshots  btrfs  {{ $btrfsopts }},subvol=@snapshots  0  0
+      UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
+      UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
+      EOF
 
   - action: overlay
     description: Copy Linux kernel packages into the target
@@ -48,4 +106,17 @@ actions:
     description: Install Linux kernel packages inside the target
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
-    
+
+  # Unmount the nested subvolumes (deepest first), leaving @ mounted at
+  # $IMAGEMNTDIR. debos' image-partition Cleanup unmounts @ and detaches the loop;
+  # without this it would fail with EBUSY on the still-mounted children.
+  - action: run
+    description: Unmount nested subvolumes before debos detaches the loop
+    chroot: false
+    command: |
+      set -eu
+      sync
+      findmnt -rno TARGET --submounts "$IMAGEMNTDIR" \
+        | awk -v root="$IMAGEMNTDIR" '$0 != root' \
+        | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
+        | while read -r mp; do umount "$mp"; done
