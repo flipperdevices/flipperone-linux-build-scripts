@@ -6,6 +6,8 @@
 {{- /* fs-wide btrfs mount options. ssd is FORCED (loopback/eMMC isn't reliably
        detected as non-rotational). */ -}}
 {{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
+{{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
+
 architecture: arm64
 sectorsize: {{ $sectorsize }}
 actions:
@@ -49,7 +51,7 @@ actions:
     chroot: false
     command: |
       set -eu
-      ROOTPART="$(findmnt -fn -o SOURCE --target "$IMAGEMNTDIR")"
+      ROOTPART="$({{ $rootdev }})"
 
       # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
       for sv in @ boot @home @snapshots @var-log @var-cache; do
@@ -82,7 +84,7 @@ actions:
     chroot: false
     command: |
       set -eu
-      ROOTPART="$(findmnt -fn -o SOURCE --target "$IMAGEMNTDIR" | sed 's/\[[^]]*\]$//')"
+      ROOTPART="$({{ $rootdev }})"
       FSUUID="$(blkid -o value -s UUID -p -c none "$ROOTPART")"
       cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
       UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
