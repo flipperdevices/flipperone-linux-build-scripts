@@ -117,6 +117,14 @@ actions:
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
 
+  # Read-only "Factory Reset" snapshot of @, taken once the rootfs and kernel are
+  # fully deployed. It captures @ only -- the nested subvols (boot/home/var-*) are
+  # separate and excluded.
+  - action: run
+    description: Create the read-only Factory Reset snapshot of @
+    chroot: false
+    command: btrfs subvolume snapshot -r "$IMAGEMNTDIR" "$IMAGEMNTDIR/.snapshots/@_Factory-Reset"
+
   # Unmount the nested subvolumes (deepest first), leaving @ mounted at
   # $IMAGEMNTDIR. debos' image-partition Cleanup unmounts @ and detaches the loop;
   # without this it would fail with EBUSY on the still-mounted children.
