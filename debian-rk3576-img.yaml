@@ -69,6 +69,8 @@ actions:
       mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
       btrfs property set "$IMAGEMNTDIR/boot" compression none
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
+      # @snapshots is mounted only for the build (to write the Factory Image); it's
+      # not in fstab, so the .snapshots mountpoint is removed from @ before detach.
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@snapshots" "$ROOTPART" "$IMAGEMNTDIR/.snapshots"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
@@ -79,7 +81,9 @@ actions:
     append-kernel-cmdline: rootflags=subvol=@ {{ $cmdline }}
 
   # Add fstab entries for the non-root subvolumes (debos only generated the root
-  # line). The FSUUID is read back at build time.
+  # line). The FSUUID is read back at build time. @snapshots is intentionally
+  # omitted -- it holds the Factory Image and is mounted on demand for rollback,
+  # never auto-mounted at runtime.
   - action: run
     description: Append subvolume entries to /etc/fstab
     chroot: false
@@ -90,7 +94,6 @@ actions:
       cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
       UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
       UUID=$FSUUID  /home        btrfs  {{ $btrfsopts }},subvol=@home       0  0
-      UUID=$FSUUID  /.snapshots  btrfs  {{ $btrfsopts }},subvol=@snapshots  0  0
       UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
       UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
       EOF
@@ -138,3 +141,4 @@ actions:
         | awk -v root="$IMAGEMNTDIR" '$0 != root' \
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
         | while read -r mp; do umount "$mp"; done
+      rmdir "$IMAGEMNTDIR/.snapshots"
