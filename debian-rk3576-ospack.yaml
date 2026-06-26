@@ -33,6 +33,7 @@ actions:
       - breeze-gtk-theme
       - bsdextrautils
       - bsdmainutils
+      - btrfs-compsize
       - btrfs-progs
       - build-essential
       - cage
