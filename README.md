@@ -113,7 +113,7 @@ For the kernel:
 sudo dpkg --add-architecture arm64
 sudo apt update
 sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex \
-    imagemagick libssl-dev libdw-dev libelf-dev debhelper libssl-dev:arm64 rsync
+    imagemagick libssl-dev libdw-dev libelf-dev dwarves debhelper libssl-dev:arm64 rsync
 ```
 
 For assembling disk images — debos, bmaptool, and zeekstd all need to be installed from source:

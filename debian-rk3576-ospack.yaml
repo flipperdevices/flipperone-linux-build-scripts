@@ -246,6 +246,7 @@ actions:
       - libavformat-extra
       - lpac
       - mesa-teflon-delegate
+      - scx-lavd
 
   - action: overlay
     description: Overlay Kodi Chromium kiosk launcher
