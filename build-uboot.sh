@@ -24,6 +24,7 @@
 : "${RKBIN_BRANCH:=master}"
 
 : "${USE_BL31:=opensource}"
+: "${USE_TEE:=no}"
 
 set -e
 
@@ -42,14 +43,16 @@ done
 [ ! -d "$UBOOT_DIR" ] && git clone --depth 1 -b "$UBOOT_BRANCH" "$UBOOT_GIT" "$UBOOT_DIR"
 [ ! -d "$RKBIN_DIR" ] && git clone --depth 1 -b "$RKBIN_BRANCH" "$RKBIN_GIT" "$RKBIN_DIR"
 [ ! -d "$TFA_DIR" ] && [ x"$USE_BL31" = x"opensource" ] && git clone --depth 1 -b "$TFA_BRANCH" "$TFA_GIT" "$TFA_DIR"
-[ ! -d "$TEE_DIR" ] && git clone --depth 1 -b "$TEE_BRANCH" "$TEE_GIT" "$TEE_DIR"
+[ ! -d "$TEE_DIR" -a x"$USE_TEE" = x"yes" ] && git clone --depth 1 -b "$TEE_BRANCH" "$TEE_GIT" "$TEE_DIR"
 
 TEE=
-pushd "$TEE_DIR"
-make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" -j$(nproc) clean
-make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" CFG_USER_TA_TARGETS=ta_arm64 -j$(nproc)
-TEE=`realpath out/arm-plat-rockchip/core/tee.bin`
-popd
+if [ x"$USE_TEE" = x"yes" ]; then
+	pushd "$TEE_DIR"
+	make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" -j$(nproc) clean
+	make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" CFG_USER_TA_TARGETS=ta_arm64 -j$(nproc)
+	TEE=`realpath out/arm-plat-rockchip/core/tee.bin`
+	popd
+fi
 
 CONFIGS=`realpath "$CONFIGS"/*`
 ROCKCHIP_TPL=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_ddr_*.bin | tail -n1`
@@ -58,7 +61,7 @@ BL31=
 if [ x"$USE_BL31" = x"opensource" ]; then
 	pushd "$TFA_DIR"
 	make PLAT=rk3576 -j$(nproc) clean
-	make PLAT=rk3576 BL32="$TEE" SPD=opteed -j$(nproc)
+	[ x"$USE_TEE" = x"yes" ] && make PLAT=rk3576 BL32="$TEE" SPD=opteed -j$(nproc) || make PLAT=rk3576 -j$(nproc)
 	popd
 	BL31=`realpath "$TFA_DIR"/build/rk3576/release/bl31/bl31.elf`
 else
