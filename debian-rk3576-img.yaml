@@ -128,14 +128,14 @@ actions:
     command: systemctl set-default multi-user.target
 
   # ===========================================================================
-  # Factory bases + per-profile bootable roots.
+  # Stock (RO) bases + per-profile bootable roots.
   #
-  # @Minimal_Factory is the RO golden image of the common base. Each profile is a
+  # @Minimal_stock is the RO golden image of the common base. Each profile is a
   # WRITABLE snapshot of it (COW: shares the base, only profile packages add new extents),
   # mounted at $IMAGEMNTDIR so standard debos `apt`/`overlay` actions install into it;
   # it is then locked RO and the writable @<profile> bootable root is snapshotted from it.
   # BLS selects a profile via rootflags=subvol=@<profile>. The kernel lives in
-  # @Minimal_Factory (installed above), so every profile inherits it via COW. /boot,
+  # @Minimal_stock (installed above), so every profile inherits it via COW. /boot,
   # @home and @var-* are separate top-level subvols shared by all profiles.
   #
   # KDE and TV-Media-Box install their packages (apt) + config (overlay); only @KDE changes
@@ -144,7 +144,7 @@ actions:
   # ===========================================================================
 
   - action: run
-    description: Snapshot @Minimal_Factory (RO) and free the mountpoint for profile builds
+    description: Snapshot @Minimal_stock (RO) and free the mountpoint for profile builds
     chroot: false
     command: |
       set -eu
@@ -156,7 +156,7 @@ actions:
       TOP="${IMAGEMNTDIR%/}.toplevel"
       mkdir -p "$TOP"
       mount -t btrfs -o subvolid=5 "$ROOTPART" "$TOP"
-      btrfs subvolume snapshot -r "$TOP/@Minimal" "$TOP/@Minimal_Factory"
+      btrfs subvolume snapshot -r "$TOP/@Minimal" "$TOP/@Minimal_stock"
       # release @Minimal and its nested submounts so profile factories can mount here
       findmnt -rno TARGET --submounts "$IMAGEMNTDIR" \
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
@@ -164,14 +164,14 @@ actions:
 
   # --- @KDE ------------------------------------------------------------------
   - action: run
-    description: Snapshot writable @KDE_Factory and mount it
+    description: Snapshot writable @KDE_stock and mount it
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@KDE_Factory"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@KDE_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@KDE_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@KDE_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
@@ -201,25 +201,25 @@ actions:
     chroot: true
     command: systemctl set-default graphical.target
   - action: run
-    description: Lock @KDE_Factory RO and spawn writable @KDE
+    description: Lock @KDE_stock RO and spawn writable @KDE
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@KDE_Factory" ro true
-      btrfs subvolume snapshot "$TOP/@KDE_Factory" "$TOP/@KDE"
+      btrfs property set "$TOP/@KDE_stock" ro true
+      btrfs subvolume snapshot "$TOP/@KDE_stock" "$TOP/@KDE"
 
   # --- @TV-Media-Box ---------------------------------------------------------
   - action: run
-    description: Snapshot writable @TV-Media-Box_Factory and mount it
+    description: Snapshot writable @TV-Media-Box_stock and mount it
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@TV-Media-Box_Factory"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@TV-Media-Box_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: TV media box packages
     recommends: false
@@ -232,25 +232,25 @@ actions:
     source: overlays/profile-tv-media-box
     destination: /
   - action: run
-    description: Lock @TV-Media-Box_Factory RO and spawn writable @TV-Media-Box
+    description: Lock @TV-Media-Box_stock RO and spawn writable @TV-Media-Box
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@TV-Media-Box_Factory" ro true
-      btrfs subvolume snapshot "$TOP/@TV-Media-Box_Factory" "$TOP/@TV-Media-Box"
+      btrfs property set "$TOP/@TV-Media-Box_stock" ro true
+      btrfs subvolume snapshot "$TOP/@TV-Media-Box_stock" "$TOP/@TV-Media-Box"
 
   # --- @Router ---------------------------------------------------------------
   - action: run
-    description: Snapshot writable @Router_Factory and mount it
+    description: Snapshot writable @Router_stock and mount it
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@Router_Factory"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Router_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_stock" "$ROOTPART" "$IMAGEMNTDIR"
   # @Router needs no packages beyond Minimal (NetworkManager + dnsmasq-base + wpa_supplicant
   # are common); it just adds the AP/WAN connections + ip-forwarding via the overlay. Its
   # default session stays multi-user (inherited); NM autoconnect brings the router up.
@@ -263,14 +263,14 @@ actions:
     chroot: true
     command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
   - action: run
-    description: Lock @Router_Factory RO and spawn writable @Router
+    description: Lock @Router_stock RO and spawn writable @Router
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@Router_Factory" ro true
-      btrfs subvolume snapshot "$TOP/@Router_Factory" "$TOP/@Router"
+      btrfs property set "$TOP/@Router_stock" ro true
+      btrfs subvolume snapshot "$TOP/@Router_stock" "$TOP/@Router"
 
   # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
   # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
