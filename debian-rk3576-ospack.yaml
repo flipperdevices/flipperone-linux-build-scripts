@@ -54,6 +54,7 @@ actions:
       - gpiod
       - gstreamer1.0-plugins-bad
       - gstreamer1.0-tools
+      - htop
       - i2c-tools
       - inetutils-telnet
       - initramfs-tools
@@ -85,6 +86,7 @@ actions:
       - lshw
       - lsof
       - make
+      - mc
       - mesa-utils
       - modemmanager
       - nano
@@ -96,6 +98,7 @@ actions:
       - pciutils
       - pipewire-alsa
       - powercap-utils
+      - pv
       - python3-evdev
       - python3-pandas
       - python3-plotly

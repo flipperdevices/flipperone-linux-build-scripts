@@ -144,7 +144,7 @@ actions:
   # ===========================================================================
 
   - action: run
-    description: Snapshot @Minimal_stock (RO) and free the mountpoint for profile builds
+    description: Lock @Minimal_stock (RO), re-create @Minimal from it, free the mountpoint
     chroot: false
     command: |
       set -eu
@@ -157,10 +157,16 @@ actions:
       mkdir -p "$TOP"
       mount -t btrfs -o subvolid=5 "$ROOTPART" "$TOP"
       btrfs subvolume snapshot -r "$TOP/@Minimal" "$TOP/@Minimal_stock"
-      # release @Minimal and its nested submounts so profile factories can mount here
+      # release @Minimal and its nested submounts so we can replace it and profile
+      # factories can mount here
       findmnt -rno TARGET --submounts "$IMAGEMNTDIR" \
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
         | while read -r mp; do umount "$mp"; done
+      # Re-create @Minimal as a writable child of the golden base (parent = @Minimal_stock)
+      # so it matches the other profiles -- which are snapshots of their _stock -- instead
+      # of being the build origin with no parent.
+      btrfs subvolume delete "$TOP/@Minimal"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Minimal"
 
   # --- @KDE ------------------------------------------------------------------
   - action: run
