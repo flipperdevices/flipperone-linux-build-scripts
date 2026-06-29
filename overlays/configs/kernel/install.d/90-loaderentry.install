@@ -35,12 +35,12 @@ TITLE_MAX="${FLIPPER_TITLE_MAX:-26}"
 DTB_DIR="/usr/lib/linux-image-$KERNEL_VERSION"
 DTB_DIRS="$DTB_DIR /usr/lib/modules/$KERNEL_VERSION/dtb"
 
-# Those DTB/overlay dirs live in the root (@) subvolume, but U-Boot reads the
-# top-level subvolume, where @ appears as /@. Prefix the in-entry devicetreedir /
-# devicetree-overlay paths (which reference /usr in place) so U-Boot can reach them.
-# Staged artifacts (kernel/initrd/single devicetree) go under /boot and are NOT
-# prefixed. Set FDT_SUBVOL_PREFIX="" when the root filesystem is not a subvolume.
-FDT_SUBVOL_PREFIX="${FDT_SUBVOL_PREFIX-/@}"
+# U-Boot resolves the in-entry devicetreedir / devicetree-overlay paths against the ROOT
+# subvolume the entry boots (its rootflags=subvol=...), so they are root-relative and
+# reference /usr/lib in place -- no subvolume prefix. (Staged kernel/initrd/single
+# devicetree go under /boot and are never prefixed anyway.) Override FDT_SUBVOL_PREFIX
+# only if your U-Boot instead reads the top-level subvolume.
+FDT_SUBVOL_PREFIX="${FDT_SUBVOL_PREFIX-}"
 
 log() { [ "${KERNEL_INSTALL_VERBOSE:-0}" -gt 0 ] && echo "flipper-bls: $*" >&2; return 0; }
 die() { echo "flipper-bls: $*" >&2; exit 1; }
