@@ -42,10 +42,10 @@ actions:
         options: [ compress=zstd, noatime, ssd, discard=async, x-systemd.growfs ]
 
   # Subvolume layout (no reformat). /boot is a TOP-LEVEL subvolume named "boot"
-  # (not "@boot") so it sits outside @ -> a single shared /boot that root snapshots
-  # never capture, and so U-Boot, which reads the default (top-level) subvolume,
-  # resolves /boot/extlinux/... straight into it. Keep the default subvolume as the
-  # top level (do NOT set-default @) or U-Boot won't see this sibling /boot.
+  # (not "@boot") so it sits outside the per-profile root subvolumes -> a single shared
+  # /boot that root snapshots never capture, and so U-Boot, which reads the default
+  # (top-level) subvolume, resolves /boot/extlinux/... straight into it. Keep the default
+  # subvolume as the top level (do NOT set a default subvolume) or U-Boot won't see /boot.
   - action: run
     description: Create subvolumes and mount the layout
     chroot: false
@@ -54,36 +54,35 @@ actions:
       ROOTPART="$({{ $rootdev }})"
 
       # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
-      for sv in @ boot @home @snapshots @var-log @var-cache; do
+      # @Minimal is the common base / build target; @snapshots holds runtime snapshots.
+      for sv in @Minimal boot @home @snapshots @var-log @var-cache; do
         btrfs subvolume create "$IMAGEMNTDIR/$sv"
       done
       umount "$IMAGEMNTDIR"
 
-      # Mount @ at the mount point debos owns, then nest the rest under it.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@" "$ROOTPART" "$IMAGEMNTDIR"
+      # Mount @Minimal at the mount point debos owns, then nest the rest under it.
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal" "$ROOTPART" "$IMAGEMNTDIR"
       mkdir -p "$IMAGEMNTDIR/boot" \
                "$IMAGEMNTDIR/home" \
-               "$IMAGEMNTDIR/.snapshots" \
                "$IMAGEMNTDIR/var/log" \
                "$IMAGEMNTDIR/var/cache"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
       btrfs property set "$IMAGEMNTDIR/boot" compression none
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
-      # @snapshots is mounted only for the build (to write the Factory Image); it's
-      # not in fstab, so the .snapshots mountpoint is removed from @ before detach.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@snapshots" "$ROOTPART" "$IMAGEMNTDIR/.snapshots"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
 
-  # debos writes the standard root line into /etc/fstab and root=UUID into the
-  # cmdline; the root subvolume is selected by the appended rootflags=subvol=@.
+  # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline;
+  # the root subvolume is selected by the appended rootflags. @KDE is the default root
+  # (the desktop); the other profiles' BLS entries append rootflags=subvol=@<profile>
+  # and the last rootflags= on the line wins. (Deploy still happens into @Minimal.)
   - action: filesystem-deploy
-    append-kernel-cmdline: rootflags=subvol=@ {{ $cmdline }}
+    append-kernel-cmdline: rootflags=subvol=@KDE {{ $cmdline }}
 
   # Add fstab entries for the non-root subvolumes (debos only generated the root
-  # line). The FSUUID is read back at build time. @snapshots is intentionally
-  # omitted -- it holds the Factory Image and is mounted on demand for rollback,
-  # never auto-mounted at runtime.
+  # line). The FSUUID is read back at build time. These (/boot, /home, /var/log,
+  # /var/cache) are shared by every profile root. @snapshots is intentionally omitted
+  # -- it holds runtime snapshots, managed on demand, never auto-mounted.
   - action: run
     description: Append subvolume entries to /etc/fstab
     chroot: false
@@ -120,25 +119,168 @@ actions:
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
 
-  # Read-only "Factory Image" snapshot of @, taken once the rootfs and kernel are
-  # fully deployed. It captures @ only -- the nested subvols (boot/home/var-*) are
-  # separate and excluded.
+  # Default session for every profile: the no-DE multi-user target, where the cog-seat1
+  # kiosk runs (and @TV's kodi, enabled under multi-user). Only @KDE overrides this to
+  # graphical.target (for sddm); @Minimal/@Router/@TV all stay on multi-user.
   - action: run
-    description: Create the read-only Factory Image snapshot of @
-    chroot: false
-    command: btrfs subvolume snapshot -r "$IMAGEMNTDIR" "$IMAGEMNTDIR/.snapshots/@_Factory-Image"
+    description: Set the default boot target to multi-user (only @KDE overrides)
+    chroot: true
+    command: systemctl set-default multi-user.target
 
-  # Unmount the nested subvolumes (deepest first), leaving @ mounted at
-  # $IMAGEMNTDIR. debos' image-partition Cleanup unmounts @ and detaches the loop;
-  # without this it would fail with EBUSY on the still-mounted children.
+  # ===========================================================================
+  # Factory bases + per-profile bootable roots.
+  #
+  # @Minimal_Factory is the RO golden image of the common base. Each profile is a
+  # WRITABLE snapshot of it (COW: shares the base, only profile packages add new extents),
+  # mounted at $IMAGEMNTDIR so standard debos `apt`/`overlay` actions install into it;
+  # it is then locked RO and the writable @<profile> bootable root is snapshotted from it.
+  # BLS selects a profile via rootflags=subvol=@<profile>. The kernel lives in
+  # @Minimal_Factory (installed above), so every profile inherits it via COW. /boot,
+  # @home and @var-* are separate top-level subvols shared by all profiles.
+  #
+  # KDE and TV-Media-Box install their packages (apt) + config (overlay); only @KDE changes
+  # its default target (to graphical, for sddm) -- TV/Router/Minimal stay on multi-user.
+  # Router applies only its config overlay (NM AP/WAN + ip-forwarding); no packages needed.
+  # ===========================================================================
+
   - action: run
-    description: Unmount nested subvolumes before debos detaches the loop
+    description: Snapshot @Minimal_Factory (RO) and free the mountpoint for profile builds
     chroot: false
     command: |
       set -eu
       sync
+      ROOTPART="$({{ $rootdev }})"                 # @Minimal is still mounted at $IMAGEMNTDIR
+      # Mount the btrfs top level at a fixed path and KEEP it mounted for the whole profile
+      # sequence: it is our stable handle for `findmnt --target` (device lookup then works in
+      # every debos mode, whether or not $IMAGEMNTDIR is mounted) and where the subvols live.
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      mkdir -p "$TOP"
+      mount -t btrfs -o subvolid=5 "$ROOTPART" "$TOP"
+      btrfs subvolume snapshot -r "$TOP/@Minimal" "$TOP/@Minimal_Factory"
+      # release @Minimal and its nested submounts so profile factories can mount here
       findmnt -rno TARGET --submounts "$IMAGEMNTDIR" \
-        | awk -v root="$IMAGEMNTDIR" '$0 != root' \
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
         | while read -r mp; do umount "$mp"; done
-      rmdir "$IMAGEMNTDIR/.snapshots"
+
+  # --- @KDE ------------------------------------------------------------------
+  - action: run
+    description: Snapshot writable @KDE_Factory and mount it
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
+      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@KDE_Factory"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@KDE_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+  - action: apt
+    description: KDE desktop packages
+    recommends: false        # image is minbase/no-recommends; deps are listed explicitly
+    packages:
+      - bluedevil
+      - blueman
+      - breeze-gtk-theme
+      - kde-config-gtk-style
+      - kde-config-screenlocker
+      - kde-spectacle
+      - kde-standard
+      - konsole
+      - kscreen
+      - mpv
+      - plasma-nm
+      - plasma-systemmonitor
+      - powerdevil
+      - sddm
+      - sddm-theme-breeze
+      - systemsettings
+  - action: overlay
+    description: KDE profile config (sddm autologin, plasma, wallpaper)
+    source: overlays/profile-kde
+    destination: /
+  - action: run
+    description: Make the KDE desktop the default session on @KDE
+    chroot: true
+    command: systemctl set-default graphical.target
+  - action: run
+    description: Lock @KDE_Factory RO and spawn writable @KDE
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      umount "$IMAGEMNTDIR"
+      btrfs property set "$TOP/@KDE_Factory" ro true
+      btrfs subvolume snapshot "$TOP/@KDE_Factory" "$TOP/@KDE"
+
+  # --- @TV-Media-Box ---------------------------------------------------------
+  - action: run
+    description: Snapshot writable @TV-Media-Box_Factory and mount it
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
+      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@TV-Media-Box_Factory"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+  - action: apt
+    description: TV media box packages
+    recommends: false
+    packages:
+      - cage
+      - kodi
+      - kodi-eventclients-kodi-send
+  - action: overlay
+    description: TV media box profile config (kodi, enabled under multi-user)
+    source: overlays/profile-tv-media-box
+    destination: /
+  - action: run
+    description: Lock @TV-Media-Box_Factory RO and spawn writable @TV-Media-Box
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      umount "$IMAGEMNTDIR"
+      btrfs property set "$TOP/@TV-Media-Box_Factory" ro true
+      btrfs subvolume snapshot "$TOP/@TV-Media-Box_Factory" "$TOP/@TV-Media-Box"
+
+  # --- @Router ---------------------------------------------------------------
+  - action: run
+    description: Snapshot writable @Router_Factory and mount it
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
+      btrfs subvolume snapshot "$TOP/@Minimal_Factory" "$TOP/@Router_Factory"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_Factory" "$ROOTPART" "$IMAGEMNTDIR"
+  # @Router needs no packages beyond Minimal (NetworkManager + dnsmasq-base + wpa_supplicant
+  # are common); it just adds the AP/WAN connections + ip-forwarding via the overlay. Its
+  # default session stays multi-user (inherited); NM autoconnect brings the router up.
+  - action: overlay
+    description: Router profile config (NM AP/WAN connections, ip-forwarding)
+    source: overlays/profile-router
+    destination: /
+  - action: run
+    description: Fix NetworkManager connection permissions on @Router
+    chroot: true
+    command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+  - action: run
+    description: Lock @Router_Factory RO and spawn writable @Router
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      umount "$IMAGEMNTDIR"
+      btrfs property set "$TOP/@Router_Factory" ro true
+      btrfs subvolume snapshot "$TOP/@Router_Factory" "$TOP/@Router"
+
+  # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
+  # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
+  # $IMAGEMNTDIR unmounted, and the lingering top-level mount would hold the loop busy.)
+  - action: run
+    description: Unmount the top level and remount @Minimal for debos cleanup
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
+      umount "$TOP"; rmdir "$TOP"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal" "$ROOTPART" "$IMAGEMNTDIR"
