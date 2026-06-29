@@ -36,7 +36,8 @@ ReadWritePaths=/var/lib/flipctl
 ReadWritePaths=/run/user/999
 
 DevicePolicy=closed
-DeviceAllow=char-drm rw
+DeviceAllow=/dev/dri/by-path/platform-2acf0000.spi-cs-0-card rw
+DeviceAllow=/dev/dri/renderD128 rw
 DeviceAllow=/dev/input/event0 rw
 DeviceAllow=/dev/input/event1 rw
 
