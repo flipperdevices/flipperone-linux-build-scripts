@@ -115,6 +115,7 @@ actions:
       - traceroute
       - udev
       - unzip
+      - upower
       - usb-modeswitch
       - usbutils
       - util-linux-extra
