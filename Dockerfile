@@ -1,11 +1,7 @@
-FROM debian:trixie
+FROM debian:trixie AS toolchain
 
-# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
-ENV IMG_OUT=/artifacts/images
-ENV UBOOT_OUT=/artifacts/u-boot
-ENV LINUX_OUT=/artifacts/linux
 
 # Add arm64 architecture for cross-compilation
 RUN dpkg --add-architecture arm64 && apt-get update
@@ -64,9 +60,16 @@ RUN pipx install --global git+https://github.com/flipperdevices/bmaptool.git@fli
 # Clean up apt cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 
-# Clone the flipperone-linux-build-scripts repository
-WORKDIR /flipperone-linux-build-scripts
-RUN git clone --depth=1 https://github.com/flipperdevices/flipperone-linux-build-scripts .
+FROM toolchain AS build
 
-# Entry point
-ENTRYPOINT ./build-uboot.sh && ./build-kernel-mainline.sh && ./build-kernel-bsp.sh && ./build-images.sh
+ENV IMG_OUT=/artifacts/images
+ENV UBOOT_OUT=/artifacts/u-boot
+ENV LINUX_OUT=/artifacts/linux
+
+WORKDIR /flipperone-linux-build-scripts
+COPY . .
+
+RUN bash -n docker-entrypoint.sh \
+    && install -m 755 docker-entrypoint.sh /usr/local/bin/flipperone-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/flipperone-entrypoint"]
