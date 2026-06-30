@@ -3,6 +3,7 @@
 {{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
 {{ $cmdline    := or .cmdline    "audit=0 console=tty1 console=ttyS0,1500000n8" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
+{{ $gitinfo    := or .gitinfo    "unknown" }}
 {{- /* fs-wide btrfs mount options. ssd is FORCED (loopback/eMMC isn't reliably
        detected as non-rotational). */ -}}
 {{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
@@ -126,6 +127,17 @@ actions:
     description: Set the default boot target to multi-user (only @Desktop overrides)
     chroot: true
     command: systemctl set-default multi-user.target
+
+  # The ospack tarball already carries a BUILD_GIT (the ospack build's git state), and the
+  # ospack is cached/reused across image builds. Replace it with THIS image build's git
+  # state so the stamp reflects the actual image. Stamped into @Minimal before it is snapshotted to
+  # @Minimal_stock, so every profile inherits it via COW. Consumed by the MOTD/banner.
+  - action: run
+    description: Save GIT info
+    chroot: true
+    command: |
+      sed -i '/^BUILD_GIT=/d' /etc/os-release
+      echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
 
   # ===========================================================================
   # Stock (RO) bases + per-profile bootable roots.
