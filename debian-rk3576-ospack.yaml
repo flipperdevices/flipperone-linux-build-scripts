@@ -55,6 +55,7 @@ actions:
       - git
       - glmark2-wayland
       - gpiod
+      - htop
       - i2c-tools
       - inetutils-telnet
       - initramfs-tools
@@ -94,6 +95,7 @@ actions:
       - lshw
       - lsof
       - make
+      - mc
       - mesa-utils
       - modemmanager
       - nano
@@ -108,6 +110,7 @@ actions:
       - plasma-systemmonitor
       - powercap-utils
       - powerdevil
+      - pv
       - python3-evdev
       - python3-pandas
       - python3-plotly
