@@ -35,6 +35,19 @@ TITLE_MAX="${FLIPPER_TITLE_MAX:-26}"
 DTB_DIR="/usr/lib/linux-image-$KERNEL_VERSION"
 DTB_DIRS="$DTB_DIR /usr/lib/modules/$KERNEL_VERSION/dtb"
 
+# U-Boot reads the btrfs TOP LEVEL (subvolid 5), so in-entry devicetreedir/overlay paths must
+# be prefixed with the root subvolume the entry boots -- /@<subvol>/usr/lib/... -- where that
+# root's DTBs live (the kernel package installs them in every root's /usr/lib). The prefix is
+# derived per entry from its own rootflags=subvol= (each profile boots a different root). The
+# staged kernel/initrd live under /boot (the boot subvolume) and are never prefixed.
+# Set FDT_SUBVOL_PREFIX to override the derivation (e.g. "" if the root is not a subvolume).
+fdt_prefix() {  # $1 = options string -> "/<rootflags-subvol>" (or $FDT_SUBVOL_PREFIX if set)
+    if [ "${FDT_SUBVOL_PREFIX+x}" = x ]; then printf '%s' "$FDT_SUBVOL_PREFIX"; return 0; fi
+    _sv=$(printf '%s' "$1" | tr ' ' '\n' | sed -n 's/^rootflags=subvol=//p' | tail -n1)
+    [ -n "$_sv" ] && printf '/%s' "$_sv"
+    return 0
+}
+
 log() { [ "${KERNEL_INSTALL_VERBOSE:-0}" -gt 0 ] && echo "flipper-bls: $*" >&2; return 0; }
 die() { echo "flipper-bls: $*" >&2; exit 1; }
 trim() { printf '%s' "$1" | sed 's/^ *//; s/ *$//'; }
@@ -53,8 +66,12 @@ if [ "$COMMAND" = "remove" ]; then
 fi
 [ "$COMMAND" = "add" ] || exit 0
 
-# --- locate the boot mount, so in-entry paths are relative to the boot partition --
-[ -n "$BOOT_MNT" ] || BOOT_MNT="$(stat -c %m "$BOOT_ROOT")"
+# In-entry paths are relative to the partition U-Boot actually reads. On Flipper One
+# that is always the root partition — /boot is a directory/subvolume on it, never a
+# separate boot partition U-Boot mounts — so paths must keep the /boot prefix, i.e.
+# BOOT_MNT=/. (Override BOOT_MNT in the environment if /boot ever becomes its own
+# partition, which would make boot_rel strip the mountpoint again.)
+[ -n "$BOOT_MNT" ] || BOOT_MNT="/"
 
 # absolute path under BOOT_ROOT -> path as it must appear inside a BLS entry (relative
 # to the boot partition; identical to the absolute path when /boot is on the rootfs).
@@ -130,7 +147,7 @@ fi
 # devicetreedir (U-Boot fdtdir extension) — referenced in place, opt-in via a
 # /etc/kernel/devicetreedir file containing a true boolean. Only when no single
 # devicetree was configured.
-DEVICETREEDIR_SRC=""; DEVICETREEDIR_ENTRY=""
+DEVICETREEDIR_SRC=""; DEVICETREEDIR_REL=""
 if [ -z "$DEVICETREE" ] && [ -f "$CONF_ROOT/devicetreedir" ]; then
     _v=""; read -r _v <"$CONF_ROOT/devicetreedir" || :
     case "$_v" in
@@ -143,7 +160,7 @@ if [ -z "$DEVICETREE" ] && [ -f "$CONF_ROOT/devicetreedir" ]; then
                 [ -n "$DEVICETREEDIR_SRC" ] && break
             done
             [ -n "$DEVICETREEDIR_SRC" ] || die "no device-tree directory for $KERNEL_VERSION"
-            DEVICETREEDIR_ENTRY="$(boot_rel "$DEVICETREEDIR_SRC")"
+            DEVICETREEDIR_REL="$(boot_rel "$DEVICETREEDIR_SRC")"   # /usr/lib/...; prefixed per entry
             ;;
     esac
 fi
@@ -180,6 +197,8 @@ done
 # write_entry FILE TITLE OPTIONS FDTOVERLAYS
 write_entry() {
     _f="$1"; _title="$2"; _opts="$3"; _fdtov="$4"
+    # devicetreedir is prefixed with THIS entry's root subvol (U-Boot reads subvolid 5)
+    _dtdir=""; [ -n "$DEVICETREEDIR_REL" ] && _dtdir="$(fdt_prefix "$_opts")$DEVICETREEDIR_REL"
     {
         echo "# Boot Loader Specification type#1 entry (Flipper One)"
         echo "title      $_title"
@@ -188,9 +207,9 @@ write_entry() {
         [ -n "$SORT_KEY" ] && echo "sort-key   $SORT_KEY"
         [ -n "$_opts" ]  && echo "options    $_opts"
         echo "linux      $KERNEL_ENTRY"
-        [ -n "$DEVICETREE_ENTRY" ]    && echo "devicetree    $DEVICETREE_ENTRY"
-        [ -n "$DEVICETREEDIR_ENTRY" ] && echo "devicetreedir $DEVICETREEDIR_ENTRY"
-        [ -n "$_fdtov" ]              && echo "devicetree-overlay $_fdtov"
+        [ -n "$DEVICETREE_ENTRY" ] && echo "devicetree    $DEVICETREE_ENTRY"
+        [ -n "$_dtdir" ]           && echo "devicetreedir $_dtdir"
+        [ -n "$_fdtov" ]           && echo "devicetree-overlay $_fdtov"
         for _i in $INITRD_ENTRIES; do echo "initrd     $_i"; done
     } >"$_f"
     return 0   # don't let a trailing empty conditional's status abort `set -e`
@@ -198,11 +217,12 @@ write_entry() {
 
 # Echo the space-separated paths of the named DT overlays (flat, next to the DTBs).
 # Returns non-zero with no output if any one is missing.
-overlay_paths() {
+overlay_paths() {  # $1 = subvol prefix (e.g. /@Desktop); remaining args = overlay names
+    _pfx="$1"; shift
     _paths=""
     for _n in "$@"; do
-        [ -f "$OVERLAY_DIR/$_n.dtbo" ] || return 1
-        _paths="$_paths${_paths:+ }$OVERLAY_DIR/$_n.dtbo"
+        [ -f "$OVERLAY_DIR/$_n.dtbo" ] || return 1   # check the real on-disk path
+        _paths="$_paths${_paths:+ }$_pfx$OVERLAY_DIR/$_n.dtbo"
     done
     printf '%s' "$_paths"
 }
@@ -225,10 +245,10 @@ make_title() {
     fi
 }
 
-# Base entry == the [DEFAULT] profile.
-write_entry "$ENTRY_STEM.conf" "$(make_title '[DEFAULT]')" "$BASE_OPTS" ""
+# Base entry == the [DESKTOP] profile.
+write_entry "$ENTRY_STEM.conf" "$(make_title '[DESKTOP]')" "$BASE_OPTS" ""
 
-[ -f "$PROFILES" ] || { log "$PROFILES not found, only the [DEFAULT] entry written"; exit 0; }
+[ -f "$PROFILES" ] || { log "$PROFILES not found, only the [DESKTOP] entry written"; exit 0; }
 
 while IFS='|' read -r tok suf extra gate dtbos legend; do
     tok="$(echo "$tok" | tr -d '[:space:]')"
@@ -257,7 +277,7 @@ while IFS='|' read -r tok suf extra gate dtbos legend; do
     required=0
     case "$dtbos" in '!'*) required=1; dtbos="$(trim "${dtbos#\!}")" ;; esac
 
-    paths="$(overlay_paths $dtbos)" || paths=""
+    paths="$(overlay_paths "$(fdt_prefix "$opts")" $dtbos)" || paths=""
     if [ -z "$paths" ] && [ "$required" = 1 ]; then
         log "skip $tok (overlays not found for $KERNEL_VERSION)"
         continue
