@@ -22,7 +22,7 @@ Environment=HOME=/var/lib/flipctl
 Environment=XDG_SEAT=seat1
 Environment=COG_PLATFORM_DRM_POINTER=1
 Environment=G_MESSAGES_DEBUG=Cog-DRM
-Environment=WPE_DRM_DEVICE=/dev/dri/by-path/platform-2acf0000.spi-cs-0-card
+Environment=WPE_DRM_DEVICE=/dev/dri/card0
 Environment=WPE_DRM_RENDER_NODE=/dev/dri/renderD128
 
 NoNewPrivileges=yes
@@ -41,7 +41,12 @@ DeviceAllow=/dev/dri/renderD128 rw
 DeviceAllow=/dev/input/event0 rw
 DeviceAllow=/dev/input/event1 rw
 
-ExecStartPre=/bin/sh -lc 'test -e /dev/dri/by-path/platform-2acf0000.spi-cs-0-card && test -e /dev/input/event0'
+TemporaryFileSystem=/dev/dri
+BindPaths=/dev/dri/by-path/platform-2acf0000.spi-cs-0-card:/dev/dri/card0
+BindPaths=/dev/dri/by-path/platform-27800000.gpu-card:/dev/dri/card1
+BindPaths=/dev/dri/by-path/platform-27800000.gpu-render:/dev/dri/renderD128
+
+ExecStartPre=/bin/sh -lc 'test -e /dev/dri/card0 && test -e /dev/input/event0'
 ExecStart=/usr/bin/cog -P drm -O renderer=gles http://localhost:8899
 
 Restart=on-failure
