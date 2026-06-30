@@ -73,11 +73,11 @@ actions:
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
 
   # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline;
-  # the root subvolume is selected by the appended rootflags. @KDE is the default root
+  # the root subvolume is selected by the appended rootflags. @Desktop is the default root
   # (the desktop); the other profiles' BLS entries append rootflags=subvol=@<profile>
   # and the last rootflags= on the line wins. (Deploy still happens into @Minimal.)
   - action: filesystem-deploy
-    append-kernel-cmdline: rootflags=subvol=@KDE {{ $cmdline }}
+    append-kernel-cmdline: rootflags=subvol=@Desktop {{ $cmdline }}
 
   # Add fstab entries for the non-root subvolumes (debos only generated the root
   # line). The FSUUID is read back at build time. These (/boot, /home, /var/log,
@@ -120,10 +120,10 @@ actions:
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
 
   # Default session for every profile: the no-DE multi-user target, where the cog-seat1
-  # kiosk runs (and @TV's kodi, enabled under multi-user). Only @KDE overrides this to
+  # kiosk runs (and @TV's kodi, enabled under multi-user). Only @Desktop overrides this to
   # graphical.target (for sddm); @Minimal/@Router/@TV all stay on multi-user.
   - action: run
-    description: Set the default boot target to multi-user (only @KDE overrides)
+    description: Set the default boot target to multi-user (only @Desktop overrides)
     chroot: true
     command: systemctl set-default multi-user.target
 
@@ -138,7 +138,7 @@ actions:
   # @Minimal_stock (installed above), so every profile inherits it via COW. /boot,
   # @home and @var-* are separate top-level subvols shared by all profiles.
   #
-  # KDE and TV-Media-Box install their packages (apt) + config (overlay); only @KDE changes
+  # KDE and TV-Media-Box install their packages (apt) + config (overlay); only @Desktop changes
   # its default target (to graphical, for sddm) -- TV/Router/Minimal stay on multi-user.
   # Router applies only its config overlay (NM AP/WAN + ip-forwarding); no packages needed.
   # ===========================================================================
@@ -168,16 +168,16 @@ actions:
       btrfs subvolume delete "$TOP/@Minimal"
       btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Minimal"
 
-  # --- @KDE ------------------------------------------------------------------
+  # --- @Desktop ------------------------------------------------------------------
   - action: run
-    description: Snapshot writable @KDE_stock and mount it
+    description: Snapshot writable @Desktop_stock and mount it
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@KDE_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@KDE_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Desktop_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Desktop_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
@@ -203,18 +203,18 @@ actions:
     source: overlays/profile-kde
     destination: /
   - action: run
-    description: Make the KDE desktop the default session on @KDE
+    description: Make the KDE desktop the default session on @Desktop
     chroot: true
     command: systemctl set-default graphical.target
   - action: run
-    description: Lock @KDE_stock RO and spawn writable @KDE
+    description: Lock @Desktop_stock RO and spawn writable @Desktop
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@KDE_stock" ro true
-      btrfs subvolume snapshot "$TOP/@KDE_stock" "$TOP/@KDE"
+      btrfs property set "$TOP/@Desktop_stock" ro true
+      btrfs subvolume snapshot "$TOP/@Desktop_stock" "$TOP/@Desktop"
 
   # --- @TV-Media-Box ---------------------------------------------------------
   - action: run
