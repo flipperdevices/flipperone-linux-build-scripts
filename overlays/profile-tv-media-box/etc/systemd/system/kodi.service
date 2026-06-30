@@ -16,4 +16,4 @@ ExecStart=/usr/bin/cage -- /usr/bin/kodi-standalone
 Restart=on-abort
 
 [Install]
-WantedBy=tv-media-box.target
+WantedBy=multi-user.target
