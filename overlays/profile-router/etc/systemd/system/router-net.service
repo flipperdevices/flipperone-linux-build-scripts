@@ -1,0 +1,33 @@
+[Unit]
+Description=Router network bring-up
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Topology, credentials, channel and width all live in the NM profiles
+# ("Router LAN Bridge", "Router LAN Ethernet/USB", "Router Wi-Fi 2.4/5 GHz");
+# those stay autoconnect=false so they exist ONLY in router mode. This unit scopes
+# them to the target: activate on start, deactivate on stop. WAN (end0) is
+# separate — it is autoconnect=true and owned by NM in every mode.
+
+# The Wi-Fi radio is on USB and can enumerate seconds after NM is up, so this
+# unit can run before NM has a wifi device. Wait (bounded) for a usable one,
+# or the AP activation races it and fails with "No suitable device found".
+ExecStartPre=/bin/sh -c 'i=0; while [ "$$i" -lt 30 ]; do nmcli -t -f TYPE,STATE device status | grep -Eq "^wifi:(disconnected|connected)" && exit 0; sleep 1; i=$$((i+1)); done; echo "router-net: no usable wifi device after 30s" >&2; exit 1'
+
+# Bring the stack up. Regdomain is set declaratively at module load via
+# /etc/modprobe.d/cfg80211.conf, so no `iw reg set` here. Single radio: try
+# 5g, fall back to 2g so the router is never stranded without an AP.
+ExecStart=/bin/sh -c 'set -e; \
+  nmcli connection up "Router LAN Bridge"; \
+  nmcli connection up "Router LAN Ethernet"; \
+  nmcli connection up "Router LAN USB" || true; \
+  nmcli connection up "Router Wi-Fi 5 GHz" || nmcli connection up "Router Wi-Fi 2.4 GHz"'
+
+ExecStop=/bin/sh -c 'for c in "Router Wi-Fi 2.4 GHz" "Router Wi-Fi 5 GHz" "Router LAN USB" "Router LAN Ethernet" "Router LAN Bridge"; do nmcli connection down "$$c" 2>/dev/null || true; done'
+
+[Install]
+WantedBy=multi-user.target

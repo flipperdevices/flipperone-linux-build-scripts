@@ -1,0 +1,15 @@
+[connection]
+id=Router LAN Bridge
+type=bridge
+interface-name=br-lan
+autoconnect=false
+
+[bridge]
+stp=false
+
+[ipv4]
+method=shared
+address1=192.168.50.1/24
+
+[ipv6]
+method=ignore

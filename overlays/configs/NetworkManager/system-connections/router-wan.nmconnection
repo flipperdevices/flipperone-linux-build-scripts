@@ -1,0 +1,15 @@
+# end0 wired uplink. autoconnect=true so it comes up on carrier in every
+# target (graphical, tv-media-box, router), alongside wifi (NM prefers wired
+# by metric). In router mode it doubles as the NAT uplink for br-lan;
+# elsewhere it's a plain DHCP client.
+[connection]
+id=Router WAN
+type=ethernet
+interface-name=end0
+autoconnect=true
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=ignore

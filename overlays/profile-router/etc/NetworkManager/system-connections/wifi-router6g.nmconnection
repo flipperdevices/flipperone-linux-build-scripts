@@ -1,8 +1,11 @@
-# 6G doesnt work, need fix
+# 6 GHz is inert on mt7921u (not 6E silicon). NM won't load this as-is —
+# band=a channel=5 is invalid — kept for a future 6E dongle; router-* ignore it.
 [connection]
-id=wifi-router6g
+id=Router Wi-Fi 6 GHz
 type=wifi
 autoconnect=false
+master=br-lan
+slave-type=bridge
 
 [wifi]
 band=a
@@ -16,9 +19,3 @@ key-mgmt=wpa-psk
 proto=rsn
 pairwise=ccmp
 psk=flipperone
-
-[ipv4]
-method=shared
-
-[ipv6]
-method=ignore

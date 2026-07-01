@@ -1,0 +1,9 @@
+[connection]
+id=Router LAN USB
+type=ethernet
+master=br-lan
+slave-type=bridge
+autoconnect=false
+
+[match]
+interface-name=enx*
