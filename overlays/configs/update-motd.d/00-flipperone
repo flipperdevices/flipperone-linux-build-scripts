@@ -15,6 +15,12 @@ build_git=${BUILD_GIT:-unknown}
 
 total_mem=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo)
 
+# Currently booted profile = the btrfs subvolume mounted as root (@Desktop,
+# @Router, @TV-Media-Box, @Minimal). "/@Foo" -> "Foo"; non-subvolume -> unknown.
+profile=$(findmnt -nro FSROOT / 2>/dev/null)
+profile=${profile#/}
+[ -n "$profile" ] && [ "$profile" != "/" ] || profile=unknown
+
 # Generate MOTD
 cat <<EOF
 
@@ -22,6 +28,7 @@ cat <<EOF
 
    Git:          $build_git
    Board:        $board
+   Profile:      $profile
    CPU Serial:   $serial
    Memory:       $total_mem
    Build ID:     $build_id
