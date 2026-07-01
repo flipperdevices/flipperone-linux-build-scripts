@@ -5,6 +5,17 @@
 
 set -e
 
+# Capture Git information
+[ -n "${GIT_HASH}" ] || GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+[ -n "${GIT_BRANCH}" ] || GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "detached")
+[ -n "${GIT_MSG}" ] || GIT_MSG=$(git log -1 --pretty=format:"%s" 2>/dev/null | sed 's/[\"()]/\\&/g; s/'"'"'/\\&/g' || echo "unknown")
+[ -n "${GIT_INFO}" ] || GIT_INFO="${GIT_BRANCH}@${GIT_HASH}: ${GIT_MSG}"
+GIT_INFO=$(echo "$GIT_INFO" | tr -dc '[:alnum:][:space:]')
+
+# Build identifier: CI sets BUILD_ID in the environment (e.g. "build-1419"); otherwise
+# fall back to a UTC timestamp, same default/format as build-images.sh.
+: "${BUILD_ID:=$(date -u '+%Y%m%d-%H%M')}"
+
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	# Have virtualization support, can use fakemachine (default, fast, safe)
 	DEBOS="debos -c $(nproc) -m 6Gb"
@@ -29,7 +40,7 @@ mkdir -p "$IMG_OUT"/linux_tmp
 cp -r "$LINUX_OUT"/* "$IMG_OUT"/linux_tmp
 
 echo "Creating the root FS image"
-$DEBOS --artifactdir="$IMG_OUT" -t imagesize:"$IMGSIZE" -t kerneldir:linux_tmp debian-rk3576-img.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t imagesize:"$IMGSIZE" -t kerneldir:linux_tmp -t gitinfo:"$GIT_INFO" -t buildid:"$BUILD_ID" debian-rk3576-img.yaml
 sync "$IMG_OUT"/debian-nobootloader.img
 
 owner=$(stat -c %u "$IMG_OUT"/debian-nobootloader.img)
