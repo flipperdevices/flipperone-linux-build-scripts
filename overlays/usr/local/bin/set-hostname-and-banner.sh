@@ -30,6 +30,11 @@ build_git=${BUILD_GIT:-unknown}
 
 total_mem=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo)
 
+# Get currently booted profile = the btrfs subvolume mounted as root (@Desktop, @Router, @TV-Media-Box, @Minimal).
+profile=$(findmnt -nro FSROOT / 2>/dev/null)
+profile=${profile#/}
+[ -n "$profile" ] && [ "$profile" != "/" ] || profile=unknown
+
 # Generate SSH welcome banner
 cat <<EOF >/etc/ssh/welcome_banner
 =================== Welcome to FlipperOne ===================
@@ -38,6 +43,7 @@ Board:        $board
 CPU Serial:   $serial
 Memory:       $total_mem
 Build ID:     $build_id
+Profile:      $profile
 Default credentials: user / user
 =============================================================
 EOF
