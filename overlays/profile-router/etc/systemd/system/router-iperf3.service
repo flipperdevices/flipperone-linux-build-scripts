@@ -1,0 +1,16 @@
+[Unit]
+Description=iperf3 server (LAN only)
+After=router-net.service
+BindsTo=router-net.service
+
+[Service]
+ExecStart=/usr/bin/iperf3 -s -B 192.168.50.1
+# iperf3 traps SIGTERM and exits 1, so a normal stop would look like a
+# failure without this — treat 1 as clean.
+SuccessExitStatus=1
+Restart=on-failure
+RestartSec=2
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target
