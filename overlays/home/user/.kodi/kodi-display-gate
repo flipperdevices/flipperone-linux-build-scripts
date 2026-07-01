@@ -1,8 +1,10 @@
 #!/bin/sh
-# Block until at least one card2 connector is connected, then exit 0.
+# Block until a DP/HDMI connector (the main display) reports connected, then exit 0.
+# Match the connector on ANY card -- DRM card numbers renumber across kernel builds
+# (the main display is not always card2), so never hardcode cardN.
 while :; do
-    for c in DP-1 HDMI-A-1; do
-        [ "$(cat /sys/class/drm/card2-$c/status 2>/dev/null)" = connected ] && exit 0
+    for f in /sys/class/drm/card*-DP-1/status /sys/class/drm/card*-HDMI-A-1/status; do
+        [ "$(cat "$f" 2>/dev/null)" = connected ] && exit 0
     done
     sleep 1
 done
