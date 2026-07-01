@@ -35,14 +35,16 @@ ProtectHome=read-only
 ReadWritePaths=/var/lib/flipctl
 ReadWritePaths=/run/user/999
 
-# Device cgroup allowlist
 DevicePolicy=closed
-DeviceAllow=/dev/dri/card0 rw
+DeviceAllow=/dev/dri/by-path/platform-2acf0000.spi-cs-0-card rw
 DeviceAllow=/dev/dri/renderD128 rw
-DeviceAllow=/dev/dri/card1 rw
 DeviceAllow=/dev/input/event0 rw
 DeviceAllow=/dev/input/event1 rw
-InaccessiblePaths=/dev/dri/card2
+
+TemporaryFileSystem=/dev/dri
+BindPaths=/dev/dri/by-path/platform-2acf0000.spi-cs-0-card:/dev/dri/card0
+BindPaths=/dev/dri/by-path/platform-27800000.gpu-card:/dev/dri/card1
+BindPaths=/dev/dri/by-path/platform-27800000.gpu-render:/dev/dri/renderD128
 
 ExecStartPre=/bin/sh -lc 'test -e /dev/dri/card0 && test -e /dev/input/event0'
 ExecStart=/usr/bin/cog -P drm -O renderer=gles http://localhost:8899
