@@ -1,10 +1,14 @@
 [connection]
-id=wifi-router2g
+id=Router Wi-Fi 2.4 GHz
 type=wifi
 autoconnect=false
+master=br-lan
+slave-type=bridge
 
 [wifi]
 band=bg
+channel=6
+channel-width=40
 mode=ap
 ssid=FlipperOne_2GHz_WIFISSIDSERIAL
 
@@ -13,9 +17,3 @@ key-mgmt=wpa-psk
 proto=rsn
 pairwise=ccmp
 psk=flipperone
-
-[ipv4]
-method=shared
-
-[ipv6]
-method=ignore

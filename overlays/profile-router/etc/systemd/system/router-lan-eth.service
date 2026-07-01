@@ -1,0 +1,15 @@
+[Unit]
+Description=Router LAN Ethernet (end1)
+# Required LAN slave: end1 is built in, so its failure should fail the LAN (no `-` prefix).
+Requires=router-lan-bridge.service
+After=router-lan-bridge.service
+PartOf=router-lan-bridge.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nmcli connection up "Router LAN Ethernet"
+ExecStop=/usr/bin/nmcli connection down "Router LAN Ethernet"
+
+[Install]
+WantedBy=multi-user.target

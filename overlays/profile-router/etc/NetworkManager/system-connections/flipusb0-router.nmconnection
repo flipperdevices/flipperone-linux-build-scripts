@@ -1,13 +1,16 @@
+# flipusb0 downlink in ROUTER mode: a slave of br-lan, so a laptop/phone plugged into the USB
+# downlink joins the main LAN (gets 192.168.50.x from br-lan's shared DHCP, NAT out via end0),
+# same L2 as the wired/Wi-Fi LAN -- SSH to the router at 192.168.50.1.
+#
+# autoconnect-priority=200 > flipusb0-static's 100, so this wins on flipusb0 whenever br-lan is
+# up (including USB replug). router-lan-flipusb0.service activates this at boot (after br-lan);
+# on stop, br-lan goes down and the global flipusb0-static (10.0.0.1) takes over again. Outside
+# router mode this file is absent, so flipusb0-static (local IP, no default route) applies.
 [connection]
-id=flipusb0-router
+id=Router LAN FlipUSB0
 type=ethernet
 interface-name=flipusb0
-autoconnect=false
-
-[ipv4]
-address1=192.168.33.1/24
-method=shared
-
-[ipv6]
-addr-gen-mode=default
-method=ignore
+master=br-lan
+slave-type=bridge
+autoconnect=true
+autoconnect-priority=200

@@ -1,0 +1,14 @@
+[Unit]
+Description=Router AP (2.4 GHz, fallback)
+# Started only via router-ap-5g.service's OnFailure= (hence no [Install]). By then the 5 GHz
+# unit's ExecStartPre has already waited for the wifi device, so no wait here. Same br-lan
+# dependency, torn down with the LAN via PartOf.
+Requires=router-lan-bridge.service
+After=router-lan-bridge.service
+PartOf=router-lan-bridge.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nmcli connection up "Router Wi-Fi 2.4 GHz"
+ExecStop=/usr/bin/nmcli connection down "Router Wi-Fi 2.4 GHz"

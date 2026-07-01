@@ -1,0 +1,17 @@
+[Unit]
+Description=Router LAN bridge (br-lan)
+# Anchor of the router LAN stack. The bridge master must come up before its slaves (LAN
+# Ethernet/USB/FlipUSB0) and the Wi-Fi APs, which all order After= and are PartOf= this unit
+# so the whole stack tears down together. The NM profiles are autoconnect=false and shipped
+# only in @Router, so this stack exists only in router mode.
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nmcli connection up "Router LAN Bridge"
+ExecStop=/usr/bin/nmcli connection down "Router LAN Bridge"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+[connection]
+id=Router LAN Ethernet
+type=ethernet
+interface-name=end1
+master=br-lan
+slave-type=bridge
+autoconnect=false
