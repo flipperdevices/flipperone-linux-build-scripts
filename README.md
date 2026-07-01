@@ -85,6 +85,28 @@ docker run --privileged --rm -v "$(pwd)/out:/artifacts" \
     flipperone-linux-build-scripts
 ```
 
+Running the image without a command builds U-Boot, both kernels, and the final images. To open a shell or run an
+individual build script, append the command normally:
+
+```bash
+docker run --privileged --rm -it -v "$(pwd)/out:/artifacts" \
+    flipperone-linux-build-scripts bash
+
+docker run --privileged --rm -v "$(pwd)/out:/artifacts" \
+    flipperone-linux-build-scripts ./build-kernel-mainline.sh
+```
+
+The Dockerfile separates the slow-changing compiler and packaging toolchain into a named `toolchain` stage. Build and
+tag that stage independently when it should be shared or cached separately from the build scripts:
+
+```bash
+docker build --target toolchain -t flipperone-toolchain:trixie .
+docker build -t flipperone-linux-build-scripts .
+```
+
+CI can push the toolchain target to a registry and provide it as a build cache with `--cache-from`; the final stage
+only copies this repository, so ordinary source changes do not reinstall packages or rebuild the Go and Rust tools.
+
 Replace `docker` with `podman` if that's what you have. `--privileged` is required because debos and mmdebstrap use loop devices and mount namespaces.
 
 ### Quick start with VS Code Dev Container
