@@ -1,0 +1,23 @@
+[Unit]
+Description=Router AP (5 GHz, primary)
+# The AP is a br-lan slave, so the bridge must be up first. router-lan-bridge.service exists
+# only in @Router, so it also scopes this to router mode. PartOf: tear down with the LAN.
+Requires=router-lan-bridge.service
+After=router-lan-bridge.service
+PartOf=router-lan-bridge.service
+# Dual AP isn't supported by the chipset. If 5 GHz can't come up (single-band radio, or
+# regdomain not permitting 5 GHz -- e.g. needs `iw reg set`), fall back to 2.4 GHz so the
+# router is never stranded without an AP.
+OnFailure=router-ap-2g.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Wi-Fi radio is USB and enumerates late; wait (bounded) for NM to report a usable device, or
+# AP activation races it and fails "No suitable device found".
+ExecStartPre=/bin/sh -c 'i=0; while [ "$$i" -lt 30 ]; do nmcli -t -f TYPE,STATE device status | grep -Eq "^wifi:(disconnected|connected)" && exit 0; sleep 1; i=$$((i+1)); done; echo "router-ap: no usable wifi device after 30s" >&2; exit 1'
+ExecStart=/usr/bin/nmcli connection up "Router Wi-Fi 5 GHz"
+ExecStop=/usr/bin/nmcli connection down "Router Wi-Fi 5 GHz"
+
+[Install]
+WantedBy=multi-user.target

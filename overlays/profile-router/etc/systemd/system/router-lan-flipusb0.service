@@ -1,0 +1,17 @@
+[Unit]
+Description=Router LAN FlipUSB0 (flipusb0 downlink)
+# Optional slave: forces flipusb0 into br-lan at boot (overriding the global flipusb0-static),
+# though its NM profile is also autoconnect=true/prio 200 so it self-heals on replug. Wants
+# (not Requires) the bridge; '-' prefix tolerates flipusb0 having no carrier.
+Wants=router-lan-bridge.service
+After=router-lan-bridge.service
+PartOf=router-lan-bridge.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=-/usr/bin/nmcli connection up "Router LAN FlipUSB0"
+ExecStop=-/usr/bin/nmcli connection down "Router LAN FlipUSB0"
+
+[Install]
+WantedBy=multi-user.target
