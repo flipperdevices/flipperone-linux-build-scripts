@@ -6,7 +6,7 @@ You don't necessarily have to build images yourself. Most commits include a smal
 
 ---
 
-For a maintained walkthrough of the Flipper One Linux image build flow, see the official [How to build Linux image](https://docs.flipper.net/one/cpu-software/how-to-build-linux-image) documentation.
+For a straightforward walkthrough of the Flipper One Linux image build flow, see the official [How to build Linux image](https://docs.flipper.net/one/cpu-software/how-to-build-linux-image) documentation.
 
 ## Related repositories
 
