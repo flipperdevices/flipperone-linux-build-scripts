@@ -1,10 +1,12 @@
 {{ $sectorsize := or .sectorsize 512 }}
 {{ $imagesize  := or .imagesize  "4GiB" }}
 {{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
-{{ $cmdline    := or .cmdline    "audit=0 console=tty1 console=ttyS0,1500000n8" }}
+# cmdline: shared facts + policy only. The BLS generator adds the per-entry rootflags=subvol=
+# and the serial consoles (console=ttyS0/ttyS4/fbcon or ttyFIQ0, per kernel config).
+{{ $cmdline    := or .cmdline    "audit=0 console=tty1" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
-{{- /* fs-wide btrfs mount options. ssd is FORCED (loopback/eMMC isn't reliably
-       detected as non-rotational). */ -}}
+# btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
+# detected as non-rotational).
 {{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
 {{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
 
@@ -72,17 +74,17 @@ actions:
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
 
-  # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline;
-  # the root subvolume is selected by the appended rootflags. @Desktop is the default root
-  # (the desktop); the other profiles' BLS entries append rootflags=subvol=@<profile>
-  # and the last rootflags= on the line wins. (Deploy still happens into @Minimal.)
+  # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline.
+  # The root subvolume is NOT baked here: /etc/kernel/cmdline carries only shared facts +
+  # policy (root=UUID, audit, console=tty1). The BLS generator supplies rootflags=subvol=
+  # per entry (from flipper-profiles at build, from findmnt at runtime). Deploy into @Minimal.
   - action: filesystem-deploy
-    append-kernel-cmdline: rootflags=subvol=@Desktop {{ $cmdline }}
+    append-kernel-cmdline: {{ $cmdline }}
 
   # Add fstab entries for the non-root subvolumes (debos only generated the root
   # line). The FSUUID is read back at build time. These (/boot, /home, /var/log,
-  # /var/cache) are shared by every profile root. @snapshots is intentionally omitted
-  # -- it holds runtime snapshots, managed on demand, never auto-mounted.
+  # /var/cache) are shared by every profile root. @snapshots is intentionally omitted:
+  # it holds runtime snapshots, managed on demand, never auto-mounted.
   - action: run
     description: Append subvolume entries to /etc/fstab
     chroot: false
@@ -114,10 +116,50 @@ actions:
     origin: artifacts
     destination: /var/cache/linux-kernel
 
+  # Bake @Minimal's entry-token before the kernel install, so the kernel-install plugin stages the
+  # kernel into /boot/<token>/ instead of the 'debian' fallback. @Minimal is the build root, so its
+  # token is the one the plugin reads. NN is derived from @Minimal's position in flipper-profiles.
+  - action: run
+    description: Pin @Minimal's kernel entry-token before the kernel install
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      mkdir -p /etc/kernel
+      make_token "$(profile_base_nn @Minimal)" @Minimal > /etc/kernel/entry-token
+
   - action: run
     description: Install Linux kernel packages inside the target
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
+
+  # The kernel-install plugin only wrote @Minimal's entry (the build root). Fan the installed
+  # kernel(s) out to every profile: one entry + a reflinked /boot/<token>/ per profile per version
+  # (token = <NN>-flipperos-<subvol>, NN from the flipper-profiles order). The shared logic lives in
+  # /usr/lib/flipper-bls.sh; this build step is the only fan-out (the plugin handles one root).
+  - action: run
+    description: Generate the per-profile BLS entries for the installed kernel(s)
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      CONF_ROOT=/etc/kernel; PROFILES=/etc/kernel/flipper-profiles; ENTRIES=/boot/loader/entries
+      MACHINE_ID=""; DEVICETREE=""; DEVICETREE_ENTRY=""; BOOT_MNT="/"
+      mkdir -p "$ENTRIES"; SORT_KEY="$(os_sort_key)"
+      for _k in /boot/vmlinuz-*; do
+        [ -e "$_k" ] || continue
+        KERNEL_VERSION="${_k#/boot/vmlinuz-}"; KCONFIG="/boot/config-$KERNEL_VERSION"
+        set_dtb_dirs; discover_devicetreedir; compute_base_opts
+        _i=0
+        while IFS='|' read -r tok suf extra gate dtbos legend; do
+          tok="$(echo "$tok" | tr -d '[:space:]')"; case "$tok" in ''|\#*) continue ;; esac
+          extra="$(trim "$extra")"; _sv="$(subvol_of "$extra")"
+          ENTRY_TOKEN="$(make_token "$(printf '%03d' "$((900 - _i * 100))")" "$_sv")"
+          remove_entries "$_sv" "$KERNEL_VERSION"; stage_kernel_reflink
+          emit_entry "$(trim "$suf")" "$extra" "$(trim "$gate")" "$(trim "$dtbos")"
+          _i=$((_i + 1))
+        done <"$PROFILES"
+      done
 
   # Default session for every profile: the no-DE multi-user target, where the cog-seat1
   # kiosk runs (and @TV's kodi, enabled under multi-user). Only @Desktop overrides this to
@@ -139,7 +181,7 @@ actions:
   # @home and @var-* are separate top-level subvols shared by all profiles.
   #
   # KDE and TV-Media-Box install their packages (apt) + config (overlay); only @Desktop changes
-  # its default target (to graphical, for sddm) -- TV/Router/Minimal stay on multi-user.
+  # its default target (to graphical, for sddm); TV/Router/Minimal stay on multi-user.
   # Router applies only its config overlay (NM AP/WAN + ip-forwarding); no packages needed.
   # ===========================================================================
 
@@ -148,6 +190,8 @@ actions:
     chroot: false
     command: |
       set -eu
+      # @Minimal's entry-token was baked before the kernel install, so @Minimal_stock (snapshotted
+      # here) and the re-created @Minimal both inherit it; no need to rewrite it.
       sync
       ROOTPART="$({{ $rootdev }})"                 # @Minimal is still mounted at $IMAGEMNTDIR
       # Mount the btrfs top level at a fixed path and KEEP it mounted for the whole profile
@@ -163,8 +207,8 @@ actions:
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
         | while read -r mp; do umount "$mp"; done
       # Re-create @Minimal as a writable child of the golden base (parent = @Minimal_stock)
-      # so it matches the other profiles -- which are snapshots of their _stock -- instead
-      # of being the build origin with no parent.
+      # so it matches the other profiles (each a snapshot of its _stock) instead of being
+      # the build origin with no parent.
       btrfs subvolume delete "$TOP/@Minimal"
       btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Minimal"
 
@@ -208,6 +252,13 @@ actions:
     chroot: true
     command: systemctl set-default graphical.target
   - action: run
+    description: Pin @Desktop's kernel entry-token (NN from flipper-profiles)
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      make_token "$(profile_base_nn @Desktop)" @Desktop > /etc/kernel/entry-token
+  - action: run
     description: Lock @Desktop_stock RO and spawn writable @Desktop
     chroot: false
     command: |
@@ -239,6 +290,13 @@ actions:
     source: overlays/profile-tv-media-box
     destination: /
   - action: run
+    description: Pin @TV-Media-Box's kernel entry-token (NN from flipper-profiles)
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      make_token "$(profile_base_nn @TV-Media-Box)" @TV-Media-Box > /etc/kernel/entry-token
+  - action: run
     description: Lock @TV-Media-Box_stock RO and spawn writable @TV-Media-Box
     chroot: false
     command: |
@@ -269,6 +327,13 @@ actions:
     description: Fix NetworkManager connection permissions on @Router
     chroot: true
     command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+  - action: run
+    description: Pin @Router's kernel entry-token (NN from flipper-profiles)
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      make_token "$(profile_base_nn @Router)" @Router > /etc/kernel/entry-token
   - action: run
     description: Lock @Router_stock RO and spawn writable @Router
     chroot: false
