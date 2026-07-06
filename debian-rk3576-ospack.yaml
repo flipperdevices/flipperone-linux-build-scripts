@@ -199,6 +199,11 @@ actions:
     destination: /usr/local
 
   - action: overlay
+    description: Overlay our usr/lib helpers
+    source: overlays/usr/lib
+    destination: /usr/lib
+
+  - action: overlay
     description: Overlay our usr/share files
     source: overlays/usr/share
     destination: /usr/share
