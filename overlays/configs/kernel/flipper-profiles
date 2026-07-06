@@ -1,18 +1,19 @@
 # Flipper One boot profiles -> one BLS entry per profile per kernel.
 #
-# Each profile is derived from the base ("[DESKTOP]") entry that
-# 90-loaderentry.install generates: it reuses the same linux/initrd/devicetreedir
-# and only adds a title suffix, extra kernel cmdline, and/or DTB overlays.
+# Every bootable session, including the default desktop, is a line below; there is no
+# separate base entry. Each lives in its own btrfs root subvolume (@Desktop, @Minimal,
+# @TV-Media-Box, @Router) selected by its OWN `rootflags=subvol=@<name>` (the cmdline no
+# longer carries one). The session (KDE/kodi/router) is baked into each root's
+# default.target; no systemd.unit= needed.
 #
-# Each bootable session lives in its own btrfs root subvolume (@Desktop, @Minimal,
-# @TV-Media-Box, @Router). A profile selects its root by appending
-# `rootflags=subvol=@<name>` to the cmdline -- this overrides the base
-# `rootflags=subvol=@Desktop` because the LAST rootflags= on the line wins. So [DESKTOP]
-# boots @Desktop (the desktop) and the entries below switch to the other roots. The session
-# (KDE/kodi/router) is baked into each root's default.target; no systemd.unit= needed.
+# This list is read two ways:
+#   - build: img.yaml sources flipper-bls.sh and emits one entry per line (the fan-out).
+#   - runtime (apt install): 90-loaderentry.install emits ONLY the booted root's entry, matching
+#     this list by rootflags=subvol= for the title/overlays.
 #
 # Columns (pipe-separated; '#' starts a comment line):
-#   1 token        short id, used in the entry filename + sort ordering
+#   1 token        short id used in the entry filename. The generator also prepends a
+#                  position-derived "NN-" prefix so this list's order becomes the menu order.
 #   2 suffix       appended to the menu title, e.g. "[ROUTER]"
 #   3 cmdline      extra kernel command-line fragment: root selection
 #                  (rootflags=subvol=@<name>) and/or tweaks (may be empty)
@@ -26,12 +27,20 @@
 #                  them (else the entry is still produced without overlays).
 #   6 legend       short description shown in the menu header (may be empty)
 #
-# Order here = order in the generated menu (after the [DESKTOP] = @Desktop entry).
+# Order here = order of the menu BANDS, top to bottom. Each line's position sets a base slot
+# (line #1 -> 900, #2 -> 800, ... step 100) that starts the entry-token (<NN>-flipperos-<subvol>),
+# which leads the .conf filename. U-Boot's bls bootmeth sorts by filename and lists them
+# descending, so line #1 (@Desktop) is the top band and the default. Within a band the factory
+# entry and any in-profile install share the profile's base slot (newest kernel first); a clone
+# gets base+clone-depth (a direct clone 901, a clone of a clone 902, ... origin profile + depth via
+# the btrfs snapshot parent chain), so clones sit just above. Reorder these lines to reorder the
+# menu. (See flipper-bls.sh's emit_entry header for the full scheme.)
 
-minimal|[MINIMAL]     |rootflags=subvol=@Minimal       |               |          |No desktop (cog kiosk only)
+desktop|[DESKTOP]     |rootflags=subvol=@Desktop       |               |          |Default desktop (KDE/sddm)
 tvbox  |[TV MEDIA BOX]|rootflags=subvol=@TV-Media-Box  |               |hdmi-cec  |Kodi media-box session
 router |[ROUTER]      |rootflags=subvol=@Router        |               |          |Wi-Fi router mode
+minimal|[MINIMAL]     |rootflags=subvol=@Minimal       |               |          |No desktop (cog kiosk only)
 #hdmi4k|[HDMI-4K]     |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-hdmi-dp|HDMI 4k (on @Desktop)
-dp4k  |[DP-4K]       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k (on @Desktop)
-#fan  |[FAN]         |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
+#dp4k  |[DP-4K]       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k (on @Desktop)
+#fan   |[FAN]         |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
 #ncm   |[USB NCM]     |systemd.wants=usb-ncm-gadget.service|USB_CONFIGFS_NCM USB_F_NCM|usb-ncm|USB NCM Ethernet gadget
