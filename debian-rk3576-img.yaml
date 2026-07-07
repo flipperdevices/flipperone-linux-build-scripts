@@ -245,7 +245,6 @@ actions:
       - konsole
       - kscreen
       - mpv
-      - plasma-discover
       - plasma-nm
       - plasma-systemmonitor
       - powerdevil
