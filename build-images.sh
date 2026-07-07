@@ -55,7 +55,7 @@ EOF
 		echo " - Creating a block map"
 		bmaptool create -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.bmap "$TMPDIR"/debian-"$s"-"$i"-"$BUILD_ID".img
 		echo " - Compressing the final image"
-		pigz -c "$TMPDIR"/debian-"$s"-"$i"-"$BUILD_ID".img > "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.gz
+		zstd -f -T0 -15 -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.zst "$TMPDIR"/debian-"$s"-"$i"-"$BUILD_ID".img
 		rm -f "$TMPDIR"/debian-"$s"-"$i"-"$BUILD_ID".img
 	done
 
@@ -63,7 +63,7 @@ EOF
 	echo " - Creating a block map"
 	bmaptool create -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.bmap "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 	echo " - Compressing the final image"
-	pigz -c "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img > "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.gz
+	zstd -f -T0 -15 -o "$IMG_OUT"/debian-"$s"-nobootloader-"$BUILD_ID".img.zst "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 	rm -f "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 done
 
