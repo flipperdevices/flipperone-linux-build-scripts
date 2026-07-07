@@ -20,7 +20,7 @@ fi
 
 mkdir -p "$IMG_OUT"
 
-if [ ! -f "$IMG_OUT"/debian-ospack.tar.gz -o "$UPDATE_OSPACK" ]; then
+if [ ! -f "$IMG_OUT"/debian-ospack.tar.zst -o "$UPDATE_OSPACK" ]; then
 	./build-ospack.sh
 fi
 

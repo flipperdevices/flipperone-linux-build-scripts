@@ -14,8 +14,8 @@ architecture: arm64
 sectorsize: {{ $sectorsize }}
 actions:
   - action: unpack
-    description: Load a tarball of the root filesystem
-    file: debian-ospack.tar.gz
+    description: Load the ospack archive
+    file: debian-ospack.tar.zst
 
   # debos formats btrfs (default flags, random FSUUID), mounts the top level at
   # $IMAGEMNTDIR, and records the standard root fstab line + root=UUID.
