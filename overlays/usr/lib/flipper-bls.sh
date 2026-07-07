@@ -67,15 +67,6 @@ fdt_prefix() {  # $1 = options string -> "/<rootflags-subvol>" (or $FDT_SUBVOL_P
     return 0
 }
 
-# True if the DTB dir $1 carries the Flipper board DTBs (rk3576-flipper-one-*), which only our
-# kernel fork ships (this kernel builds the whole Rockchip lineup, so match the pattern).
-has_flipper_dtb() {  # $1 = a /usr/lib/linux-image-<ver> dir
-    for _d in "$1/$VENDOR"/rk3576-flipper-one-*.dtb; do
-        [ -f "$_d" ] && return 0
-    done
-    return 1
-}
-
 # btrfs subvol of the currently-booted root (e.g. @Desktop); empty if not a subvol.
 current_subvol() { findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,'; }
 
@@ -249,11 +240,10 @@ compute_base_opts() {
     fi
 }
 
-# Set DEVICETREEDIR_REL + OVERLAY_DIR for $KERNEL_VERSION (needs DTB_DIR/DTB_DIRS set). Opt-in via
-# a /etc/kernel/devicetreedir boolean, only when no single 'devicetree' is configured. A foreign
-# kernel (no rk3576-flipper-one-*) borrows the NEWEST installed flipper kernel's dir (sort -V),
-# which stays COW-shared so U-Boot fdtdir still finds the board DTB. (Flipper drivers like
-# INPUT_FLIPPER_ONE are fork-only, so a foreign kernel boots the board but not input/haptic.)
+# Set DEVICETREEDIR_REL + OVERLAY_DIR for $KERNEL_VERSION (needs DTB_DIR/DTB_DIRS set). Opt-in via a
+# /etc/kernel/devicetreedir boolean, only when no single 'devicetree' is configured. Always the
+# kernel's own installed DTB dir (first existing of DTB_DIRS), never inspected or borrowed; if it
+# ships none, no devicetreedir is written and U-Boot falls back to its control FDT.
 discover_devicetreedir() {
     DEVICETREEDIR_SRC=""; DEVICETREEDIR_REL=""
     if [ -z "${DEVICETREE:-}" ] && [ -f "$CONF_ROOT/devicetreedir" ]; then
@@ -261,25 +251,13 @@ discover_devicetreedir() {
         case "$_v" in
             1|[Yy]|[Yy][Ee][Ss]|[Tt]|[Tt][Rr][Uu][Ee]|[Oo][Nn])
                 for p in $DTB_DIRS; do
-                    [ -d "$p" ] || continue
-                    for d in "$p"/*.dtb "$p"/*/*.dtb "$p"/*/*/*.dtb; do
-                        [ -f "$d" ] && { DEVICETREEDIR_SRC="$p"; break; }
-                    done
-                    [ -n "$DEVICETREEDIR_SRC" ] && break
+                    [ -d "$p" ] && { DEVICETREEDIR_SRC="$p"; break; }
                 done
-                if [ -z "$DEVICETREEDIR_SRC" ] || ! has_flipper_dtb "$DEVICETREEDIR_SRC"; then
-                    _fp="$(
-                        for _kd in /usr/lib/linux-image-*; do
-                            { [ -d "$_kd" ] && has_flipper_dtb "$_kd"; } && echo "$_kd"
-                        done | sort -V | tail -n1
-                    )"
-                    if [ -n "$_fp" ]; then
-                        log "$KERNEL_VERSION has no flipper board DTBs; devicetreedir -> $_fp"
-                        DEVICETREEDIR_SRC="$_fp"
-                    fi
+                if [ -n "$DEVICETREEDIR_SRC" ]; then
+                    DEVICETREEDIR_REL="$(boot_rel "$DEVICETREEDIR_SRC")"   # /usr/lib/...; prefixed per entry
+                else
+                    log "$KERNEL_VERSION ships no DTB dir; omitting devicetreedir (U-Boot control FDT)"
                 fi
-                [ -n "$DEVICETREEDIR_SRC" ] || die "no device-tree directory for $KERNEL_VERSION"
-                DEVICETREEDIR_REL="$(boot_rel "$DEVICETREEDIR_SRC")"   # /usr/lib/...; prefixed per entry
                 ;;
         esac
     fi
