@@ -263,5 +263,6 @@ actions:
     command: chown -R user:user /home/user
 
   - action: pack
-    description: Save a tarball of the root filesystem
-    file: debian-ospack.tar.gz
+    description: Save the ospack archive
+    file: debian-ospack.tar.zst
+    compression: zstd
