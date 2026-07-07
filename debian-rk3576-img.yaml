@@ -133,6 +133,15 @@ actions:
     chroot: true
     command: find /var/cache/linux-kernel -name linux-image-\*.deb -a ! -name \*-dbg_\* -print0 | xargs -0 apt install -y
 
+  - action: run
+    description: Prune orphaned packages and apt cache
+    chroot: true
+    command: |
+      set -eu
+      apt-get autoremove --purge -y
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
+
   # The kernel-install plugin only wrote @Minimal's entry (the build root). Fan the installed
   # kernel(s) out to every profile: one entry + a reflinked /boot/<token>/ per profile per version
   # (token = <NN>-flipperos-<subvol>, NN from the flipper-profiles order). The shared logic lives in
@@ -243,6 +252,14 @@ actions:
       - sddm
       - sddm-theme-breeze
       - systemsettings
+  - action: run
+    description: Prune orphaned packages and apt cache
+    chroot: true
+    command: |
+      set -eu
+      apt-get autoremove --purge -y
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
   - action: overlay
     description: KDE profile config (sddm autologin, plasma, wallpaper)
     source: overlays/profile-kde
@@ -285,6 +302,14 @@ actions:
       - cage
       - kodi
       - kodi-eventclients-kodi-send
+  - action: run
+    description: Prune orphaned packages and apt cache
+    chroot: true
+    command: |
+      set -eu
+      apt-get autoremove --purge -y
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
   - action: overlay
     description: TV media box profile config (kodi, enabled under multi-user)
     source: overlays/profile-tv-media-box
