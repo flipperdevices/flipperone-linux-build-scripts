@@ -1,0 +1,4 @@
+#!/bin/sh
+case "$1" in
+  pre) echo suspend-request > /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate ;;
+esac

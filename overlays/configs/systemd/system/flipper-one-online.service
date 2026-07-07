@@ -1,0 +1,11 @@
+[Unit]
+Description=Report boot completion to the Flipper One MCU
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'echo online > /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate'
+
+[Install]
+WantedBy=multi-user.target
