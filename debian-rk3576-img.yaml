@@ -7,7 +7,7 @@
 {{ $fslabel    := or .fslabel    "flipperos" }}
 # btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
 # detected as non-rotational).
-{{ $btrfsopts  := or .btrfsopts  "noatime,ssd,discard=async" }}
+{{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
 {{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
 
 architecture: arm64
@@ -38,7 +38,7 @@ actions:
     mountpoints:
       - mountpoint: /
         partition: root
-        options: [ noatime, ssd, discard=async, x-systemd.growfs ]
+        options: [ compress=zstd, noatime, ssd, discard=async, x-systemd.growfs ]
 
   # Subvolume layout (no reformat). /boot is a TOP-LEVEL subvolume named "boot"
   # (not "@boot") so it sits outside the per-profile root subvolumes -> a single shared
@@ -93,10 +93,10 @@ actions:
       ROOTPART="$({{ $rootdev }})"
       FSUUID="$(blkid -o value -s UUID -p -c none "$ROOTPART")"
       cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
-      UUID=$FSUUID  /boot        btrfs  compress=zstd,{{ $btrfsopts }},subvol=boot        0  0
-      UUID=$FSUUID  /home        btrfs  compress=zstd,{{ $btrfsopts }},subvol=@home       0  0
-      UUID=$FSUUID  /var/log     btrfs  compress=zstd,{{ $btrfsopts }},subvol=@var-log    0  0
-      UUID=$FSUUID  /var/cache   btrfs  compress=zstd,{{ $btrfsopts }},subvol=@var-cache  0  0
+      UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
+      UUID=$FSUUID  /home        btrfs  {{ $btrfsopts }},subvol=@home       0  0
+      UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
+      UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
       EOF
 
   # journald's append-heavy writes fragment badly under btrfs copy-on-write. Pre-create
