@@ -41,6 +41,7 @@ if [ "$is_stock" = 1 ]; then
     confirm "Confirm a THIRD time: permanently delete the golden base '$rel'?"
 fi
 
+set_lock
 btrfs subvolume delete "$TOP/$rel" >/dev/null
 echo "Deleted '$rel'"
 

@@ -43,6 +43,7 @@ fi
 
 send_stat=$(mktemp)
 TOP_TMPFILES="$send_stat"
+set_lock
 mount_top
 
 resolve() { [ -e "$TOP/$1" ] && printf '%s' "$1"; }   # full top-level path -> echoed if it exists

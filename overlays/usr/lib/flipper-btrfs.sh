@@ -30,6 +30,21 @@ is_reserved_subvol() {
     esac
 }
 
+# Serialize our writers: an exclusive advisory lock (flock) held on FD 9 for the script's
+# lifetime, released on any exit (including crash/kill). The holder records "PID (tool)" in the
+# file so a blocked waiter can say who it is waiting on. Read-only tools do not take it, and it
+# does NOT guard against concurrent native `btrfs` commands, which honor no lock.
+LOCK_FILE=/run/flipper-btrfs.lock
+set_lock() {
+    exec 9<>"$LOCK_FILE" || die "Cannot open lock $LOCK_FILE"   # <> = don't truncate the holder line
+    if ! flock -w 0 9 2>/dev/null; then
+        _h=$(cat "$LOCK_FILE" 2>/dev/null); [ -n "$_h" ] || _h="PID unknown"
+        echo "Another flipper-btrfs operation is in progress ($_h); waiting for it to finish..." >&2
+        flock 9 || die "Cannot acquire lock $LOCK_FILE"
+    fi
+    printf 'PID %s (%s)\n' "$$" "${0##*/}" >"$LOCK_FILE" || true
+}
+
 # Mount the btrfs top level (subvolid=5) at a temp dir and arrange teardown on EXIT.
 # Sets ROOTDEV and TOP. Extra temp files to remove: assign them to TOP_TMPFILES first.
 mount_top() {

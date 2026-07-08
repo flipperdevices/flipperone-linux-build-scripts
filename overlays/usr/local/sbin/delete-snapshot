@@ -23,5 +23,6 @@ mount_top
 btrfs subvolume show "$TOP/$arg" >/dev/null 2>&1 || die "Not a snapshot: $arg"
 
 confirm "Delete restore-point snapshot '$arg'?"
+set_lock
 btrfs subvolume delete "$TOP/$arg" >/dev/null
 echo "Deleted '$arg'"

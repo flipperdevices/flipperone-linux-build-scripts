@@ -24,6 +24,7 @@ case "$new" in
     *) die "New profile name must start with '@' (e.g. @Desktop-2): $new" ;;
 esac
 
+set_lock
 mount_top
 cur_id=$(booted_id)
 [ -e "$TOP/$old" ] || die "No such profile: $old (see list-profiles)"

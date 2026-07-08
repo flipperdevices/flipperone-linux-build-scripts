@@ -73,6 +73,7 @@ else
     confirm "Create bootable profile '$rel' $how on $ROOTDEV?"
 fi
 
+set_lock
 tgt="$TOP/$rel"
 aside=""
 # For a move, clear ro on the source first (EROFS blocks renaming a ro subvol; -f keeps

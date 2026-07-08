@@ -30,10 +30,11 @@ do_dedup() {
 [ $# -ge 1 ] || usage
 case "$1" in
     check)   btrfs scrub start -B -r "$MNT" ;;
-    fix)     btrfs scrub start -B "$MNT" ;;
-    dedup)   do_dedup ;;
-    balance) btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
-    all)     btrfs scrub start -B -r "$MNT"
+    fix)     set_lock; btrfs scrub start -B "$MNT" ;;
+    dedup)   set_lock; do_dedup ;;
+    balance) set_lock; btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
+    all)     set_lock
+             btrfs scrub start -B -r "$MNT"
              do_dedup
              btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
     *)       usage ;;

@@ -20,6 +20,7 @@ have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
 src=$1
 [ "$src" = "-" ] || [ -f "$src" ] || die "No such file: $src"
 
+set_lock
 mount_top
 target="$TOP/@snapshots"
 [ -d "$target" ] || die "@snapshots not found at top level"

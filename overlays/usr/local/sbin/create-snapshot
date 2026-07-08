@@ -27,6 +27,7 @@ src=$(btrfs subvolume show / 2>/dev/null | head -n1); src=${src##*/}
 [ -n "$src" ] || die "Cannot determine the source subvolume of /"
 name="${src}_$(date +%Y-%m-%d_%H-%M-%S)${tag:+_$tag}"
 
+set_lock
 mount_top
 [ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level"
 dest="$TOP/@snapshots/$name"; rel="@snapshots/$name"
