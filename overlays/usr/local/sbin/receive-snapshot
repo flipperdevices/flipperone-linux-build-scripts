@@ -1,0 +1,41 @@
+#!/bin/sh
+# receive-snapshot <file> - receive a send-snapshot stream into @snapshots.
+# The received subvolume keeps the name it had when sent (the leading '@' too, carried in
+# the stream) and is read-only; put it onto a root with create-profile. For an
+# incremental stream (sent with -p/-i), its parent must already exist here (e.g. the _stock
+# base it was diffed against, found by UUID wherever it lives), so receive the full base first.
+#
+# Examples:
+#   receive-snapshot /mnt/usb/SourceProfile_2026-..._pack.zst      # -> @snapshots/@SourceProfile...
+#   receive-snapshot /mnt/usb/SourceProfile_2026-..._inc_pack.zst  # needs the matching @SourceProfile_stock
+#   ssh host 'send-snapshot @SourceProfile -' | receive-snapshot -
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+need_cmd zstd "apt install zstd"
+have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
+
+[ $# -ge 1 ] || die "Usage: receive-snapshot <file>"
+src=$1
+[ "$src" = "-" ] || [ -f "$src" ] || die "No such file: $src"
+
+mount_top
+target="$TOP/@snapshots"
+[ -d "$target" ] || die "@snapshots not found at top level"
+
+before=$(btrfs subvolume list -o "$target" 2>/dev/null | wc -l)
+
+# file src -> pv shows %/ETA; silence zstd so the two don't collide on one line.
+# No pipefail in POSIX sh, so the pipeline's status is btrfs receive's (the meaningful end).
+set +e
+if   [ "$have_pv" = 1 ] && [ "$src" != "-" ]; then pv "$src" | zstd -dc --no-progress | btrfs receive "$target"
+elif [ "$have_pv" = 1 ];                      then zstd -dc --no-progress | pv -btr   | btrfs receive "$target"
+elif [ "$src" != "-" ];                       then zstd -dc "$src"        | btrfs receive "$target"
+else                                               zstd -dc               | btrfs receive "$target"
+fi
+rc=$?
+set -e
+[ "$rc" = 0 ] || die "Receive failed (rc=$rc); check the stream and that any parent snapshot exists here"
+
+echo "Received into @snapshots/ (now $(btrfs subvolume list -o "$target" 2>/dev/null | wc -l) entries, was $before)"

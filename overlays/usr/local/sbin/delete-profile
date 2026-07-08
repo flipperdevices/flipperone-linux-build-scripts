@@ -1,0 +1,53 @@
+#!/bin/sh
+# delete-profile <@profile> - delete a bootable PROFILE at the btrfs top level (as listed by
+# list-profiles): a profile root (@Desktop, @Desktop-2, ...), a _stock golden base, or an
+# @<profile>.old_* leftover. Also removes its BLS boot entry. For @snapshots restore points,
+# use delete-snapshot.
+# Confirms once; AGAIN if the target is read-only; a THIRD time (with a warning) for a _stock
+# golden base. Refuses layout subvolumes and the currently booted profile.
+#
+# Example:
+#   delete-profile @DestinationProfile   # remove a profile (and its boot entry)
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+[ $# -ge 1 ] || die "Usage: delete-profile <@profile>"
+arg=$1
+case "$arg" in *..*|/*) die "Invalid name: $arg" ;; esac
+case "$arg" in
+    @snapshots/*) die "Top-level profiles only; for a restore point use: delete-snapshot $arg" ;;
+esac
+
+mount_top
+cur_id=$(booted_id)
+[ -e "$TOP/$arg" ] || die "No such profile: $arg (see list-profiles)"
+rel=$arg
+is_reserved_subvol "$rel" && die "Refusing to delete reserved subvolume: $rel"
+info=$(btrfs subvolume show "$TOP/$rel" 2>/dev/null) || die "Not a profile: $rel"
+tgt_id=$(get "$info" "Subvolume ID")
+[ -n "$cur_id" ] && [ "$tgt_id" = "$cur_id" ] && die "Refusing to delete the currently booted profile ($rel)"
+
+is_ro=0;    case "$(get "$info" "Flags")" in *readonly*) is_ro=1 ;; esac
+is_stock=0; case "${rel##*/}" in *_stock) is_stock=1 ;; esac
+
+# tiered: once always; again if ro; a third time for _stock
+confirm "Delete profile '$rel'?"
+[ "$is_ro" = 1 ] && confirm "'$rel' is READ-ONLY (stock / received); delete anyway?"
+if [ "$is_stock" = 1 ]; then
+    echo "WARNING: '$rel' is a _stock GOLDEN BASE, the factory-reset source for its profile;" >&2
+    echo "         deleting it means that profile can no longer be reset to factory." >&2
+    confirm "Confirm a THIRD time: permanently delete the golden base '$rel'?"
+fi
+
+btrfs subvolume delete "$TOP/$rel" >/dev/null
+echo "Deleted '$rel'"
+
+# drop this profile's BLS entries + /boot/<token>/ staging
+lib=/usr/lib/flipper-bls.sh
+if [ -r "$lib" ]; then
+    ( . "$lib"; remove_root_entries "$rel" ) || echo "Warning: Entries/staging not fully removed for $rel" >&2
+else
+    echo "Warning: $lib not found; boot entry/staging not removed for $rel" >&2
+fi

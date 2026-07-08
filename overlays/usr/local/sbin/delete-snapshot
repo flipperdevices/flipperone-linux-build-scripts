@@ -1,0 +1,27 @@
+#!/bin/sh
+# delete-snapshot <@snapshots/@name> - delete a read-only restore-point SNAPSHOT under
+# @snapshots (as listed by list-snapshots). For bootable profiles, their _stock bases, or
+# .old leftovers, use delete-profile. Confirms once. Works via a subvolid=5 (top-level) mount.
+#
+# Example:
+#   delete-snapshot @snapshots/@SourceProfile_2026-06-29_19-52-31
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+[ $# -ge 1 ] || die "Usage: delete-snapshot <@snapshots/@name>"
+arg=$1
+case "$arg" in *..*|/*) die "Invalid name: $arg" ;; esac
+case "$arg" in
+    @snapshots/?*) ;;
+    *) die "Only @snapshots restore points here; for a profile use: delete-profile $arg" ;;
+esac
+
+mount_top
+[ -e "$TOP/$arg" ] || die "No such snapshot: $arg (see list-snapshots)"
+btrfs subvolume show "$TOP/$arg" >/dev/null 2>&1 || die "Not a snapshot: $arg"
+
+confirm "Delete restore-point snapshot '$arg'?"
+btrfs subvolume delete "$TOP/$arg" >/dev/null
+echo "Deleted '$arg'"

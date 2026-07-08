@@ -1,0 +1,36 @@
+#!/bin/sh
+# create-snapshot [tag...] - read-only snapshot of the running root (/), kept as a restore
+# point inside @snapshots. To turn a snapshot into a writable, bootable root, use
+# create-profile <@source> <@dest>.
+# naming: @<root>_YYYY-MM-DD_HH-MM-SS[_tag]  e.g. @Minimal_2026-06-29_19-52-31
+#         (<root> = the source subvol of /, e.g. @Desktop/@Minimal; tag slugified)
+# Works via a subvolid=5 (top-level) mount, so /.snapshots need not be mounted.
+#
+# Example:
+#   create-snapshot pre-upgrade   # RO snapshot of the booted @SourceProfile -> @snapshots/
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+case "${1:-}" in
+    -w|--rw) die "Read-only tool; make a writable bootable root with create-profile <@source> <@dest>" ;;
+    -r|--ro) shift ;;
+esac
+
+tag=$*
+if [ -n "$tag" ]; then
+    tag=$(printf '%s' "$tag" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-\{1,\}/-/g; s/^-//; s/-$//')
+fi
+# name after /'s source subvol, e.g. @Minimal_2026-06-29_19-52-31
+src=$(btrfs subvolume show / 2>/dev/null | head -n1); src=${src##*/}
+[ -n "$src" ] || die "Cannot determine the source subvolume of /"
+name="${src}_$(date +%Y-%m-%d_%H-%M-%S)${tag:+_$tag}"
+
+mount_top
+[ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level"
+dest="$TOP/@snapshots/$name"; rel="@snapshots/$name"
+[ -e "$dest" ] && die "Already exists: $rel"
+
+btrfs subvolume snapshot -r / "$dest" >/dev/null
+echo "Created $(btrfs subvolume show "$dest" | head -n1) (read-only)"

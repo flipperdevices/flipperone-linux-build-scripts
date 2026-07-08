@@ -1,0 +1,34 @@
+#!/bin/sh
+# list-snapshots - list the read-only restore-point SNAPSHOTS under @snapshots (made by
+# create-snapshot). PARENT is what each was snapshotted or received from (via Parent UUID);
+# names are top-level paths (what create-profile and delete-snapshot take). For bootable
+# profiles, see list-profiles. Works via a subvolid=5 (top-level) mount.
+#
+# Example:
+#   list-snapshots   # RO restore points, named @snapshots/@SourceProfile_<ts>
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+map=$(mktemp)
+rows=$(mktemp)
+TOP_TMPFILES="$map $rows"
+mount_top
+[ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level"
+build_uuid_map "$TOP" "$map"
+
+emit() {  # $1=display name  $2=fs path
+    info=$(btrfs subvolume show "$2" 2>/dev/null) || return 0
+    id=$(get "$info" "Subvolume ID")
+    otime=$(get "$info" "Creation time"); otime=${otime% +*}
+    parent=$(parent_of "$map" "$(get "$info" "Parent UUID")")
+    printf '%s\t%s\t%s\t%s\n' "$1" "${id:-?}" "${otime:-?}" "$parent" >> "$rows"
+}
+
+printf 'NAME\tID\tCREATED\tPARENT\n' > "$rows"
+for s in "$TOP"/@snapshots/*; do
+    [ -e "$s" ] || continue
+    emit "@snapshots/${s##*/}" "$s"
+done
+align_table "$rows"
