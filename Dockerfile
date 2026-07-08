@@ -1,4 +1,4 @@
-FROM debian:trixie
+FROM debian:trixie@sha256:3a953985c225a97dfb5a8f1ddc6a3ecefefc35ef51f537075e08941305045a1e
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,9 +9,6 @@ ENV LINUX_OUT=/artifacts/linux
 
 # Add arm64 architecture for cross-compilation
 RUN dpkg --add-architecture arm64 && apt-get update
-
-# Upgrade base system
-RUN apt-get upgrade -y
 
 # Prerequisites
 RUN apt-get install -y \
@@ -51,7 +48,7 @@ RUN apt-get install -y \
     libostree-dev \
     fakemachine
 
-RUN go install -v github.com/go-debos/debos/cmd/debos@latest
+RUN go install -v github.com/go-debos/debos/cmd/debos@v1.1.7
 
 RUN install -m 755 ~/go/bin/debos /usr/local/bin
 
@@ -70,4 +67,7 @@ WORKDIR /flipperone-linux-build-scripts
 RUN git clone --depth=1 https://github.com/flipperdevices/flipperone-linux-build-scripts .
 
 # Entry point
-ENTRYPOINT ./build-uboot.sh && ./build-kernel-mainline.sh && ./build-kernel-bsp.sh && ./build-images.sh
+COPY entrypoint.sh /flipperone-linux-build-scripts/entrypoint.sh
+RUN chmod +x /flipperone-linux-build-scripts/entrypoint.sh
+ENTRYPOINT ["/bin/bash", "/flipperone-linux-build-scripts/entrypoint.sh"]
+CMD ["all"]
