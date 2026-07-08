@@ -5,8 +5,7 @@
 # and the serial consoles (console=ttyS0/ttyS4/fbcon or ttyFIQ0, per kernel config).
 {{ $cmdline    := or .cmdline    "audit=0 console=tty1" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
-# btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
-# detected as non-rotational).
+# btrfsopts: fs-wide mount options. ssd is FORCED (loopback device)
 {{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
 {{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
 
@@ -17,9 +16,12 @@ actions:
     description: Load a tarball of the root filesystem
     file: debian-ospack.tar.gz
 
-  # debos formats btrfs (default flags, random FSUUID), mounts the top level at
-  # $IMAGEMNTDIR, and records the standard root fstab line + root=UUID.
-  # fsck:false -> passno 0 (no boot-time fsck for btrfs).
+  # Native btrfs subvolumes (debos go-debos#736), all top-level (subvolid=5 siblings), not
+  # nested. boot (not "@boot") is shared and outside the profile roots, so snapshots never
+  # capture it and U-Boot resolves /boot from the default subvol; compression=none keeps the
+  # kernel/dtb/initrd readable without a zstd-capable U-Boot btrfs driver. @Minimal is the
+  # base and deploy target; @home/@var-* are shared; @snapshots is created but never mounted.
+  # Per-profile @*_stock/@<profile> roots are snapshotted post-deploy below. fsck:false = passno 0.
   - action: image-partition
     imagename: debian-nobootloader.img
     imagesize: {{ $imagesize }}
@@ -35,69 +37,61 @@ actions:
         fsck: false
         start: 64MiB
         end: -1MiB
+        subvolumes:
+          - name: boot
+            properties: { compression: none }
+          - name: "@Minimal"
+          - name: "@home"
+          - name: "@snapshots"
+          - name: "@var-log"
+          - name: "@var-cache"
     mountpoints:
       - mountpoint: /
         partition: root
-        options: [ compress=zstd, noatime, ssd, discard=async, x-systemd.growfs ]
+        subvolume: "@Minimal"
+        options: [ {{ $btrfsopts }} ]
+      - mountpoint: /boot
+        partition: root
+        subvolume: boot
+        options: [ {{ $btrfsopts }} ]
+      - mountpoint: /home
+        partition: root
+        subvolume: "@home"
+        options: [ {{ $btrfsopts }} ]
+      - mountpoint: /var/log
+        partition: root
+        subvolume: "@var-log"
+        options: [ {{ $btrfsopts }} ]
+      - mountpoint: /var/cache
+        partition: root
+        subvolume: "@var-cache"
+        options: [ {{ $btrfsopts }} ]
 
-  # Subvolume layout (no reformat). /boot is a TOP-LEVEL subvolume named "boot"
-  # (not "@boot") so it sits outside the per-profile root subvolumes -> a single shared
-  # /boot that root snapshots never capture, and so U-Boot, which reads the default
-  # (top-level) subvolume, resolves /boot/extlinux/... straight into it. Keep the default
-  # subvolume as the top level (do NOT set a default subvolume) or U-Boot won't see /boot.
+  # Single-device UFS profiles: dup metadata + dup system (survive a bad block; system is the
+  # tiny but fatal chunk tree), single data. Matches the current mkfs default, but debos passes
+  # only mkfs -O/-E (not -m/-d) and that default has flipped across btrfs-progs versions, so
+  # assert it with a soft balance (no-op when already correct; runs on the empty fs, instant).
   - action: run
-    description: Create subvolumes and mount the layout
+    description: Assert btrfs profiles dup metadata+system / single data (single-device UFS)
     chroot: false
     command: |
       set -eu
-      ROOTPART="$({{ $rootdev }})"
+      btrfs balance start -mconvert=dup,soft -sconvert=dup,soft -dconvert=single,soft --force "$IMAGEMNTDIR"
 
-      # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
-      # @Minimal is the common base / build target; @snapshots holds runtime snapshots.
-      for sv in @Minimal boot @home @snapshots @var-log @var-cache; do
-        btrfs subvolume create "$IMAGEMNTDIR/$sv"
-      done
-      umount "$IMAGEMNTDIR"
-
-      # Mount @Minimal at the mount point debos owns, then nest the rest under it.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal" "$ROOTPART" "$IMAGEMNTDIR"
-      mkdir -p "$IMAGEMNTDIR/boot" \
-               "$IMAGEMNTDIR/home" \
-               "$IMAGEMNTDIR/var/log" \
-               "$IMAGEMNTDIR/var/cache"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
-      # Keep /boot uncompressed so U-Boot can read the kernel/dtb/initrd regardless
-      # of whether its btrfs driver was built with zstd support. The property is
-      # stored on the subvolume and inherited by files added later (kernel updates).
-      btrfs property set "$IMAGEMNTDIR/boot" compression none
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
-
-  # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline.
-  # The root subvolume is NOT baked here: /etc/kernel/cmdline carries only shared facts +
-  # policy (root=UUID, audit, console=tty1). The BLS generator supplies rootflags=subvol=
-  # per entry (from flipper-profiles at build, from findmnt at runtime). Deploy into @Minimal.
+  # Deploys into @Minimal and writes the fstab + root=UUID. The root subvol is not in the
+  # cmdline (only shared policy: root=UUID, audit, console); the BLS generator adds
+  # rootflags=subvol= per entry. debos puts subvol=@Minimal on the / line; the next step drops it.
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
 
-  # Add fstab entries for the non-root subvolumes (debos only generated the root
-  # line). The FSUUID is read back at build time. These (/boot, /home, /var/log,
-  # /var/cache) are shared by every profile root. @snapshots is intentionally omitted:
-  # it holds runtime snapshots, managed on demand, never auto-mounted.
+  # All profiles share this fstab and boot their own root via rootflags=subvol=, so keep the /
+  # line subvol-agnostic. subvol=@Minimal is unique to the / line (others are boot/@home/@var-*).
   - action: run
-    description: Append subvolume entries to /etc/fstab
+    description: Drop subvol=@Minimal from the / fstab line (keep it subvol-agnostic)
     chroot: false
     command: |
       set -eu
-      ROOTPART="$({{ $rootdev }})"
-      FSUUID="$(blkid -o value -s UUID -p -c none "$ROOTPART")"
-      cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
-      UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
-      UUID=$FSUUID  /home        btrfs  {{ $btrfsopts }},subvol=@home       0  0
-      UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
-      UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
-      EOF
+      sed -i 's/,subvol=@Minimal//' "$IMAGEMNTDIR/etc/fstab"
 
   # journald's append-heavy writes fragment badly under btrfs copy-on-write. Pre-create
   # the journal dir with NODATACOW (chattr +C) while it's still empty, so the journal
@@ -344,15 +338,18 @@ actions:
       btrfs property set "$TOP/@Router_stock" ro true
       btrfs subvolume snapshot "$TOP/@Router_stock" "$TOP/@Router"
 
-  # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
-  # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
-  # $IMAGEMNTDIR unmounted, and the lingering top-level mount would hold the loop busy.)
+  # Restore the full @Minimal layout (all 5 debos mountpoints) so image-partition Cleanup can
+  # unmount them and detach the loop; the profile builds left them unmounted. Mount shallow-first.
   - action: run
-    description: Unmount the top level and remount @Minimal for debos cleanup
+    description: Unmount the top level and restore the @Minimal layout for debos cleanup
     chroot: false
     command: |
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
       umount "$TOP"; rmdir "$TOP"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal" "$ROOTPART" "$IMAGEMNTDIR"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal"   "$ROOTPART" "$IMAGEMNTDIR"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=boot"       "$ROOTPART" "$IMAGEMNTDIR/boot"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@home"      "$ROOTPART" "$IMAGEMNTDIR/home"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-log"   "$ROOTPART" "$IMAGEMNTDIR/var/log"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@var-cache" "$ROOTPART" "$IMAGEMNTDIR/var/cache"
