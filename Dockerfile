@@ -1,4 +1,4 @@
-FROM debian:trixie@sha256:3a953985c225a97dfb5a8f1ddc6a3ecefefc35ef51f537075e08941305045a1e
+FROM debian:trixie@sha256:d07d1b51c39f51188e60be9b64e6bf769fa94e187f092bc32b91305cfa34ba5a
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
