@@ -4,7 +4,7 @@
 # flipper-bls.sh - shared library for Flipper One BLS boot-entry generation.
 #
 # SOURCED, never executed. Defines the helpers used by the kernel-install plugin
-# (90-loaderentry.install) and the btrfs snapshot tooling (create_profile/rename_profile).
+# (90-loaderentry.install) and the btrfs snapshot tooling (create-profile/rename-profile).
 # Functions read globals lazily (at call time), so callers set what they need first.
 # The kernel/initrd staging and devicetree(dir) handling are derived from systemd's
 # 90-loaderentry.install (LGPL-2.1-or-later).
@@ -86,7 +86,7 @@ remove_entries() {  # $1 = subvol  $2 = version
 
 # Tear down a whole root: remove EVERY entry that selects SUBVOL (all versions) and each one's
 # /boot/<token>/ staging tree. The staging dir is derived from the entry's own 'linux' line, so it
-# works no matter how the token was computed. For delete_profile/rename_profile (whole-profile ops).
+# works no matter how the token was computed. For delete-profile/rename-profile (whole-profile ops).
 # Uses $ENTRIES. Prints what it removes to stderr.
 remove_root_entries() {  # $1 = subvol
     [ -n "$1" ] || return 0
@@ -303,8 +303,8 @@ emit_entry() {
 # flipper_write_entry <subvol> <mounted-path> [<origin-hint>]: write a BLS entry for an EXISTING
 # writable top-level subvol (a restored snapshot/clone). Token = <NN>-flipperos-<name>, NN from
 # clone_slot (origin base + depth; the origin hint is the dangling-parent fallback). Reflinks
-# the shared /boot kernel into the root's own /boot/<token>/ dir. Sourced by create_profile /
-# rename_profile. Returns non-zero (no exit) on a recoverable problem.
+# the shared /boot kernel into the root's own /boot/<token>/ dir. Sourced by create-profile /
+# rename-profile. Returns non-zero (no exit) on a recoverable problem.
 flipper_write_entry() {
     _name="$1"; _snap="$2"; _origin="${3:-}"
     { [ -n "$_name" ] && [ -d "$_snap" ]; } || { echo "flipper-bls: usage: flipper_write_entry <name> <mounted-path>" >&2; return 1; }

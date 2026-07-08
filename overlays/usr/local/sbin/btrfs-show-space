@@ -1,0 +1,99 @@
+#!/bin/sh
+# btrfs-show-space [-q|--quick] - btrfs usage + per-root-subvolume space.
+# (-q/--quick skips the compsize REFERENCED column, one less extent-walk per subvol.)
+# Lists profile roots and _stock bases, every snapshot under @snapshots, and any other
+# top-level @* (e.g. @.old_*). Shared @home/@var-* are not listed.
+#   UNIQUE     - data only this subvolume holds; freed if you delete IT ALONE,
+#                others kept (btrfs fi du, exact, uncompressed)
+#   REFERENCED - real on-disk size of all data it references, compressed
+#                (compsize, exact). Counts extents SHARED with other roots, so it
+#                is NOT additive across rows.
+#   TOTAL      - apparent/uncompressed size (btrfs fi du, exact)
+# The currently booted subvolume is marked  <- booted. Columns auto-size to fit.
+#
+# Example:
+#   btrfs-show-space --quick   # usage + per-subvol space (skips the slow REFERENCED column)
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+quick=0
+case "${1:-}" in -q|--quick) quick=1; shift ;; esac
+have_cs=0
+if [ "$quick" = 0 ] && command -v compsize >/dev/null 2>&1; then have_cs=1; fi
+
+echo "== filesystem =="
+btrfs filesystem usage -T /
+echo
+
+rows=$(mktemp)
+list=$(mktemp)
+TOP_TMPFILES="$rows $list"
+mount_top
+cur_id=$(booted_id)
+
+row() {  # $1=display name  $2=fs path  -> append a TSV row
+    line=$(btrfs filesystem du -s --raw "$2" 2>/dev/null | awk 'NR==2{print $1, $2}')
+    tot=$(printf '%s' "$line" | awk '{print $1}'); case "$tot" in ''|*[!0-9]*) tot=0 ;; esac
+    exc=$(printf '%s' "$line" | awk '{print $2}'); case "$exc" in ''|*[!0-9]*) exc=0 ;; esac
+    if [ "$have_cs" = 1 ]; then
+        ref=$(compsize -b "$2" 2>/dev/null | awk '/^TOTAL/{print $3; exit}')
+        case "$ref" in ''|*[!0-9]*) ref=0 ;; esac
+        ref_h=$(human "$ref")
+    else
+        ref_h="-"
+    fi
+    id=$(subvol_id "$2")
+    mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$(human "$exc")" "$ref_h" "$(human "$tot")" "$mark" >> "$rows"
+}
+
+# collect subvols (cheap), then measure with progress: each row walks extents (slow on flash)
+for s in "$TOP"/@snapshots/*; do
+    [ -e "$s" ] || continue
+    printf '%s\t%s\n' "@snapshots/${s##*/}" "$s" >> "$list"
+done
+for d in "$TOP"/@*; do
+    [ -e "$d" ] || continue
+    n=${d##*/}
+    is_reserved_subvol "$n" && continue
+    btrfs subvolume show "$d" >/dev/null 2>&1 || continue
+    printf '%s\t%s\n' "$n" "$d" >> "$list"
+done
+total=$(wc -l < "$list" 2>/dev/null | tr -d ' '); [ -n "$total" ] || total=0
+
+printf 'NAME\tUNIQUE\tREFERENCED\tTOTAL\t\n' > "$rows"
+if [ "$total" -gt 0 ]; then
+    if [ "$have_cs" = 1 ]; then note="du + compsize"; else note="du only"; fi
+    printf 'Measuring %s subvolume(s) (%s), please wait...\n' "$total" "$note" >&2
+fi
+i=0; tab=$(printf '\t')
+while IFS="$tab" read -r nm pth; do
+    i=$((i + 1))
+    [ -t 2 ] && printf '\r  [%d/%d] %s\033[K' "$i" "$total" "$nm" >&2 || true
+    row "$nm" "$pth"
+done < "$list"
+{ [ -t 2 ] && [ "$total" -gt 0 ] && printf '\r\033[K' >&2; } || true
+
+echo "== root subvolumes & snapshots =="
+# align: NAME auto-width; numeric columns right-justified; marker appended
+awk -F'\t' '
+{ r[NR]=$0; if (length($1) > w) w = length($1) }
+END {
+    for (i = 1; i <= NR; i++) {
+        split(r[i], f, "\t")
+        printf "%-*s  %11s %11s %11s", w, f[1], f[2], f[3], f[4]
+        if (f[5] != "") printf "  %s", f[5]
+        printf "\n"
+    }
+}' "$rows"
+
+echo
+echo "UNIQUE     = freed if you delete that subvolume alone (uncompressed)."
+echo "REFERENCED = real on-disk size, compressed; counts shared extents, so NOT additive."
+if [ "$have_cs" = 0 ]; then
+    if [ "$quick" = 1 ]; then echo "REFERENCED '-': skipped for speed (--quick); run without it for compressed sizes."
+    else echo "REFERENCED shows '-': install 'compsize' (apt install compsize)."; fi
+fi
+echo "TOTAL      = apparent (uncompressed)."

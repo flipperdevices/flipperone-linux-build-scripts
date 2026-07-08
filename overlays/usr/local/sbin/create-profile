@@ -1,0 +1,123 @@
+#!/bin/sh
+# create-profile [-m|--move] <@source> [<@dest>] - materialize a bootable PROFILE (a writable
+# bootable root) named exactly <@dest> from <@source>. Takes effect after rebooting into <@dest>.
+#
+#   <@source> a snapshot or golden base, by its full top-level path: @snapshots/<name>
+#             (RO restore point), @<profile>_<stamp> (top-level snapshot), or
+#             @<profile>_stock (a profile's golden base).
+#   <@dest>   exact name of the profile (a bootable top-level subvol) to write. Defaults to
+#             the currently booted profile. May also be current|booted.
+#   -m,--move MOVE <@source> into <@dest> (rename) instead of snapshotting it: <@source> is
+#             consumed but its parent_uuid is PRESERVED. (A snapshot would re-parent <@dest>
+#             onto <@source>.) Use to promote a received incremental snapshot back to its
+#             profile root while keeping its _stock parent.
+#
+# If <@dest> does not exist it is created and a BLS boot entry is generated for it. If it
+# already exists it is replaced and the previous copy kept as <@dest>.old_<ts> (recoverable;
+# existing profiles already have their own boot entry, so none is added). The result is always
+# writable, even when <@source> is read-only.
+#
+# Examples:
+#   create-profile @snapshots/@SourceProfile @DestinationProfile      # writable copy -> new profile
+#   create-profile -m @snapshots/@SourceProfile @DestinationProfile   # MOVE (consume source, keep parent)
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+move=0
+while :; do
+    case "${1:-}" in
+        -m|--move) move=1; shift ;;
+        *) break ;;
+    esac
+done
+[ $# -ge 1 ] || die "Usage: create-profile [-m|--move] <@source> [<@dest>|current]"
+src_name=$1
+dest=${2:-current}
+case "$src_name" in *..*|/*) die "Invalid source name: $src_name" ;; esac
+
+mount_top
+
+# full top-level path; no guessing
+resolve() { [ -e "$TOP/$1" ] && printf '%s' "$1"; }
+
+src_rel=$(resolve "$src_name")
+[ -n "$src_rel" ] || die "No such snapshot: $src_name (give the full path, e.g. @snapshots/@Minimal)"
+src="$TOP/$src_rel"
+
+# dest -> exact top-level name (default: booted root)
+case "$dest" in
+    current|booted|"") rel=$(findmnt -no FSROOT / | sed 's,^/,,')
+                       [ -n "$rel" ] || die "Cannot determine booted subvolume" ;;
+    *)                 case "$dest" in *..*|/*|*/*) die "Invalid dest: $dest (top-level name only, e.g. @Desktop-2)" ;; esac
+                       rel=$dest ;;
+esac
+is_reserved_subvol "$rel" && die "Refusing to write reserved subvolume: $rel"
+case "$rel" in
+    @?*) ;;
+    *) die "Profile name must start with '@' (e.g. @Desktop-2): $rel" ;;
+esac
+[ "$rel" = "$src_rel" ] && die "Dest and source are the same subvolume"
+
+existed=0; [ -e "$TOP/$rel" ] && existed=1
+if [ "$move" = 1 ]; then
+    how="by MOVING '$src_name' into it (source consumed, parent preserved)"
+else
+    how="with a writable copy of '$src_name'"
+fi
+if [ "$existed" = 1 ]; then
+    confirm "$(printf "Replace existing profile '%s' %s on %s?\nThe current '%s' is kept as %s.old_<ts>." \
+        "$rel" "$how" "$ROOTDEV" "$rel" "$rel")"
+else
+    confirm "Create bootable profile '$rel' $how on $ROOTDEV?"
+fi
+
+set_lock
+tgt="$TOP/$rel"
+aside=""
+# For a move, clear ro on the source first (EROFS blocks renaming a ro subvol; -f keeps
+# parent_uuid, drops received_uuid). Before touching the target, so a failure changes nothing.
+if [ "$move" = 1 ]; then
+    btrfs property set -f "$src" ro false || die "Could not clear ro on $src_name (needed to move it)"
+fi
+if [ "$existed" = 1 ]; then
+    ts=$(date +%Y-%m-%d_%H-%M-%S)
+    aside="$tgt.old_$ts"
+    mv "$tgt" "$aside"
+fi
+if [ "$move" = 1 ]; then
+    if ! mv "$src" "$tgt"; then
+        [ -n "$aside" ] && mv "$aside" "$tgt"
+        die "Move failed; ${aside:+previous $rel restored, }nothing changed"
+    fi
+else
+    if ! btrfs subvolume snapshot "$src" "$tgt" >/dev/null; then
+        [ -n "$aside" ] && mv "$aside" "$tgt"
+        die "Snapshot failed; ${aside:+previous $rel restored, }nothing changed"
+    fi
+fi
+# make writable; on a moved snapshot preserves parent_uuid, drops received_uuid
+btrfs property set "$tgt" ro false 2>/dev/null || true
+
+# BLS entry + /etc/kernel/entry-token via flipper-bls.sh, in a subshell so its die can't abort
+# us. Pass the SOURCE as origin hint so the root lands in that profile's band if parent_uuid is
+# left dangling.
+lib=/usr/lib/flipper-bls.sh
+if [ -r "$lib" ]; then
+    ( . "$lib"; flipper_write_entry "$rel" "$tgt" "$src_rel" ) \
+        || echo "Warning: Boot entry not created for $rel" >&2
+else
+    echo "Warning: $lib not found; no boot entry created for $rel" >&2
+fi
+
+if [ "$move" = 1 ]; then verb="moved"; else verb="created"; fi
+if [ "$existed" = 1 ]; then
+    echo "Profile '$rel' $verb from '$src_name' (writable); previous kept as ${rel}.old_$ts"
+    echo "Reboot into '$rel' to use it; remove the old copy later with:"
+    echo "  sudo delete-profile ${rel}.old_$ts"
+else
+    echo "Profile '$rel' $verb from '$src_name' (writable, boot entry added)"
+    echo "Reboot and pick '$rel' from the boot menu to use it"
+fi
+[ "$move" = 1 ] && echo "(Source consumed; parent_uuid preserved)" || true

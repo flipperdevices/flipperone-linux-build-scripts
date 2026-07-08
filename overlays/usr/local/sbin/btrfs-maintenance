@@ -1,0 +1,41 @@
+#!/bin/sh
+# btrfs-maintenance <check|fix|dedup|balance|all>
+#   check   - read-only scrub (verify checksums, no writes)
+#   fix     - scrub with repair (only where a good copy exists: DUP metadata yes,
+#             single-profile data cannot self-heal)
+#   dedup   - offline dedup via duperemove across ALL subvolumes (separate package)
+#   balance - light filtered balance to reclaim partly-empty chunks
+#   all     - check + dedup + balance
+# Offline 'btrfs check --repair' needs an UNMOUNTED fs (boot elsewhere).
+#
+# Example:
+#   btrfs-maintenance all   # scrub + dedup + balance across all profile/snapshot subvols
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+MNT=/
+
+usage() { sed -n '2,9p' "$0"; exit 1; }
+
+# Dedup across every profile/snapshot: duperemove must run on the btrfs TOP LEVEL (subvolid=5),
+# where all subvolumes appear as subdirectories. Run on / and it only sees the booted root.
+# Read-only subvols (@snapshots/*, *_stock) are skipped by duperemove (can't dedup a RO target).
+do_dedup() {
+    need_cmd duperemove
+    mount_top
+    duperemove -dhr "$TOP" || die "Duperemove failed (rc=$?)"
+}
+
+[ $# -ge 1 ] || usage
+case "$1" in
+    check)   btrfs scrub start -B -r "$MNT" ;;
+    fix)     set_lock; btrfs scrub start -B "$MNT" ;;
+    dedup)   set_lock; do_dedup ;;
+    balance) set_lock; btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
+    all)     set_lock
+             btrfs scrub start -B -r "$MNT"
+             do_dedup
+             btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
+    *)       usage ;;
+esac

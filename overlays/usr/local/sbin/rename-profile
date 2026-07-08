@@ -1,0 +1,51 @@
+#!/bin/sh
+# rename-profile <@old> <@new> - rename a bootable PROFILE at the btrfs top level (as listed by
+# list-profiles) and reissue its BLS boot entry under the new name. Both are top-level names
+# (e.g. @Desktop-2). The profile keeps its contents and btrfs parent; only its name and boot
+# entry change. Cannot rename the currently booted profile (boot into another first).
+# Works via a subvolid=5 (top-level) mount.
+#
+# Example:
+#   rename-profile @SourceProfile @DestinationProfile   # old -> new (keeps contents + parent)
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+[ $# -ge 2 ] || die "Usage: rename-profile <@old> <@new>"
+old=$1; new=$2
+for n in "$old" "$new"; do
+    case "$n" in *..*|/*|*/*) die "Invalid name: $n (top-level names only, e.g. @Desktop-2)" ;; esac
+done
+[ "$old" = "$new" ] && die "Old and new names are the same"
+is_reserved_subvol "$new" && die "Refusing to use reserved name: $new"
+case "$new" in
+    @?*) ;;
+    *) die "New profile name must start with '@' (e.g. @Desktop-2): $new" ;;
+esac
+
+set_lock
+mount_top
+cur_id=$(booted_id)
+[ -e "$TOP/$old" ] || die "No such profile: $old (see list-profiles)"
+[ -e "$TOP/$new" ] && die "Target already exists: $new"
+is_reserved_subvol "$old" && die "Refusing to rename reserved subvolume: $old"
+info=$(btrfs subvolume show "$TOP/$old" 2>/dev/null) || die "Not a profile: $old"
+old_id=$(get "$info" "Subvolume ID")
+[ -n "$cur_id" ] && [ "$old_id" = "$cur_id" ] \
+    && die "Refusing to rename the currently booted profile ($old); boot into another profile first"
+
+# top-level dir entry: mv keeps UUID + btrfs parent
+mv "$TOP/$old" "$TOP/$new"
+echo "Renamed profile '$old' -> '$new'"
+
+# drop old name's BLS entry + staging, reissue for <@new>; parent chain intact -> right band
+lib=/usr/lib/flipper-bls.sh
+if [ -r "$lib" ]; then
+    ( . "$lib"; remove_root_entries "$old"; flipper_write_entry "$new" "$TOP/$new" ) \
+        || echo "Warning: Boot entry not updated for $new" >&2
+else
+    echo "Warning: $lib not found; boot entry not updated for $new" >&2
+fi
+
+echo "Reboot and pick '$new' from the boot menu to use it"

@@ -1,0 +1,52 @@
+#!/bin/sh
+# list-profiles - list the bootable PROFILES at the btrfs top level: the profile roots
+# (@Desktop, @Minimal, ...), their _stock golden bases, and @<profile>.old_* leftovers from
+# create-profile. KIND tags each (profile/stock/old); PARENT is what it was snapshotted from
+# (via Parent UUID). Names are top-level paths (what create-profile/rename-profile/delete-profile
+# take). The booted profile is marked  <- booted. For restore points, see list-snapshots.
+# Works via a subvolid=5 (top-level) mount.
+#
+# Example:
+#   list-profiles   # @SourceProfile / @DestinationProfile roots, _stock bases and .old leftovers
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+need_root
+need_btrfs
+
+map=$(mktemp)
+rows=$(mktemp)
+TOP_TMPFILES="$map $rows"
+mount_top
+build_uuid_map "$TOP" "$map"
+
+cur=$(btrfs subvolume show / 2>/dev/null) || cur=
+cur_id=$(get "$cur" "Subvolume ID")
+cur_path=$(printf '%s\n' "$cur" | head -n1)
+[ -n "$cur_path" ] && echo "Booted profile: $cur_path (id ${cur_id:-?})"
+echo
+
+emit() {  # $1=display name  $2=fs path
+    info=$(btrfs subvolume show "$2" 2>/dev/null) || return 0
+    id=$(get "$info" "Subvolume ID")
+    otime=$(get "$info" "Creation time"); otime=${otime% +*}
+    flags=$(get "$info" "Flags"); case "$flags" in *readonly*) flags=ro ;; *) flags=rw ;; esac
+    parent=$(parent_of "$map" "$(get "$info" "Parent UUID")")
+    case "$1" in
+        *_stock) kind=stock ;;
+        *.old_*) kind=old ;;
+        *)       kind=profile ;;
+    esac
+    mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$kind" "${id:-?}" "${otime:-?}" "$flags" "$parent" "$mark" >> "$rows"
+}
+
+printf 'NAME\tKIND\tID\tCREATED\tRO\tPARENT\t\n' > "$rows"
+# top-level roots, _stock bases, @.old_* leftovers; skip shared subvols + @snapshots
+for d in "$TOP"/@*; do
+    [ -e "$d" ] || continue
+    n=${d##*/}
+    is_reserved_subvol "$n" && continue
+    btrfs subvolume show "$d" >/dev/null 2>&1 || continue
+    emit "$n" "$d"
+done
+align_table "$rows"
