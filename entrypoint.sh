@@ -11,7 +11,10 @@ case "${BUILD_TARGET}" in
         ./build-uboot.sh
         ./build-kernel-mainline.sh
         ./build-kernel-bsp.sh
+        ./build-ospack.sh
+        ./build-rootfs-img.sh
         ./build-images.sh
+        ./build-dtbo.sh
         ;;
     uboot)
         ./build-uboot.sh
@@ -22,12 +25,18 @@ case "${BUILD_TARGET}" in
     kernel-bsp)
         ./build-kernel-bsp.sh
         ;;
+    ospack)
+        ./build-ospack.sh
+        ;;
+    rootfs-img)
+        ./build-rootfs-img.sh
+        ;;
     images)
         ./build-images.sh
         ;;
     *)
         echo "Unknown BUILD_TARGET: ${BUILD_TARGET}"
-        echo "Valid targets: all, uboot, kernel-mainline, kernel-bsp, images"
+        echo "Valid targets: all, uboot, kernel-mainline, kernel-bsp, ospack, rootfs-img, images"
         exit 1
         ;;
 esac
