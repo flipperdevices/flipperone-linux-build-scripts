@@ -12,11 +12,34 @@
 #   btrfs-maintenance all   # scrub + dedup + balance across all profile/snapshot subvols
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: btrfs-maintenance <check|fix|dedup|balance|all>
+  check     read-only scrub (verify checksums, no writes)
+  fix       scrub with repair (only where a good copy exists)
+  dedup     offline dedup via duperemove across ALL subvolumes
+  balance   light filtered balance to reclaim partly-empty chunks
+  all       check + dedup + balance
+EOF
+}
+
+do_scrub=0; scrub_ro=; dedup=0; balance=0; lock=1
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    check)     do_scrub=1; scrub_ro=-r; lock=0 ;;
+    fix)       do_scrub=1 ;;
+    dedup)     dedup=1 ;;
+    balance)   balance=1 ;;
+    all)       do_scrub=1; scrub_ro=-r; dedup=1; balance=1 ;;
+    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+    "")        usage >&2; exit 1 ;;
+    *)         echo "Error: unknown command: $1" >&2; usage >&2; exit 1 ;;
+esac
+
 need_root
 need_btrfs
 MNT=/
-
-usage() { sed -n '2,9p' "$0"; exit 1; }
 
 # Dedup across every profile/snapshot: duperemove must run on the btrfs TOP LEVEL (subvolid=5),
 # where all subvolumes appear as subdirectories. Run on / and it only sees the booted root.
@@ -27,15 +50,8 @@ do_dedup() {
     duperemove -dhr "$TOP" || die "Duperemove failed (rc=$?)"
 }
 
-[ $# -ge 1 ] || usage
-case "$1" in
-    check)   btrfs scrub start -B -r "$MNT" ;;
-    fix)     set_lock; btrfs scrub start -B "$MNT" ;;
-    dedup)   set_lock; do_dedup ;;
-    balance) set_lock; btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
-    all)     set_lock
-             btrfs scrub start -B -r "$MNT"
-             do_dedup
-             btrfs balance start -dusage=50 -musage=50 "$MNT" ;;
-    *)       usage ;;
-esac
+[ "$lock" = 1 ]     && set_lock
+[ "$do_scrub" = 1 ] && btrfs scrub start -B $scrub_ro "$MNT"
+[ "$dedup" = 1 ]    && do_dedup
+[ "$balance" = 1 ]  && btrfs balance start -dusage=50 -musage=50 "$MNT"
+exit 0

@@ -10,6 +10,20 @@
 #   list-profiles   # @SourceProfile / @DestinationProfile roots, _stock bases and .old leftovers
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: list-profiles
+  List bootable profiles at the btrfs top level: profile roots, their _stock golden
+  bases, and @<profile>.old_* leftovers. For restore points, see list-snapshots.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    ?*)        echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1 ;;
+esac
+
 need_root
 need_btrfs
 

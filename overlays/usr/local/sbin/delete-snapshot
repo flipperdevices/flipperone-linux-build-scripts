@@ -7,10 +7,23 @@
 #   delete-snapshot @snapshots/@SourceProfile_2026-06-29_19-52-31
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: delete-snapshot <@snapshots/@name>
+  Delete a read-only restore-point snapshot under @snapshots (see list-snapshots).
+  For profiles, _stock bases, or .old leftovers use delete-profile.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+esac
+[ $# -ge 1 ] || { usage >&2; exit 1; }
+
 need_root
 need_btrfs
-
-[ $# -ge 1 ] || die "Usage: delete-snapshot <@snapshots/@name>"
 arg=$1
 case "$arg" in *..*|/*) die "Invalid name: $arg" ;; esac
 case "$arg" in

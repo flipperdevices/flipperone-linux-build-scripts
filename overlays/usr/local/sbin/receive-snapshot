@@ -11,13 +11,26 @@
 #   ssh host 'send-snapshot @SourceProfile -' | receive-snapshot -
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: receive-snapshot <file|->
+  Receive a send-snapshot stream into @snapshots (read-only). Put it onto a root
+  with create-profile. Incremental streams need their parent to exist here first.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+esac
+[ $# -ge 1 ] || { usage >&2; exit 1; }
+src=$1
+
 need_root
 need_btrfs
 need_cmd zstd "apt install zstd"
 have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
-
-[ $# -ge 1 ] || die "Usage: receive-snapshot <file>"
-src=$1
 [ "$src" = "-" ] || [ -f "$src" ] || die "No such file: $src"
 
 set_lock

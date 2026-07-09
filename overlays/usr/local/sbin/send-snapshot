@@ -20,20 +20,33 @@
 #   send-snapshot @SourceProfile_x - | ssh host 'receive-snapshot -'
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
-need_root
-need_btrfs
-need_cmd zstd "apt install zstd"
-have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
+
+usage() {
+    cat <<EOF
+Usage: send-snapshot [-p PARENT | -i] <@snapshot> <file|dir|->
+  -p PARENT   incremental: send only changes since PARENT (ro, must exist on receiver)
+  -i          incremental vs the source's _stock parent (else a full send)
+  <@snapshot> full top-level path, e.g. @snapshots/<name> (rw source auto-snapshotted ro)
+  <file|dir>  output file, a directory (writes <leaf>_pack.zst), or - for stdout
+EOF
+}
 
 parent=""; incremental=0
 while :; do
     case "${1:-}" in
-        -p) [ $# -ge 2 ] || die "-p requires a PARENT snapshot"; parent=$2; shift 2 ;;
-        -i) incremental=1; shift ;;
-        *)  break ;;
+        -p)        [ $# -ge 2 ] || die "-p requires a PARENT snapshot"; parent=$2; shift 2 ;;
+        -i)        incremental=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)         break ;;
     esac
 done
-[ $# -ge 2 ] || die "Usage: send-snapshot [-p PARENT | -i] <@snapshot> <file|dir>"
+[ $# -ge 2 ] || { usage >&2; exit 1; }
+
+need_root
+need_btrfs
+need_cmd zstd "apt install zstd"
+have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
 src_name=$1; dest=$2
 case "$src_name" in *..*) die "Invalid name: $src_name" ;; esac
 # fail fast on an existing non-dir dest; a dir dest is named below from the leaf sent

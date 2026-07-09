@@ -8,6 +8,20 @@
 #   list-snapshots   # RO restore points, named @snapshots/@SourceProfile_<ts>
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: list-snapshots
+  List read-only restore-point snapshots under @snapshots (made by create-snapshot).
+  For bootable profiles, see list-profiles.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    ?*)        echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1 ;;
+esac
+
 need_root
 need_btrfs
 

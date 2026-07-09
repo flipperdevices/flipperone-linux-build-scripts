@@ -10,13 +10,23 @@
 #   create-snapshot pre-upgrade   # RO snapshot of the booted @SourceProfile -> @snapshots/
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
-need_root
-need_btrfs
+
+usage() {
+    cat <<EOF
+Usage: create-snapshot [tag...]
+  Read-only snapshot of the booted root (/) into @snapshots, named
+  @<root>_YYYY-MM-DD_HH-MM-SS[_tag]. Snapshots are always read-only;
+  for a writable/bootable root use create-profile <@source> <@dest>.
+EOF
+}
 
 case "${1:-}" in
-    -w|--rw) die "Read-only tool; make a writable bootable root with create-profile <@source> <@dest>" ;;
-    -r|--ro) shift ;;
+    -h|--help) usage; exit 0 ;;
+    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
 esac
+
+need_root
+need_btrfs
 
 tag=$*
 if [ -n "$tag" ]; then
@@ -34,4 +44,4 @@ dest="$TOP/@snapshots/$name"; rel="@snapshots/$name"
 [ -e "$dest" ] && die "Already exists: $rel"
 
 btrfs subvolume snapshot -r / "$dest" >/dev/null
-echo "Created $(btrfs subvolume show "$dest" | head -n1) (read-only)"
+echo "Created $(btrfs subvolume show "$dest" | head -n1)"
