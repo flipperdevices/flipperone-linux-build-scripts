@@ -245,6 +245,23 @@ overlay_paths() {  # $1 = subvol prefix (e.g. /@Desktop); remaining args = overl
     printf '%s' "$_paths"
 }
 
+# Per-profile user drop-in overlays: every *.dtbo under this root's /etc/kernel/dtbo, applied to
+# each of the profile's entries. One layout, two views: OVERLAY_USER_ROOT picks whose drop-ins to
+# scan ("" = the running root, a mountpoint for any other), while the in-entry path is always the
+# same subvol-prefixed /etc/kernel/dtbo, since that is where the file sits inside the profile.
+# Silent no-op when the dir is absent or empty.
+OVERLAY_USER_PATH=/etc/kernel/dtbo
+user_overlay_paths() {  # $1 = subvol prefix (e.g. /@Desktop)
+    _udir="${OVERLAY_USER_ROOT:-}$OVERLAY_USER_PATH"
+    [ -d "$_udir" ] || return 0
+    _upaths=""
+    for _uf in "$_udir"/*.dtbo; do
+        [ -f "$_uf" ] || continue                     # unmatched glob -> skip
+        _upaths="$_upaths${_upaths:+ }$1$OVERLAY_USER_PATH/${_uf##*/}"
+    done
+    printf '%s' "$_upaths"
+}
+
 # Set BASE_OPTS from CONF_ROOT/cmdline (root=UUID + policy) + this kernel's console layout.
 # FIQ kernel -> console=ttyFIQ0 ; mainline -> console=ttyS0 + ttyS4 + fbcon=map:1.
 compute_base_opts() {
@@ -320,9 +337,10 @@ emit_entry() {
     _opts="$BASE_OPTS"
     [ -n "$_extra" ] && _opts="$_opts $_extra"
     _fn="$ENTRIES/$ENTRY_TOKEN-$KERNEL_VERSION.conf"
+    _user="$(user_overlay_paths "$(fdt_prefix "$_opts")")"   # user drop-ins, always optional
 
     if [ -z "$_dtbos" ]; then
-        write_entry "$_fn" "$(make_title "$_suf")" "$_opts" ""
+        write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$_user"
         return 0
     fi
 
@@ -336,7 +354,8 @@ emit_entry() {
         log "skip $ENTRY_TOKEN (overlays not found for $KERNEL_VERSION)"
         return 0
     fi
-    write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$_paths"
+    # profile overlays first, then the user's drop-ins layered on top
+    write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$_paths${_paths:+${_user:+ }}$_user"
 }
 
 # flipper_write_entry <subvol> <mounted-path> [<origin-hint>]: write a BLS entry for an EXISTING
@@ -372,6 +391,7 @@ flipper_write_entry() {
     # devicetreedir is the target root's OWN kernel dir (KERNEL_VERSION came from it, so it exists).
     DEVICETREEDIR_REL="/usr/lib/linux-image-$KERNEL_VERSION"
     OVERLAY_DIR="$DTB_DIR/$VENDOR"
+    OVERLAY_USER_ROOT="$_snap"                  # scan the TARGET root's drop-ins, not the running one
     # pin the root's own entry-token so a later runtime apt install in it lands in the same band
     mkdir -p "$_snap/etc/kernel" && printf '%s\n' "$ENTRY_TOKEN" > "$_snap/etc/kernel/entry-token"
     # Remove any existing entry for this root+version first. The entry filename holds a sort
