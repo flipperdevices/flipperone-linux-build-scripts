@@ -10,10 +10,24 @@
 #   delete-profile @DestinationProfile   # remove a profile (and its boot entry)
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: delete-profile <@profile>
+  Delete a bootable profile at the btrfs top level (see list-profiles) and its
+  boot entry: a profile root, a _stock base, or an @<profile>.old_* leftover.
+  For @snapshots restore points use delete-snapshot.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+esac
+[ $# -ge 1 ] || { usage >&2; exit 1; }
+
 need_root
 need_btrfs
-
-[ $# -ge 1 ] || die "Usage: delete-profile <@profile>"
 arg=$1
 case "$arg" in *..*|/*) die "Invalid name: $arg" ;; esac
 case "$arg" in

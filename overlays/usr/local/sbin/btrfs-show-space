@@ -15,11 +15,24 @@
 #   btrfs-show-space --quick   # usage + per-subvol space (skips the slow REFERENCED column)
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
-need_root
-need_btrfs
+
+usage() {
+    cat <<EOF
+Usage: btrfs-show-space [-q|--quick]
+  Btrfs usage plus per-root-subvolume space (UNIQUE / REFERENCED / TOTAL).
+  -q,--quick  skip the compsize REFERENCED column (one less extent-walk per subvol)
+EOF
+}
 
 quick=0
-case "${1:-}" in -q|--quick) quick=1; shift ;; esac
+case "${1:-}" in
+    -h|--help)  usage; exit 0 ;;
+    -q|--quick) quick=1; shift ;;
+    -?*)        echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+esac
+
+need_root
+need_btrfs
 have_cs=0
 if [ "$quick" = 0 ] && command -v compsize >/dev/null 2>&1; then have_cs=1; fi
 

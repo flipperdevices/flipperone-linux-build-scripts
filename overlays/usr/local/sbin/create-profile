@@ -22,17 +22,29 @@
 #   create-profile -m @snapshots/@SourceProfile @DestinationProfile   # MOVE (consume source, keep parent)
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
-need_root
-need_btrfs
+
+usage() {
+    cat <<EOF
+Usage: create-profile [-m|--move] <@source> [<@dest>|current]
+  -m,--move   move <@source> into <@dest> (consume source, preserve parent_uuid)
+  <@source>   @snapshots/<name>, @<profile>_<stamp>, or @<profile>_stock
+  <@dest>     profile to write (default: booted profile; or current|booted)
+EOF
+}
 
 move=0
 while :; do
     case "${1:-}" in
-        -m|--move) move=1; shift ;;
-        *) break ;;
+        -m|--move)  move=1; shift ;;
+        -h|--help)  usage; exit 0 ;;
+        -?*)        echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)          break ;;
     esac
 done
-[ $# -ge 1 ] || die "Usage: create-profile [-m|--move] <@source> [<@dest>|current]"
+[ $# -ge 1 ] || { usage >&2; exit 1; }
+
+need_root
+need_btrfs
 src_name=$1
 dest=${2:-current}
 case "$src_name" in *..*|/*) die "Invalid source name: $src_name" ;; esac
