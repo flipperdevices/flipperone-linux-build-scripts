@@ -1,0 +1,84 @@
+#!/bin/sh
+# add-dtbo - manage this profile's user device-tree overlays in /etc/kernel/dtbo and apply them to
+# the booted profile's BLS boot entry without a full kernel-install. Reboot to load changes. By
+# default only the BOOTED kernel's entry is touched; --all-kernels does every installed kernel.
+set -eu
+. /usr/lib/flipper-bls.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-bls.sh not found" >&2; exit 1; }
+DROPDIR="$OVERLAY_USER_PATH"   # the library owns the path; deriving keeps the two in step
+
+usage() {
+    cat <<EOF
+Usage: add-dtbo [--all-kernels] FILE.dtbo ...    copy each FILE into $DROPDIR, then apply
+       add-dtbo [--all-kernels] --rm NAME ...    remove each named overlay from $DROPDIR, then apply
+       add-dtbo [--all-kernels] --apply          apply the overlays already in $DROPDIR
+       add-dtbo [--all-kernels] --clear          remove all user overlays from $DROPDIR, then apply
+       add-dtbo --list                           list the *.dtbo in $DROPDIR
+       add-dtbo --help                           show this help
+EOF
+}
+
+_scope=""; _action=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --all-kernels) _scope=all ;;
+        --rm)          _action=rm ;;
+        --apply)       _action=apply ;;
+        --clear)       _action=clear ;;
+        --list)        _action=list ;;
+        -h|--help)     usage; exit 0 ;;
+        --)            shift; break ;;
+        -?*)           echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)             break ;;
+    esac
+    shift
+done
+
+if [ $# -gt 0 ]; then
+    case "$_action" in
+        '') _action=apply ;;
+        apply|rm) ;;
+        *) echo "Error: files cannot be combined with --$_action" >&2; exit 1 ;;
+    esac
+elif [ "$_action" = rm ]; then
+    echo "Error: --rm needs at least one NAME" >&2; exit 1
+fi
+[ -n "$_action" ] || { usage; exit 0; }
+
+if [ "$_action" = list ]; then
+    echo "User overlays in $DROPDIR:"
+    if ls "$DROPDIR"/*.dtbo >/dev/null 2>&1; then
+        for f in "$DROPDIR"/*.dtbo; do echo "  ${f##*/}"; done
+    else
+        echo "  (none)"
+    fi
+    exit 0
+fi
+
+[ "$(id -u)" -eq 0 ] || { echo "Error: must run as root (use sudo)" >&2; exit 1; }
+
+case "$_action" in
+    clear)
+        rm -f "$DROPDIR"/*.dtbo
+        echo "Removed all user overlays from $DROPDIR"
+        ;;
+    rm)
+        for f in "$@"; do
+            _t="$DROPDIR/${f##*/}"
+            [ -f "$_t" ] || { echo "Error: no such overlay: ${f##*/}" >&2; exit 1; }
+            rm -f "$_t"
+            echo "removed ${f##*/}"
+        done
+        ;;
+    apply)
+        install -d -m 755 "$DROPDIR"
+        for f in "$@"; do
+            [ -f "$f" ] || { echo "Error: no such file: $f" >&2; exit 1; }
+            case "$f" in *.dtbo) ;; *) echo "Error: not a .dtbo: $f" >&2; exit 1 ;; esac
+            cp -f "$f" "$DROPDIR/"
+            echo "copied ${f##*/} -> $DROPDIR/"
+        done
+        ;;
+esac
+
+flipper_rewrite_overlay "$_scope"
+echo "Reboot to load changes."

@@ -321,6 +321,15 @@ discover_devicetreedir() {
     OVERLAY_DIR="${DEVICETREEDIR_SRC:-$DTB_DIR}/$VENDOR"
 }
 
+# devicetree-overlay value for an entry: profile overlays ($2 = dtbos names) + user drop-ins,
+# subvol-prefixed from $1 (options). Empty if none. Shared by emit_entry and flipper_rewrite_overlay.
+dt_overlay_line() {
+    _p="$(fdt_prefix "$1")"
+    _o="$(overlay_paths "$_p" $2 2>/dev/null)" || _o=""
+    _u="$(user_overlay_paths "$_p")"
+    printf '%s' "$_o${_o:+${_u:+ }}$_u"
+}
+
 # emit_entry SUF EXTRA GATE DTBOS -> write one BLS entry for the current $ENTRY_TOKEN.
 # The filename is $ENTRY_TOKEN-$KERNEL_VERSION.conf. The token is <NN>-flipperos-<subvol>, so it
 # LEADS with the 3-digit menu band and U-Boot's bls (filename sort, descending) orders entries by
@@ -337,25 +346,14 @@ emit_entry() {
     _opts="$BASE_OPTS"
     [ -n "$_extra" ] && _opts="$_opts $_extra"
     _fn="$ENTRIES/$ENTRY_TOKEN-$KERNEL_VERSION.conf"
-    _user="$(user_overlay_paths "$(fdt_prefix "$_opts")")"   # user drop-ins, always optional
-
-    if [ -z "$_dtbos" ]; then
-        write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$_user"
-        return 0
-    fi
-
-    # A leading '!' on the overlay list = required (skip the entry if the overlays are
-    # absent); otherwise optional (the entry is still written, sans overlay).
+    # a leading '!' on the list = required: skip the whole entry if those profile overlays are absent
     _required=0
     case "$_dtbos" in '!'*) _required=1; _dtbos="$(trim "${_dtbos#\!}")" ;; esac
-
-    _paths="$(overlay_paths "$(fdt_prefix "$_opts")" $_dtbos)" || _paths=""
-    if [ -z "$_paths" ] && [ "$_required" = 1 ]; then
-        log "skip $ENTRY_TOKEN (overlays not found for $KERNEL_VERSION)"
+    if [ "$_required" = 1 ] && [ -z "$(overlay_paths "$(fdt_prefix "$_opts")" $_dtbos 2>/dev/null)" ]; then
+        log "skip $ENTRY_TOKEN (required overlays not found for $KERNEL_VERSION)"
         return 0
     fi
-    # profile overlays first, then the user's drop-ins layered on top
-    write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$_paths${_paths:+${_user:+ }}$_user"
+    write_entry "$_fn" "$(make_title "$_suf")" "$_opts" "$(dt_overlay_line "$_opts" "$_dtbos")"
 }
 
 # flipper_write_entry <subvol> <mounted-path> [<origin-hint>]: write a BLS entry for an EXISTING
@@ -401,4 +399,45 @@ flipper_write_entry() {
     remove_entries "$_name" "$KERNEL_VERSION"
     emit_entry "$(printf '%s' "$_name" | tr -d '@')" "rootflags=subvol=$_name" "" ""
     echo "flipper-bls: wrote entry for $_name (kernel $KERNEL_VERSION, token $ENTRY_TOKEN)"
+}
+
+# Rewrite the devicetree-overlay line of the booted profile's BLS entries in place from the current
+# profile overlays + /etc/kernel/dtbo drop-ins, so changes take effect next boot without a full
+# kernel-install (no re-staging, no initrd rebuild).
+#   $1 scope: ""=the RUNNING kernel's entry only, "all"=every installed kernel of this profile
+# Root only; reboot afterwards.
+flipper_rewrite_overlay() {
+    _scope="${1:-}"
+    [ "$(id -u)" -eq 0 ] || { echo "flipper-bls: must run as root (use sudo)" >&2; return 1; }
+    ENTRIES="${KERNEL_INSTALL_BOOT_ROOT:-/boot}/loader/entries"
+    CONF_ROOT="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}"
+    OVERLAY_USER_ROOT=""                        # these are the running root's own entries
+    _sv="$(booted_subvol)"
+    [ -n "$_sv" ] || { echo "flipper-bls: cannot determine the booted subvol" >&2; return 1; }
+    _run="$(uname -r)"
+
+    _dtbos=""
+    _pf="${FLIPPER_PROFILES:-$CONF_ROOT/flipper-profiles}"
+    if [ -f "$_pf" ]; then
+        while IFS='|' read -r _t _s _e _g _d _r; do
+            case "$_t" in ''|\#*) continue ;; esac
+            if [ "$(subvol_of "$(trim "$_e")")" = "$_sv" ]; then _dtbos="$(trim "${_d#\!}")"; break; fi
+        done <"$_pf"
+    fi
+
+    _n=0
+    for _f in "$ENTRIES"/*.conf; do
+        [ -f "$_f" ] || continue
+        _opts="$(sed -n 's/^options[[:space:]]*//p' "$_f")"
+        [ "$(subvol_of "$_opts")" = "$_sv" ] || continue
+        KERNEL_VERSION="$(sed -n 's/^version[[:space:]]*//p' "$_f")"
+        [ -n "$KERNEL_VERSION" ] || continue
+        [ "$_scope" = all ] || [ "$KERNEL_VERSION" = "$_run" ] || continue
+        set_dtb_dirs; OVERLAY_DIR="$DTB_DIR/$VENDOR"
+        _line="$(dt_overlay_line "$_opts" "$_dtbos")"
+        sed -i '/^devicetree-overlay[[:space:]]/d' "$_f"
+        [ -n "$_line" ] && printf 'devicetree-overlay %s\n' "$_line" >>"$_f"
+        _n=$((_n + 1)); echo "flipper-bls: updated ${_f##*/}"
+    done
+    [ "$_n" -gt 0 ] || { echo "flipper-bls: no matching entries for $_sv" >&2; return 1; }
 }
