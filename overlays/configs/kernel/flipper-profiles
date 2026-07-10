@@ -2,7 +2,7 @@
 #
 # Every bootable session, including the default desktop, is a line below; there is no
 # separate base entry. Each lives in its own btrfs root subvolume (@Desktop, @Minimal,
-# @TV-Media-Box, @Router) selected by its OWN `rootflags=subvol=@<name>` (the cmdline no
+# @No-Graphics, @TV-Media-Box, @Router) selected by its OWN `rootflags=subvol=@<name>` (the cmdline no
 # longer carries one). The session (KDE/kodi/router) is baked into each root's
 # default.target; no systemd.unit= needed.
 #
@@ -40,6 +40,7 @@ desktop|[DESKTOP]     |rootflags=subvol=@Desktop       |               |        
 tvbox  |[TV MEDIA BOX]|rootflags=subvol=@TV-Media-Box  |               |hdmi-cec  |Kodi media-box session
 router |[ROUTER]      |rootflags=subvol=@Router        |               |          |Wi-Fi router mode
 minimal|[MINIMAL]     |rootflags=subvol=@Minimal       |               |          |No desktop (cog kiosk only)
+nogfx  |[NO GRAPHICS] |rootflags=subvol=@No-Graphics   |               |!rk3576-no-graphics|Headless (VOP/HDMI/GPU off)
 #hdmi4k|[HDMI-4K]     |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-hdmi-dp|HDMI 4k (on @Desktop)
 #dp4k  |[DP-4K]       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k (on @Desktop)
 #fan   |[FAN]         |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
