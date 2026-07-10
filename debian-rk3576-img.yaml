@@ -368,6 +368,36 @@ actions:
       btrfs property set "$TOP/@Router_stock" ro true
       btrfs subvolume snapshot "$TOP/@Router_stock" "$TOP/@Router"
 
+  # --- @No-Graphics ----------------------------------------------------------
+  # Headless @Minimal: same userspace, no extra packages. The graphics pipeline (VOP/HDMI/
+  # DP/GPU) is powered off entirely by the rk3576-no-graphics DT overlay its BLS entry applies
+  # (dtbos column), so it only needs its own root subvol + pinned entry-token.
+  - action: run
+    description: Snapshot writable @No-Graphics_stock and mount it
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
+      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@No-Graphics_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@No-Graphics_stock" "$ROOTPART" "$IMAGEMNTDIR"
+  - action: run
+    description: Pin @No-Graphics's kernel entry-token (NN from flipper-profiles)
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-bls.sh
+      make_token "$(profile_base_nn @No-Graphics)" @No-Graphics > /etc/kernel/entry-token
+  - action: run
+    description: Lock @No-Graphics_stock RO and spawn writable @No-Graphics
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      umount "$IMAGEMNTDIR"
+      btrfs property set "$TOP/@No-Graphics_stock" ro true
+      btrfs subvolume snapshot "$TOP/@No-Graphics_stock" "$TOP/@No-Graphics"
+
   # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
   # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
   # $IMAGEMNTDIR unmounted, and the lingering top-level mount would hold the loop busy.)
