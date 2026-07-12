@@ -3,13 +3,13 @@
 #   check   - read-only scrub (verify checksums, no writes)
 #   fix     - scrub with repair (only where a good copy exists: DUP metadata yes,
 #             single-profile data cannot self-heal)
-#   dedup   - offline dedup via duperemove across ALL subvolumes (separate package)
+#   dedup   - offline dedup via duperemove across all writable subvolumes (separate package)
 #   balance - light filtered balance to reclaim partly-empty chunks
 #   all     - check + dedup + balance
 # Offline 'btrfs check --repair' needs an UNMOUNTED fs (boot elsewhere).
 #
 # Example:
-#   btrfs-maintenance all   # scrub + dedup + balance across all profile/snapshot subvols
+#   btrfs-maintenance all   # scrub + dedup + balance across all writable subvols
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
 
@@ -18,7 +18,7 @@ usage() {
 Usage: btrfs-maintenance <check|fix|dedup|balance|all>
   check     read-only scrub (verify checksums, no writes)
   fix       scrub with repair (only where a good copy exists)
-  dedup     offline dedup via duperemove across ALL subvolumes
+  dedup     offline dedup via duperemove across all writable subvolumes
   balance   light filtered balance to reclaim partly-empty chunks
   all       check + dedup + balance
 EOF
@@ -43,15 +43,22 @@ MNT=/
 
 # Dedup across every profile/snapshot: duperemove must run on the btrfs TOP LEVEL (subvolid=5),
 # where all subvolumes appear as subdirectories. Run on / and it only sees the booted root.
-# Read-only subvols (@snapshots/*, *_stock) are skipped by duperemove (can't dedup a RO target).
+# Read-only subvols already share their extents and cannot be a dedup target, so exclude every
+# one (btrfs subvolume list -r): this skips a pointless scan and the per-extent EROFS errors it
+# would otherwise raise on each RO file.
 do_dedup() {
     need_cmd duperemove
     mount_top
-    duperemove -dhr "$TOP" || die "Duperemove failed (rc=$?)"
+    HASHFILE=$TOP/@var-cache/.duperemove_hashes.db
+    _excl=""
+    for _p in $(btrfs subvolume list -r "$TOP" | awk '{print $NF}'); do
+        _excl="$_excl --exclude=$TOP/$_p"
+    done
+    duperemove -dhr --hashfile="$HASHFILE" --exclude="$HASHFILE*" $_excl "$TOP" || die "Duperemove failed (rc=$?)"
 }
 
 [ "$lock" = 1 ]     && set_lock
 [ "$do_scrub" = 1 ] && btrfs scrub start -B $scrub_ro "$MNT"
 [ "$dedup" = 1 ]    && do_dedup
-[ "$balance" = 1 ]  && btrfs balance start -dusage=50 -musage=50 "$MNT"
+[ "$balance" = 1 ]  && btrfs balance start -dusage=20 -musage=10 "$MNT"
 exit 0
