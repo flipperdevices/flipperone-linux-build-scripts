@@ -53,14 +53,15 @@ actions:
       ROOTPART="$({{ $rootdev }})"
 
       # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
-      # @Minimal is the common base / build target; @snapshots holds runtime snapshots.
-      for sv in @Minimal boot @home @snapshots @var-log @var-cache; do
+      # @Minimal_stock is the common base / build target (the RO golden image every profile
+      # snapshots from); @snapshots holds runtime snapshots.
+      for sv in @Minimal_stock boot @home @snapshots @var-log @var-cache; do
         btrfs subvolume create "$IMAGEMNTDIR/$sv"
       done
       umount "$IMAGEMNTDIR"
 
-      # Mount @Minimal at the mount point debos owns, then nest the rest under it.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal" "$ROOTPART" "$IMAGEMNTDIR"
+      # Mount @Minimal_stock at the mount point debos owns, then nest the rest under it.
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal_stock" "$ROOTPART" "$IMAGEMNTDIR"
       mkdir -p "$IMAGEMNTDIR/boot" \
                "$IMAGEMNTDIR/home" \
                "$IMAGEMNTDIR/var/log" \
@@ -77,7 +78,7 @@ actions:
   # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline.
   # The root subvolume is NOT baked here: /etc/kernel/cmdline carries only shared facts +
   # policy (root=UUID, audit, console=tty1). The BLS generator supplies rootflags=subvol=
-  # per entry (from flipper-profiles at build, from findmnt at runtime). Deploy into @Minimal.
+  # per entry (from flipper-profiles at build, from findmnt at runtime). Deploy into @Minimal_stock.
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
 
@@ -117,8 +118,8 @@ actions:
     destination: /var/cache/linux-kernel
 
   # Bake @Minimal's entry-token before the kernel install, so the kernel-install plugin stages the
-  # kernel into /boot/<token>/ instead of the 'debian' fallback. @Minimal is the build root, so its
-  # token is the one the plugin reads. NN is derived from @Minimal's position in flipper-profiles.
+  # kernel into /boot/<token>/ instead of the 'debian' fallback. The build root (@Minimal_stock) is
+  # where the plugin reads it; @Minimal inherits it via the snapshot. NN is from flipper-profiles.
   - action: run
     description: Pin @Minimal's kernel entry-token before the kernel install
     chroot: true
@@ -142,7 +143,7 @@ actions:
       apt-get clean
       rm -rf /var/lib/apt/lists/*
 
-  # The kernel-install plugin only wrote @Minimal's entry (the build root). Fan the installed
+  # The kernel-install plugin only wrote @Minimal's entry (the pinned token). Fan the installed
   # kernel(s) out to every profile: one entry + a reflinked /boot/<token>/ per profile per version
   # (token = <NN>-flipperos-<subvol>, NN from the flipper-profiles order). The shared logic lives in
   # /usr/lib/flipper-bls.sh; this build step is the only fan-out (the plugin handles one root).
@@ -195,30 +196,27 @@ actions:
   # ===========================================================================
 
   - action: run
-    description: Lock @Minimal_stock (RO), re-create @Minimal from it, free the mountpoint
+    description: Lock @Minimal_stock RO and spawn writable @Minimal
     chroot: false
     command: |
       set -eu
-      # @Minimal's entry-token was baked before the kernel install, so @Minimal_stock (snapshotted
-      # here) and the re-created @Minimal both inherit it; no need to rewrite it.
       sync
-      ROOTPART="$({{ $rootdev }})"                 # @Minimal is still mounted at $IMAGEMNTDIR
+      ROOTPART="$({{ $rootdev }})"                 # @Minimal_stock is still mounted at $IMAGEMNTDIR
       # Mount the btrfs top level at a fixed path and KEEP it mounted for the whole profile
       # sequence: it is our stable handle for `findmnt --target` (device lookup then works in
       # every debos mode, whether or not $IMAGEMNTDIR is mounted) and where the subvols live.
       TOP="${IMAGEMNTDIR%/}.toplevel"
       mkdir -p "$TOP"
       mount -t btrfs -o subvolid=5 "$ROOTPART" "$TOP"
-      btrfs subvolume snapshot -r "$TOP/@Minimal" "$TOP/@Minimal_stock"
-      # release @Minimal and its nested submounts so we can replace it and profile
+      # release @Minimal_stock and its nested submounts so it can be locked RO and the profile
       # factories can mount here
       findmnt -rno TARGET --submounts "$IMAGEMNTDIR" \
         | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- \
         | while read -r mp; do umount "$mp"; done
-      # Re-create @Minimal as a writable child of the golden base (parent = @Minimal_stock)
-      # so it matches the other profiles (each a snapshot of its _stock) instead of being
-      # the build origin with no parent.
-      btrfs subvolume delete "$TOP/@Minimal"
+      # @Minimal is a writable snapshot of the golden base, matching every other profile
+      # (each a snapshot of its _stock). Its entry-token, baked before the kernel install,
+      # is inherited via the snapshot.
+      btrfs property set "$TOP/@Minimal_stock" ro true
       btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Minimal"
 
   # --- @Desktop ------------------------------------------------------------------
