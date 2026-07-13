@@ -28,6 +28,10 @@ actions:
       - name: loader
         fs: none
         start: 32KiB
+        end: 60MiB
+      - name: metadata
+        fs: none
+        start: 60MiB
         end: 64MiB
       - name: root
         fs: btrfs

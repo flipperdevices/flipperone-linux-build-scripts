@@ -33,8 +33,9 @@ for s in 512 4096; do
 	sfdisk --sector-size $s "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img << EOF
 label: gpt
 first-lba: $((32768 / s))
-start=32KiB, size=65504KiB, name=loader, type=3DE21764-95BD-54BD-A5C3-4ABE786F38A8
-start=64MiB, size=+,        name=root,   type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, attrs="LegacyBIOSBootable"
+start=32KiB, size=61408KiB, name=loader,   type=3DE21764-95BD-54BD-A5C3-4ABE786F38A8
+start=60MiB, size=4MiB,     name=metadata, type=8DA63339-0007-60C0-C436-083AC8230908
+start=64MiB, size=+,        name=root,     type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, attrs="LegacyBIOSBootable"
 EOF
 
 	read START COUNT < <(
