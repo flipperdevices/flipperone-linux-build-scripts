@@ -168,12 +168,13 @@ clone_slot() {  # $1 = mounted path (default /); $2 = origin hint (optional)
 }
 
 # Menu titles must fit the small screen: cap total at TITLE_MAX by trimming the (long) version
-# while keeping the suffix intact. (Filenames + the 'version' field keep the full version.)
+# while keeping the label intact. Label leads, the (possibly trimmed) version follows.
+# (Filenames + the 'version' field keep the full version.)
 make_title() {
     _suf="$1"
     _avail=$(( TITLE_MAX - ${#_suf} - 1 ))
     if [ "$_avail" -ge 1 ]; then
-        printf '%s %s' "$(printf '%s' "$KERNEL_VERSION" | cut -c"1-$_avail")" "$_suf"
+        printf '%s %s' "$_suf" "$(printf '%s' "$KERNEL_VERSION" | cut -c"1-$_avail")"
     else
         printf '%s' "$_suf" | cut -c"1-$TITLE_MAX"
     fi

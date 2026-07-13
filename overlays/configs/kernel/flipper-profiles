@@ -14,7 +14,7 @@
 # Columns (pipe-separated; '#' starts a comment line):
 #   1 token        short id used in the entry filename. The generator also prepends a
 #                  position-derived "NN-" prefix so this list's order becomes the menu order.
-#   2 suffix       appended to the menu title, e.g. "[ROUTER]"
+#   2 label        shown at the start of the menu title, before the version, e.g. "Router"
 #   3 cmdline      extra kernel command-line fragment: root selection
 #                  (rootflags=subvol=@<name>) and/or tweaks (may be empty)
 #   4 gate         required kernel config symbol(s) (=y/=m in /boot/config-<ver>);
@@ -36,12 +36,12 @@
 # the btrfs snapshot parent chain), so clones sit just above. Reorder these lines to reorder the
 # menu. (See flipper-bls.sh's emit_entry header for the full scheme.)
 
-desktop|[DESKTOP]     |rootflags=subvol=@Desktop       |               |          |Default desktop (KDE/sddm)
-tvbox  |[TV MEDIA BOX]|rootflags=subvol=@TV-Media-Box  |               |hdmi-cec  |Kodi media-box session
-router |[ROUTER]      |rootflags=subvol=@Router        |               |          |Wi-Fi router mode
-minimal|[MINIMAL]     |rootflags=subvol=@Minimal       |               |          |No desktop (cog kiosk only)
-nogfx  |[NO GRAPHICS] |rootflags=subvol=@No-Graphics   |               |!rk3576-no-graphics|Headless (VOP/HDMI/GPU off)
-#hdmi4k|[HDMI-4K]     |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-hdmi-dp|HDMI 4k (on @Desktop)
-#dp4k  |[DP-4K]       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k (on @Desktop)
-#fan   |[FAN]         |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
-#ncm   |[USB NCM]     |systemd.wants=usb-ncm-gadget.service|USB_CONFIGFS_NCM USB_F_NCM|usb-ncm|USB NCM Ethernet gadget
+desktop|Desktop       |rootflags=subvol=@Desktop       |               |          |Default desktop (KDE/sddm)
+tvbox  |TV Media Box  |rootflags=subvol=@TV-Media-Box  |               |hdmi-cec  |Kodi media-box session
+router |Router        |rootflags=subvol=@Router        |               |          |Wi-Fi router mode
+minimal|Minimal       |rootflags=subvol=@Minimal       |               |          |No desktop (cog kiosk only)
+nogfx  |No Graphics   |rootflags=subvol=@No-Graphics   |               |!rk3576-no-graphics|Headless (VOP/HDMI/GPU off)
+#hdmi4k|HDMI 4K       |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-hdmi-dp|HDMI 4k (on @Desktop)
+#dp4k  |DP 4K         |dyndbg="file drivers/gpu/drm/rockchip/dw-dp.c +p"|ROCKCHIP_DW_DP|!rk3576-evb1-v10-typec-base rk3576-evb1-v10-typec-dp-hdmi|DisplayPort 4k (on @Desktop)
+#fan   |Fan           |                                |               |!rk3576-evb1-v10-fan-pwm|PWM fan control
+#ncm   |USB NCM       |systemd.wants=usb-ncm-gadget.service|USB_CONFIGFS_NCM USB_F_NCM|usb-ncm|USB NCM Ethernet gadget
