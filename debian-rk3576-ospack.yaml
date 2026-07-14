@@ -183,6 +183,26 @@ actions:
     chroot: true
     command: chmod +x /usr/bin/sbc-bench.sh
 
+  # mergiraf: syntax-aware 3-way merge used by migrate-profile (not in Debian; prebuilt aarch64
+  # binary). Pinned; bump the version deliberately. Tarball unpacked host-side (unpack), then the
+  # binary is copied in like sbc-bench.
+  - action: download
+    description: Download mergiraf 0.18.0 (aarch64)
+    url: https://codeberg.org/mergiraf/mergiraf/releases/download/v0.18.0/mergiraf_aarch64-unknown-linux-gnu.tar.gz
+    name: mergiraf
+    unpack: true
+    compression: gz
+
+  - action: overlay
+    description: Copy mergiraf into /usr/local/bin
+    origin: mergiraf
+    source: mergiraf
+    destination: /usr/local/bin/mergiraf
+
+  - action: run
+    chroot: true
+    command: chmod +x /usr/local/bin/mergiraf
+
   - action: overlay
     description: Overlay our config defaults
     source: overlays/configs
