@@ -112,6 +112,10 @@ fi
 # make writable; on a moved snapshot preserves parent_uuid, drops received_uuid
 btrfs property set "$tgt" ro false 2>/dev/null || true
 
+# reset machine-id so the profile first-boots (fresh id + hostname/banner) instead of inheriting the source's
+printf 'uninitialized\n' > "$tgt/etc/machine-id" 2>/dev/null || true
+rm -f "$tgt/var/lib/dbus/machine-id" 2>/dev/null || true
+
 # BLS entry + /etc/kernel/entry-token via flipper-bls.sh, in a subshell so its die can't abort
 # us. Pass the SOURCE as origin hint so the root lands in that profile's band if parent_uuid is
 # left dangling.
