@@ -36,7 +36,7 @@ build_uuid_map "$TOP" "$map"
 cur=$(btrfs subvolume show / 2>/dev/null) || cur=
 cur_id=$(get "$cur" "Subvolume ID")
 cur_path=$(printf '%s\n' "$cur" | head -n1)
-[ -n "$cur_path" ] && echo "Booted profile: $cur_path (id ${cur_id:-?})"
+[ -n "$cur_path" ] && echo "Currently booted profile: $cur_path (id ${cur_id:-?})"
 echo
 
 emit() {  # $1=display name  $2=fs path
@@ -51,10 +51,10 @@ emit() {  # $1=display name  $2=fs path
         *)       kind=profile ;;
     esac
     mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$kind" "${id:-?}" "${otime:-?}" "$flags" "$parent" "$mark" >> "$rows"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$kind" "${id:-?}" "${otime:-?}" "$flags" "$parent" >> "$rows"
 }
 
-printf 'NAME\tKIND\tID\tCREATED\tRO\tPARENT\t\n' > "$rows"
+printf 'NAME\t\tKIND\tID\tCREATED\tRO\tPARENT\n' > "$rows"
 # top-level roots, _stock bases, @.old_* leftovers; skip shared subvols + @snapshots
 for d in "$TOP"/@*; do
     [ -e "$d" ] || continue

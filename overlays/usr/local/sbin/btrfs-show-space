@@ -59,7 +59,7 @@ row() {  # $1=display name  $2=fs path  -> append a TSV row
     fi
     id=$(subvol_id "$2")
     mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
-    printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$(human "$exc")" "$ref_h" "$(human "$tot")" "$mark" >> "$rows"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$(human "$exc")" "$ref_h" "$(human "$tot")" >> "$rows"
 }
 
 # collect subvols (cheap), then measure with progress: each row walks extents (slow on flash)
@@ -76,7 +76,7 @@ for d in "$TOP"/@*; do
 done
 total=$(wc -l < "$list" 2>/dev/null | tr -d ' '); [ -n "$total" ] || total=0
 
-printf 'NAME\tUNIQUE\tREFERENCED\tTOTAL\t\n' > "$rows"
+printf 'NAME\t\tUNIQUE\tREFERENCED\tTOTAL\n' > "$rows"
 if [ "$total" -gt 0 ]; then
     if [ "$have_cs" = 1 ]; then note="du + compsize"; else note="du only"; fi
     printf 'Measuring %s subvolume(s) (%s), please wait...\n' "$total" "$note" >&2
@@ -90,15 +90,13 @@ done < "$list"
 { [ -t 2 ] && [ "$total" -gt 0 ] && printf '\r\033[K' >&2; } || true
 
 echo "== root subvolumes & snapshots =="
-# align: NAME auto-width; numeric columns right-justified; marker appended
+# align: NAME auto-width; marker column after NAME; numeric columns right-justified
 awk -F'\t' '
 { r[NR]=$0; if (length($1) > w) w = length($1) }
 END {
     for (i = 1; i <= NR; i++) {
         split(r[i], f, "\t")
-        printf "%-*s  %11s %11s %11s", w, f[1], f[2], f[3], f[4]
-        if (f[5] != "") printf "  %s", f[5]
-        printf "\n"
+        printf "%-*s  %-9s %11s %11s %11s\n", w, f[1], f[2], f[3], f[4], f[5]
     }
 }' "$rows"
 
