@@ -1,9 +1,11 @@
 #!/bin/sh
-# receive-snapshot <file> - receive a send-snapshot stream into @snapshots.
-# The received subvolume keeps the name it had when sent (the leading '@' too, carried in
-# the stream) and is read-only; put it onto a root with create-profile. For an
-# incremental stream (sent with -p/-i), its parent must already exist here (e.g. the _stock
-# base it was diffed against, found by UUID wherever it lives), so receive the full base first.
+# receive-snapshot <file> - receive a send-snapshot stream. Regular snapshots land in
+# @snapshots; a _stock golden base is relocated to the top level (where create-profile and
+# migrate-profile look for it). The received subvolume keeps the name it had when sent (the
+# leading '@' too, carried in the stream) and is read-only; put a snapshot onto a root with
+# create-profile. For an incremental stream (sent with -p/-i), its parent must already exist
+# here (e.g. the _stock base it was diffed against, found by UUID wherever it lives), so
+# receive the full base first.
 #
 # Examples:
 #   receive-snapshot /mnt/usb/SourceProfile_2026-..._pack.zst      # -> @snapshots/@SourceProfile...
@@ -15,8 +17,9 @@ set -eu
 usage() {
     cat <<EOF
 Usage: receive-snapshot <file|->
-  Receive a send-snapshot stream into @snapshots (read-only). Put it onto a root
-  with create-profile. Incremental streams need their parent to exist here first.
+  Receive a send-snapshot stream (read-only). Snapshots land in @snapshots (deploy with
+  create-profile); a _stock golden base is relocated to the top level. Incremental streams
+  need their parent to exist here first.
 EOF
 }
 
@@ -38,7 +41,10 @@ mount_top
 target="$TOP/@snapshots"
 [ -d "$target" ] || die "@snapshots not found at top level"
 
-before=$(btrfs subvolume list -o "$target" 2>/dev/null | wc -l)
+# names of subvolumes under @snapshots, so we can tell which one the receive just created
+snaplist() { btrfs subvolume list -o "$target" 2>/dev/null | sed -n 's,.*[[:space:]]@snapshots/,,p' | sort; }
+before_f=$(mktemp); after_f=$(mktemp); TOP_TMPFILES="$before_f $after_f"
+snaplist > "$before_f"
 
 # file src -> pv shows %/ETA; silence zstd so the two don't collide on one line.
 # No pipefail in POSIX sh, so the pipeline's status is btrfs receive's (the meaningful end).
@@ -52,4 +58,25 @@ rc=$?
 set -e
 [ "$rc" = 0 ] || die "Receive failed (rc=$rc); check the stream and that any parent snapshot exists here"
 
-echo "Received into @snapshots/ (now $(btrfs subvolume list -o "$target" 2>/dev/null | wc -l) entries, was $before)"
+# a _stock is a golden base, not a snapshot: move it to the top level so create-profile and
+# migrate-profile find it (they look for $TOP/<name>_stock). Everything else stays in @snapshots.
+snaplist > "$after_f"
+new=$(comm -13 "$before_f" "$after_f")
+[ -n "$new" ] || { echo "Received into @snapshots/ (could not identify the new subvolume by name)"; exit 0; }
+moved=""; stayed=""
+for leaf in $new; do
+    case "$leaf" in
+        *_stock)
+            if [ -e "$TOP/$leaf" ]; then
+                echo "WARN: '$leaf' already exists at top level; left in @snapshots" >&2; stayed="$stayed $leaf"
+            elif mv "$TOP/@snapshots/$leaf" "$TOP/$leaf"; then
+                moved="$moved $leaf"
+            else
+                echo "WARN: could not move '$leaf' to top level; left in @snapshots" >&2; stayed="$stayed $leaf"
+            fi ;;
+        *) stayed="$stayed $leaf" ;;
+    esac
+done
+echo "Received:"
+[ -n "$moved" ]  && echo "  top level (golden base, ready for create-profile/migrate-profile):$moved"
+[ -n "$stayed" ] && echo "  @snapshots/ (deploy with create-profile):$stayed"
