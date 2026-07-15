@@ -410,6 +410,24 @@ actions:
       btrfs property set "$TOP/@No-Graphics_{{ $buildid }}_stock" ro true
       btrfs subvolume snapshot "$TOP/@No-Graphics_{{ $buildid }}_stock" "$TOP/@No-Graphics"
 
+  # Export each _stock as versioned send streams (receive-snapshot format): a FULL stream
+  # (_pack.zst) for all, plus an INCREMENTAL vs @Minimal (_inc_pack.zst) for the rest.
+  - action: run
+    description: Export each _stock as versioned send streams (full for all, plus incrementals)
+    chroot: false
+    command: |
+      set -eu
+      TOP="${IMAGEMNTDIR%/}.toplevel"
+      MIN="@Minimal_{{ $buildid }}_stock"
+      for s in "$TOP"/@*_stock; do
+        [ -d "$s" ] || continue
+        name=$(basename "$s")
+        btrfs send "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_pack.zst"
+        if [ "$name" != "$MIN" ]; then
+          btrfs send -p "$TOP/$MIN" "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_inc_pack.zst"
+        fi
+      done
+
   # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
   # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
   # $IMAGEMNTDIR unmounted, and the lingering top-level mount would hold the loop busy.)

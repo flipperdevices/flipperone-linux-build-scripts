@@ -45,6 +45,7 @@ RUN apt-get install -y \
     systemd-resolved \
     pipx \
     pigz \
+    zstd \
     cargo \
     golang \
     libglib2.0-dev \
