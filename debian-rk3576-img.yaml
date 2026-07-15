@@ -9,6 +9,9 @@
 # detected as non-rotational).
 {{ $btrfsopts  := or .btrfsopts  "compress=zstd,noatime,ssd,discard=async" }}
 {{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
+# build number (buildbot: build number; local: timestamp) embedded in every _stock name
+# (@<Profile>_<buildno>_stock) so stocks from different builds coexist; roots stay unversioned.
+{{ $buildid := .buildid }}
 
 architecture: arm64
 sectorsize: {{ $sectorsize }}
@@ -59,13 +62,13 @@ actions:
       # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
       # @Minimal_stock is the common base / build target (the RO golden image every profile
       # snapshots from); @snapshots holds runtime snapshots.
-      for sv in @Minimal_stock boot @home @snapshots @var-log @var-cache; do
+      for sv in @Minimal_{{ $buildid }}_stock boot @home @snapshots @var-log @var-cache; do
         btrfs subvolume create "$IMAGEMNTDIR/$sv"
       done
       umount "$IMAGEMNTDIR"
 
       # Mount @Minimal_stock at the mount point debos owns, then nest the rest under it.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
       mkdir -p "$IMAGEMNTDIR/boot" \
                "$IMAGEMNTDIR/home" \
                "$IMAGEMNTDIR/var/log" \
@@ -183,6 +186,13 @@ actions:
     chroot: true
     command: systemctl set-default multi-user.target
 
+  # Stamp the build id into os-release (feeds hostname, MOTD, login banner). Done here, not with
+  # debugfs post-image, because the rootfs is btrfs; every profile inherits it from @Minimal_stock.
+  - action: run
+    description: Stamp the build id into os-release
+    chroot: true
+    command: echo BUILD_ID={{ $buildid }} >> /etc/os-release
+
   # ===========================================================================
   # Stock (RO) bases + per-profile bootable roots.
   #
@@ -220,8 +230,8 @@ actions:
       # @Minimal is a writable snapshot of the golden base, matching every other profile
       # (each a snapshot of its _stock). Its entry-token, baked before the kernel install,
       # is inherited via the snapshot.
-      btrfs property set "$TOP/@Minimal_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Minimal"
+      btrfs property set "$TOP/@Minimal_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Minimal"
 
   # --- @Desktop ------------------------------------------------------------------
   - action: run
@@ -231,8 +241,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Desktop_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Desktop_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Desktop_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Desktop_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
@@ -283,8 +293,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@Desktop_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Desktop_stock" "$TOP/@Desktop"
+      btrfs property set "$TOP/@Desktop_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@Desktop_{{ $buildid }}_stock" "$TOP/@Desktop"
 
   # --- @TV-Media-Box ---------------------------------------------------------
   - action: run
@@ -294,8 +304,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@TV-Media-Box_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@TV-Media-Box_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: TV media box packages
     recommends: false
@@ -329,8 +339,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@TV-Media-Box_stock" ro true
-      btrfs subvolume snapshot "$TOP/@TV-Media-Box_stock" "$TOP/@TV-Media-Box"
+      btrfs property set "$TOP/@TV-Media-Box_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@TV-Media-Box_{{ $buildid }}_stock" "$TOP/@TV-Media-Box"
 
   # --- @Router ---------------------------------------------------------------
   - action: run
@@ -340,8 +350,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@Router_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Router_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   # @Router needs no packages beyond Minimal (NetworkManager + dnsmasq-base + wpa_supplicant
   # are common); it just adds the AP/WAN connections + ip-forwarding via the overlay. Its
   # default session stays multi-user (inherited); NM autoconnect brings the router up.
@@ -367,8 +377,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@Router_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Router_stock" "$TOP/@Router"
+      btrfs property set "$TOP/@Router_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@Router_{{ $buildid }}_stock" "$TOP/@Router"
 
   # --- @No-Graphics ----------------------------------------------------------
   # Headless @Minimal: same userspace, no extra packages. The graphics pipeline (VOP/HDMI/
@@ -381,8 +391,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_stock" "$TOP/@No-Graphics_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@No-Graphics_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@No-Graphics_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@No-Graphics_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: run
     description: Pin @No-Graphics's kernel entry-token (NN from flipper-profiles)
     chroot: true
@@ -397,8 +407,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@No-Graphics_stock" ro true
-      btrfs subvolume snapshot "$TOP/@No-Graphics_stock" "$TOP/@No-Graphics"
+      btrfs property set "$TOP/@No-Graphics_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@No-Graphics_{{ $buildid }}_stock" "$TOP/@No-Graphics"
 
   # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
   # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
