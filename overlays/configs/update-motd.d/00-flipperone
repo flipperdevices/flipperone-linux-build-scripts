@@ -23,7 +23,7 @@ profile=${profile#/}
 # Generate MOTD
 cat <<EOF
 
-                    Welcome to FlipperOne
+                    Welcome to FlipperOne (v2 base)
 
    Git:          $build_git
    Board:        $board
