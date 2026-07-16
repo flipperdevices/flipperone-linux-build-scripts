@@ -165,14 +165,14 @@ actions:
       mkdir -p "$ENTRIES"; SORT_KEY="$(os_sort_key)"
       for _k in /boot/vmlinuz-*; do
         [ -e "$_k" ] || continue
-        KERNEL_VERSION="${_k#/boot/vmlinuz-}"; KCONFIG="/boot/config-$KERNEL_VERSION"
+        KERNEL_VERSION="${_k#/boot/vmlinuz-}"; resolve_kconfig
         set_dtb_dirs; discover_devicetreedir; compute_base_opts
         _i=0
         while IFS='|' read -r tok suf extra gate dtbos legend; do
           tok="$(echo "$tok" | tr -d '[:space:]')"; case "$tok" in ''|\#*) continue ;; esac
           extra="$(trim "$extra")"; _sv="$(subvol_of "$extra")"
           ENTRY_TOKEN="$(make_token "$(printf '%03d' "$((900 - _i * 100))")" "$_sv")"
-          remove_entries "$_sv" "$KERNEL_VERSION"; stage_kernel_reflink
+          remove_entries "$_sv" "$KERNEL_VERSION"; resolve_kernel_paths "$_sv"
           emit_entry "$(trim "$suf")" "$extra" "$(trim "$gate")" "$(trim "$dtbos")"
           _i=$((_i + 1))
         done <"$PROFILES"

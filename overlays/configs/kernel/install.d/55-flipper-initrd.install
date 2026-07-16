@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Move the initrd (initramfs-tools writes it to /boot) into /usr/lib/modules/<ver>/initrd so a
+# profile carries its whole boot set and ships bootable in a btrfs send stream, leaving /boot clean.
+# Kernel+initrd must stay uncompressed: U-Boot's btrfs driver cannot read inline zstd extents.
+set -e
+. /usr/lib/flipper-bls.sh
+
+[ "$KERNEL_INSTALL_LAYOUT" = bls ] || exit 0
+KERNEL_VERSION="${2:?}"
+UM="/usr/lib/modules/$KERNEL_VERSION"
+
+if [ "$1" = remove ]; then
+    rm -f "$UM/initrd"          # untracked by dpkg
+    exit 0
+fi
+[ "$1" = add ] || exit 0
+[ -d "$UM" ] || exit 0
+
+# new files here inherit compression=none; the dpkg-installed vmlinuz is rewritten below
+command -v btrfs >/dev/null 2>&1 && btrfs property set "$UM" compression none 2>/dev/null || :
+
+# reflink the initrd in (shares /boot's uncompressed extents), then drop the /boot copy
+for IRD in "$KERNEL_INSTALL_STAGING_AREA/initrd" "/boot/initrd.img-$KERNEL_VERSION" ""; do
+    [ -n "$IRD" ] && [ -f "$IRD" ] && break
+done
+if [ -n "$IRD" ]; then
+    cp --reflink=auto "$IRD" "$UM/initrd" && chmod 0644 "$UM/initrd" \
+        && rm -f "/boot/initrd.img-$KERNEL_VERSION"
+fi
+
+uncompress "$UM/vmlinuz"
+exit 0

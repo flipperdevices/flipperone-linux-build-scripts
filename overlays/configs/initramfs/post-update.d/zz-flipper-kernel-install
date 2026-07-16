@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# `update-initramfs -u` (a config-change rebuild, not a kernel install) writes a fresh initrd to
+# /boot without calling kernel-install, so re-invoke it here to relocate the initrd into the profile
+# and refresh the entry. Idempotent; also fires harmlessly on kernel installs (via -c).
+# Args from initramfs-tools: $1 = version, $2 = initrd path (unused).
+set -e
+[ -n "$1" ] || exit 0
+command -v kernel-install >/dev/null 2>&1 || exit 0
+
+img="/usr/lib/modules/$1/vmlinuz"
+[ -f "$img" ] || img="/boot/vmlinuz-$1"
+[ -f "$img" ] || exit 0
+
+kernel-install add "$1" "$img"
