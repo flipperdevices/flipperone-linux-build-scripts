@@ -84,8 +84,21 @@ fdt_prefix() {  # $1 = options string -> "/<rootflags-subvol>" (or $FDT_SUBVOL_P
     return 0
 }
 
-# btrfs subvol of the currently-booted root (e.g. @Desktop); empty if not a subvol.
-current_subvol() { findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,'; }
+# btrfs subvol of the current root (e.g. @Desktop); empty if not one. findmnt answers on a booted
+# system; in a chroot it can't, so fall back to the mount-agnostic btrfs subvolume show.
+current_subvol() {
+    _cs=$(findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,')
+    [ -n "$_cs" ] || _cs=$(btrfs subvolume show / 2>/dev/null | sed -n '1{s,^/*,,;s,[[:space:]]*$,,;p}')
+    printf '%s\n' "$_cs"
+}
+
+# btrfs FS UUID of the current root; empty if unknown. findmnt on a booted system, btrfs filesystem
+# show as the chroot-safe fallback (like current_subvol).
+current_fsuuid() {
+    _fu=$(findmnt -nro UUID / 2>/dev/null)
+    [ -n "$_fu" ] || _fu=$(btrfs filesystem show / 2>/dev/null | sed -n 's/.*[[:space:]]uuid:[[:space:]]*//p' | head -1)
+    printf '%s\n' "$_fu"
+}
 
 # Remove loader entries whose options select SUBVOL and whose version == VERSION. Content-based
 # (token/filename-agnostic), so it leaves every other root's entries untouched. Uses $ENTRIES.
@@ -240,6 +253,11 @@ compute_base_opts() {
     else
         BASE_OPTS=""
     fi
+    BASE_OPTS="$(trim "$BASE_OPTS")"
+    # rewrite the shipped cmdline's build-time root=UUID to the fs we install onto, so a _stock
+    # received onto a device with a different btrfs UUID still boots.
+    _fsuuid="$(current_fsuuid)"
+    [ -n "$_fsuuid" ] && BASE_OPTS="$(printf '%s' " $BASE_OPTS " | sed "s/ root=UUID=[^ ]*/ root=UUID=$_fsuuid/")"
     BASE_OPTS="$(trim "$BASE_OPTS")"
     # Pin systemd.machine_id= only when entries are named after the machine-id (no-op otherwise).
     if [ -n "$MACHINE_ID" ] && [ "$ENTRY_TOKEN" = "$MACHINE_ID" ] && ! echo "$BASE_OPTS" | grep -q "systemd.machine_id="; then
