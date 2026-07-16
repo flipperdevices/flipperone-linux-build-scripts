@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# kernel-install's core creates the BLS entry dir $BOOT/<token>/<ver>/ before running plugins, but we
+# reference kernel/initrd from the profile subvol, so it stays empty. Remove it (and its now-empty
+# parent) here, after 90-loaderentry/90-uki-copy, so /boot has no leftover staging dirs. rmdir only
+# removes empty dirs (a staged single 'devicetree' keeps <ver>/, another version keeps the parent)
+# and never fails the install.
+set -e
+[ "$KERNEL_INSTALL_LAYOUT" = bls ] || exit 0
+[ "$1" = add ] || exit 0
+ENTRY_DIR_ABS="${3:-}"
+[ -n "$ENTRY_DIR_ABS" ] || exit 0
+
+rmdir "$ENTRY_DIR_ABS" 2>/dev/null && rmdir "${ENTRY_DIR_ABS%/*}" 2>/dev/null || :
+exit 0

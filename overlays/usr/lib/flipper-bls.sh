@@ -18,6 +18,17 @@ trim() { printf '%s' "$1" | sed 's/^ *//; s/ *$//'; }
 # copy a file into the entry dir as root:root 0644
 stage_file() { install -m 0644 -o root -g root "$1" "$2" || die "could not copy '$1'"; }
 
+# Rewrite a file uncompressed: set its dir to compression=none (new files inherit it), then rewrite
+# via a real copy. U-Boot cannot read inline zstd extents, so the kernel/initrd/dtb it reads must be
+# uncompressed. Best-effort; no-op off btrfs.
+uncompress() {
+    [ -f "$1" ] || return 0
+    btrfs property set "${1%/*}" compression none 2>/dev/null || :
+    if cp --reflink=never -p "$1" "$1.tmp" && mv -f "$1.tmp" "$1"; then return 0; fi
+    rm -f "$1.tmp" 2>/dev/null || :
+    echo "flipper-bls: could not rewrite '$1' uncompressed" >&2
+}
+
 # absolute path under BOOT_ROOT -> path as it must appear inside a BLS entry (relative to the
 # boot partition; identical to the absolute path while /boot is on the rootfs). On Flipper One
 # BOOT_MNT=/ (/boot is a subvol on the root partition, never a separate boot partition).
@@ -41,20 +52,26 @@ make_token() {  # $1 = NN (may be empty)  $2 = subvol
     [ -n "$1" ] && printf '%s-flipperos-%s' "$1" "$_n" || printf 'flipperos-%s' "$_n"
 }
 
-# Reflink the shared /boot kernel + initrd for $KERNEL_VERSION into this $ENTRY_TOKEN's staging
-# dir (/boot/$ENTRY_TOKEN/$KERNEL_VERSION); btrfs shares the extents, so per-root dirs are ~free.
-# Sets KERNEL_ENTRY + INITRD_ENTRIES. For paths the kernel-install plugin does not stage itself
-# (the build fan-out and the clone tooling).
-stage_kernel_reflink() {
-    _sd="/boot/$ENTRY_TOKEN/$KERNEL_VERSION"
-    mkdir -p "$_sd" || die "cannot create $_sd"
-    cp -a --reflink=auto "/boot/vmlinuz-$KERNEL_VERSION" "$_sd/linux" || die "no /boot/vmlinuz-$KERNEL_VERSION"
-    KERNEL_ENTRY="$(boot_rel "$_sd/linux")"
-    INITRD_ENTRIES=""
-    if [ -e "/boot/initrd.img-$KERNEL_VERSION" ]; then
-        cp -a --reflink=auto "/boot/initrd.img-$KERNEL_VERSION" "$_sd/initrd.img-$KERNEL_VERSION"
-        INITRD_ENTRIES="$(boot_rel "$_sd/initrd.img-$KERNEL_VERSION")"
-    fi
+# Set KERNEL_ENTRY + INITRD_ENTRIES for $KERNEL_VERSION, preferring the profile's own copies in
+# /usr/lib/modules/<ver>/ (referenced as /@<subvol>/..., which U-Boot resolves from subvolid 5),
+# else the shared /boot copies (BSP/pre-deb-pkg kernels). $1 = subvol; $2 = its mounted root (def /).
+resolve_kernel_paths() {
+    _rk_root="${2:-/}"; [ "$_rk_root" = / ] && _rk_root=""
+    _rk_um="/usr/lib/modules/$KERNEL_VERSION"
+    _rk_pfx="$(fdt_prefix "rootflags=subvol=$1")"
+    if   [ -f "$_rk_root$_rk_um/vmlinuz" ];        then KERNEL_ENTRY="$_rk_pfx$_rk_um/vmlinuz"
+    elif [ -f "/boot/vmlinuz-$KERNEL_VERSION" ];   then KERNEL_ENTRY="$(boot_rel "/boot/vmlinuz-$KERNEL_VERSION")"
+    else echo "flipper-bls: no kernel image for $KERNEL_VERSION (looked in $_rk_um and /boot)" >&2; return 1; fi
+    if   [ -f "$_rk_root$_rk_um/initrd" ];         then INITRD_ENTRIES="$_rk_pfx$_rk_um/initrd"
+    elif [ -f "/boot/initrd.img-$KERNEL_VERSION" ];then INITRD_ENTRIES="$(boot_rel "/boot/initrd.img-$KERNEL_VERSION")"
+    else INITRD_ENTRIES=""; fi
+}
+
+# KCONFIG for the has_config gates: profile's config first, /boot fallback. $1 = mounted root (def /).
+resolve_kconfig() {
+    _kc_root="${1:-/}"; [ "$_kc_root" = / ] && _kc_root=""
+    if [ -f "$_kc_root/usr/lib/modules/$KERNEL_VERSION/config" ]; then KCONFIG="$_kc_root/usr/lib/modules/$KERNEL_VERSION/config"
+    else KCONFIG="/boot/config-$KERNEL_VERSION"; fi
 }
 
 # U-Boot reads the btrfs TOP LEVEL (subvolid 5), so in-entry devicetreedir/overlay paths need the
@@ -303,9 +320,9 @@ emit_entry() {
 
 # flipper_write_entry <subvol> <mounted-path> [<origin-hint>]: write a BLS entry for an EXISTING
 # writable top-level subvol (a restored snapshot/clone). Token = <NN>-flipperos-<name>, NN from
-# clone_slot (origin base + depth; the origin hint is the dangling-parent fallback). Reflinks
-# the shared /boot kernel into the root's own /boot/<token>/ dir. Sourced by create-profile /
-# rename-profile. Returns non-zero (no exit) on a recoverable problem.
+# clone_slot (origin base + depth; the origin hint is the dangling-parent fallback). Points the
+# entry at the root's OWN kernel+initrd in /usr/lib/modules/<ver>/ (resolve_kernel_paths), so no
+# /boot staging. Sourced by create-profile / rename-profile. Returns non-zero on a recoverable problem.
 flipper_write_entry() {
     _name="$1"; _snap="$2"; _origin="${3:-}"
     { [ -n "$_name" ] && [ -d "$_snap" ]; } || { echo "flipper-bls: usage: flipper_write_entry <name> <mounted-path>" >&2; return 1; }
@@ -315,14 +332,13 @@ flipper_write_entry() {
     # version from the target's OWN tree, so modules + dtbs are self-consistent
     KERNEL_VERSION="$(ls -1d "$_snap"/usr/lib/linux-image-* 2>/dev/null | sed 's,.*/linux-image-,,' | sort -V | tail -n1)"
     [ -n "$KERNEL_VERSION" ] || { echo "flipper-bls: no /usr/lib/linux-image-* inside $_name" >&2; return 1; }
-    [ -e "/boot/vmlinuz-$KERNEL_VERSION" ] || { echo "flipper-bls: kernel not in /boot: vmlinuz-$KERNEL_VERSION" >&2; return 1; }
-    KCONFIG="/boot/config-$KERNEL_VERSION"
+    resolve_kconfig "$_snap"
     set_dtb_dirs
     SORT_KEY="$(os_sort_key)"
     ENTRY_TOKEN="$(make_token "$(clone_slot "$_snap" "$_origin")" "$_name")"
     mkdir -p "$ENTRIES" || { echo "flipper-bls: cannot create $ENTRIES" >&2; return 1; }
     compute_base_opts
-    stage_kernel_reflink
+    resolve_kernel_paths "$_name" "$_snap" || return 1
     # devicetreedir is the target root's OWN kernel dir (KERNEL_VERSION came from it, so it exists).
     DEVICETREEDIR_REL="/usr/lib/linux-image-$KERNEL_VERSION"
     OVERLAY_DIR="$DTB_DIR/$VENDOR"
