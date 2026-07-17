@@ -1,9 +1,9 @@
 #!/bin/sh
 # list-profiles - list the bootable PROFILES at the btrfs top level: the profile roots
-# (@Desktop, @Minimal, ...), their _stock golden bases, and @<profile>.old_* leftovers from
-# create-profile. KIND tags each (profile/stock/old); PARENT is what it was snapshotted from
-# (via Parent UUID). Names are top-level paths (what create-profile/rename-profile/delete-profile
-# take). The booted profile is marked  <- booted. For restore points, see list-snapshots.
+# (@Desktop, @Minimal, ...) and @<profile>.old_* leftovers from create-profile. KIND tags each
+# (profile/old); PARENT is what it was snapshotted from (via Parent UUID). Names are top-level
+# paths (what create-profile/rename-profile/delete-profile take). The booted profile is marked
+# <- booted. For _stock golden bases and restore points, see list-snapshots.
 # Works via a subvolid=5 (top-level) mount.
 #
 # Example:
@@ -14,8 +14,8 @@ set -eu
 usage() {
     cat <<EOF
 Usage: list-profiles
-  List bootable profiles at the btrfs top level: profile roots, their _stock golden
-  bases, and @<profile>.old_* leftovers. For restore points, see list-snapshots.
+  List bootable profiles at the btrfs top level: profile roots and @<profile>.old_*
+  leftovers. For _stock golden bases and restore points, see list-snapshots.
 EOF
 }
 
@@ -46,7 +46,6 @@ emit() {  # $1=display name  $2=fs path
     flags=$(get "$info" "Flags"); case "$flags" in *readonly*) flags=ro ;; *) flags=rw ;; esac
     parent=$(parent_of "$map" "$(get "$info" "Parent UUID")")
     case "$1" in
-        *_stock) kind=stock ;;
         *.old_*) kind=old ;;
         *)       kind=profile ;;
     esac
@@ -55,7 +54,8 @@ emit() {  # $1=display name  $2=fs path
 }
 
 printf 'NAME\t\tKIND\tID\tCREATED\tRO\tPARENT\n' > "$rows"
-# top-level roots, _stock bases, @.old_* leftovers; skip shared subvols + @snapshots
+# top-level profile roots + @.old_* leftovers; skip shared/reserved subvols (@snapshots,
+# @stock-snapshots, ...) so stocks (now nested under @stock-snapshots) are not listed here
 for d in "$TOP"/@*; do
     [ -e "$d" ] || continue
     n=${d##*/}

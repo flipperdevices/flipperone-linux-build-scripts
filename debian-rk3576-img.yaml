@@ -60,15 +60,17 @@ actions:
       ROOTPART="$({{ $rootdev }})"
 
       # debos has the top level (subvolid=5) mounted here; create subvolumes on it.
-      # @Minimal_stock is the common base / build target (the RO golden image every profile
-      # snapshots from); @snapshots holds runtime snapshots.
-      for sv in @Minimal_{{ $buildid }}_stock boot @home @snapshots @var-log @var-cache; do
+      # @stock-snapshots holds the RO golden bases (@<Profile>_<buildid>_stock); @snapshots holds
+      # runtime snapshots. @Minimal_stock (nested under @stock-snapshots) is the common base / build
+      # target the profiles snapshot from; create @stock-snapshots before nesting it.
+      for sv in boot @home @snapshots @stock-snapshots @var-log @var-cache; do
         btrfs subvolume create "$IMAGEMNTDIR/$sv"
       done
+      btrfs subvolume create "$IMAGEMNTDIR/@stock-snapshots/@Minimal_{{ $buildid }}_stock"
       umount "$IMAGEMNTDIR"
 
       # Mount @Minimal_stock at the mount point debos owns, then nest the rest under it.
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Minimal_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
       mkdir -p "$IMAGEMNTDIR/boot" \
                "$IMAGEMNTDIR/home" \
                "$IMAGEMNTDIR/var/log" \
@@ -230,8 +232,8 @@ actions:
       # @Minimal is a writable snapshot of the golden base, matching every other profile
       # (each a snapshot of its _stock). Its entry-token, baked before the kernel install,
       # is inherited via the snapshot.
-      btrfs property set "$TOP/@Minimal_{{ $buildid }}_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Minimal"
+      btrfs property set "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@Minimal"
 
   # --- @Desktop ------------------------------------------------------------------
   - action: run
@@ -241,8 +243,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Desktop_{{ $buildid }}_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Desktop_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@Desktop_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@Desktop_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
@@ -293,8 +295,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@Desktop_{{ $buildid }}_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Desktop_{{ $buildid }}_stock" "$TOP/@Desktop"
+      btrfs property set "$TOP/@stock-snapshots/@Desktop_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Desktop_{{ $buildid }}_stock" "$TOP/@Desktop"
 
   # --- @TV-Media-Box ---------------------------------------------------------
   - action: run
@@ -304,8 +306,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@TV-Media-Box_{{ $buildid }}_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@TV-Media-Box_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: apt
     description: TV media box packages
     recommends: false
@@ -339,8 +341,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@TV-Media-Box_{{ $buildid }}_stock" ro true
-      btrfs subvolume snapshot "$TOP/@TV-Media-Box_{{ $buildid }}_stock" "$TOP/@TV-Media-Box"
+      btrfs property set "$TOP/@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock" "$TOP/@TV-Media-Box"
 
   # --- @Router ---------------------------------------------------------------
   - action: run
@@ -350,8 +352,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@Router_{{ $buildid }}_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@Router_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@Router_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@Router_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   # @Router needs no packages beyond Minimal (NetworkManager + dnsmasq-base + wpa_supplicant
   # are common); it just adds the AP/WAN connections + ip-forwarding via the overlay. Its
   # default session stays multi-user (inherited); NM autoconnect brings the router up.
@@ -377,8 +379,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@Router_{{ $buildid }}_stock" ro true
-      btrfs subvolume snapshot "$TOP/@Router_{{ $buildid }}_stock" "$TOP/@Router"
+      btrfs property set "$TOP/@stock-snapshots/@Router_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Router_{{ $buildid }}_stock" "$TOP/@Router"
 
   # --- @No-Graphics ----------------------------------------------------------
   # Headless @Minimal: same userspace, no extra packages. The graphics pipeline (VOP/HDMI/
@@ -391,8 +393,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
-      btrfs subvolume snapshot "$TOP/@Minimal_{{ $buildid }}_stock" "$TOP/@No-Graphics_{{ $buildid }}_stock"
-      mount -t btrfs -o "{{ $btrfsopts }},subvol=@No-Graphics_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@No-Graphics_{{ $buildid }}_stock"
+      mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@No-Graphics_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
   - action: run
     description: Pin @No-Graphics's kernel entry-token (NN from flipper-profiles)
     chroot: true
@@ -407,8 +409,8 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       umount "$IMAGEMNTDIR"
-      btrfs property set "$TOP/@No-Graphics_{{ $buildid }}_stock" ro true
-      btrfs subvolume snapshot "$TOP/@No-Graphics_{{ $buildid }}_stock" "$TOP/@No-Graphics"
+      btrfs property set "$TOP/@stock-snapshots/@No-Graphics_{{ $buildid }}_stock" ro true
+      btrfs subvolume snapshot "$TOP/@stock-snapshots/@No-Graphics_{{ $buildid }}_stock" "$TOP/@No-Graphics"
 
   # Export each _stock as versioned send streams (receive-snapshot format): a FULL stream
   # (_pack.zst) for all, plus an INCREMENTAL vs @Minimal (_inc_pack.zst) for the rest.
@@ -419,12 +421,12 @@ actions:
       set -eu
       TOP="${IMAGEMNTDIR%/}.toplevel"
       MIN="@Minimal_{{ $buildid }}_stock"
-      for s in "$TOP"/@*_stock; do
+      for s in "$TOP"/@stock-snapshots/@*_stock; do
         [ -d "$s" ] || continue
         name=$(basename "$s")
         btrfs send "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_pack.zst"
         if [ "$name" != "$MIN" ]; then
-          btrfs send -p "$TOP/$MIN" "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_inc_pack.zst"
+          btrfs send -p "$TOP/@stock-snapshots/$MIN" "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_inc_pack.zst"
         fi
       done
 
