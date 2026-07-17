@@ -3,7 +3,8 @@
 #   <@snapshot> a snapshot or root, by full path or bare name, e.g. @snapshots/<name>.
 #               A read-write source is snapshotted read-only automatically into @snapshots
 #               (btrfs send needs a ro source) with a timestamped name; that ro snapshot
-#               is KEPT as a restore point.
+#               is KEPT as a restore point. A _stock golden base is already read-only and is
+#               sent as-is (never snapshotted).
 #   <file|dir> output file, a DIRECTORY (writes <dir>/<leaf>_pack.zst, or _inc_pack.zst
 #               for an incremental send), or - for stdout
 #   -p PARENT   incremental: send only the changes since PARENT, a ro snapshot that must
@@ -84,16 +85,23 @@ if [ "$incremental" = 1 ] && [ -z "$parent" ]; then
     esac
 fi
 
-if ! is_ro "$srcpath"; then
-    # btrfs send needs a ro source; snapshot the rw one ro into @snapshots (kept as a
-    # restore point) and send that. Each send captures current state, so re-sends never collide.
-    [ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level (needed for a ro snapshot)"
-    rosnap="@snapshots/${src_name##*/}_$(date +%Y-%m-%d_%H-%M-%S)"
-    [ -e "$TOP/$rosnap" ] && die "Snapshot already exists: $rosnap"
-    btrfs subvolume snapshot -r "$srcpath" "$TOP/$rosnap" >/dev/null || die "Failed to make a ro snapshot of $src_name"
-    echo "Source is read-write; made ro snapshot $rosnap (kept) and sending it" >&2
-    srel=$rosnap; srcpath="$TOP/$rosnap"
-fi
+# A _stock is a golden base and already read-only: send it as-is, never snapshot it.
+case "${srel##*/}" in
+    *_stock)
+        is_ro "$srcpath" || die "$src_name is a _stock but not read-only (a golden base must be ro)"
+        echo "Source is a _stock golden base; sending as-is (read-only, no snapshot)" >&2 ;;
+    *)
+        if ! is_ro "$srcpath"; then
+            # btrfs send needs a ro source; snapshot the rw one ro into @snapshots (kept as a
+            # restore point) and send that. Each send captures current state, so re-sends never collide.
+            [ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level (needed for a ro snapshot)"
+            rosnap="@snapshots/${src_name##*/}_$(date +%Y-%m-%d_%H-%M-%S)"
+            [ -e "$TOP/$rosnap" ] && die "Snapshot already exists: $rosnap"
+            btrfs subvolume snapshot -r "$srcpath" "$TOP/$rosnap" >/dev/null || die "Failed to make a ro snapshot of $src_name"
+            echo "Source is read-write; made ro snapshot $rosnap (kept) and sending it" >&2
+            srel=$rosnap; srcpath="$TOP/$rosnap"
+        fi ;;
+esac
 
 # dir dest -> name file after the sent leaf, sans leading '@' (_inc_pack.zst if incremental)
 if [ "$dest" != "-" ] && [ -d "$dest" ]; then
