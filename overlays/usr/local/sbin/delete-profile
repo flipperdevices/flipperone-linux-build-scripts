@@ -1,10 +1,10 @@
 #!/bin/sh
 # delete-profile <@profile> - delete a bootable PROFILE at the btrfs top level (as listed by
-# list-profiles): a profile root (@Desktop, @Desktop-2, ...), a _stock golden base, or an
-# @<profile>.old_* leftover. Also removes its BLS boot entry. For @snapshots restore points,
-# use delete-snapshot.
-# Confirms once; AGAIN if the target is read-only; a THIRD time (with a warning) for a _stock
-# golden base. Refuses layout subvolumes and the currently booted profile.
+# list-profiles): a profile root (@Desktop, @Desktop-2, ...) or an @<profile>.old_* leftover. Also
+# removes its BLS boot entry. For @snapshots restore points and _stock golden bases (under
+# @stock-snapshots), use delete-snapshot.
+# Confirms once; AGAIN if the target is read-only. Refuses layout subvolumes and the currently
+# booted profile.
 #
 # Example:
 #   delete-profile @DestinationProfile   # remove a profile (and its boot entry)
@@ -14,9 +14,9 @@ set -eu
 usage() {
     cat <<EOF
 Usage: delete-profile <@profile>
-  Delete a bootable profile at the btrfs top level (see list-profiles) and its
-  boot entry: a profile root, a _stock base, or an @<profile>.old_* leftover.
-  For @snapshots restore points use delete-snapshot.
+  Delete a bootable profile at the btrfs top level (see list-profiles) and its boot
+  entry: a profile root or an @<profile>.old_* leftover. For restore points and
+  _stock golden bases use delete-snapshot.
 EOF
 }
 
@@ -30,9 +30,11 @@ need_root
 need_btrfs
 arg=$1
 case "$arg" in *..*|/*) die "Invalid name: $arg" ;; esac
+# snapshots and _stock golden bases (under @snapshots / @stock-snapshots) are delete-snapshot's job
 case "$arg" in
-    @snapshots/*) die "Top-level profiles only; for a restore point use: delete-snapshot $arg" ;;
+    @snapshots/*|@stock-snapshots/*) die "Top-level profiles only; for that use: delete-snapshot $arg" ;;
 esac
+case "${arg##*/}" in *_stock) die "Top-level profiles only; for a golden base use: delete-snapshot $arg" ;; esac
 
 mount_top
 cur_id=$(booted_id)
@@ -43,17 +45,11 @@ info=$(btrfs subvolume show "$TOP/$rel" 2>/dev/null) || die "Not a profile: $rel
 tgt_id=$(get "$info" "Subvolume ID")
 [ -n "$cur_id" ] && [ "$tgt_id" = "$cur_id" ] && die "Refusing to delete the currently booted profile ($rel)"
 
-is_ro=0;    case "$(get "$info" "Flags")" in *readonly*) is_ro=1 ;; esac
-is_stock=0; case "${rel##*/}" in *_stock) is_stock=1 ;; esac
+is_ro=0; case "$(get "$info" "Flags")" in *readonly*) is_ro=1 ;; esac
 
-# tiered: once always; again if ro; a third time for _stock
+# once always; again if the target is read-only
 confirm "Delete profile '$rel'?"
-[ "$is_ro" = 1 ] && confirm "'$rel' is READ-ONLY (stock / received); delete anyway?"
-if [ "$is_stock" = 1 ]; then
-    echo "WARNING: '$rel' is a _stock GOLDEN BASE, the factory-reset source for its profile;" >&2
-    echo "         deleting it means that profile can no longer be reset to factory." >&2
-    confirm "Confirm a THIRD time: permanently delete the golden base '$rel'?"
-fi
+[ "$is_ro" = 1 ] && confirm "'$rel' is READ-ONLY; delete anyway?"
 
 set_lock
 btrfs subvolume delete "$TOP/$rel" >/dev/null

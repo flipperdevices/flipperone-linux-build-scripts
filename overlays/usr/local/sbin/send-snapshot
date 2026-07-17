@@ -1,6 +1,6 @@
 #!/bin/sh
 # send-snapshot [-p PARENT | -i] <@snapshot> <file|dir>
-#   <@snapshot> a snapshot or root by its full top-level path, e.g. @snapshots/<name>.
+#   <@snapshot> a snapshot or root, by full path or bare name, e.g. @snapshots/<name>.
 #               A read-write source is snapshotted read-only automatically into @snapshots
 #               (btrfs send needs a ro source) with a timestamped name; that ro snapshot
 #               is KEPT as a restore point.
@@ -26,7 +26,7 @@ usage() {
 Usage: send-snapshot [-p PARENT | -i] <@snapshot> <file|dir|->
   -p PARENT   incremental: send only changes since PARENT (ro, must exist on receiver)
   -i          incremental vs the source's _stock parent (else a full send)
-  <@snapshot> full top-level path, e.g. @snapshots/<name> (rw source auto-snapshotted ro)
+  <@snapshot> full path or bare name, e.g. @snapshots/<name> (rw source auto-snapshotted ro)
   <file|dir>  output file, a directory (writes <leaf>_pack.zst), or - for stdout
 EOF
 }
@@ -59,7 +59,6 @@ TOP_TMPFILES="$send_stat"
 set_lock
 mount_top
 
-resolve() { [ -e "$TOP/$1" ] && printf '%s' "$1"; }   # full top-level path -> echoed if it exists
 parent_path_of() {  # $1 = fs path -> top-relative path of its parent subvol (empty if none)
     pu=$(btrfs subvolume show "$1" 2>/dev/null | awk -F':[[:space:]]+' '/Parent UUID/{print $2; exit}')
     case "$pu" in ''|'-') return ;; esac
@@ -69,7 +68,7 @@ parent_path_of() {  # $1 = fs path -> top-relative path of its parent subvol (em
           if (uu==u){print p; exit} }'
 }
 
-srel=$(resolve "$src_name"); [ -n "$srel" ] || die "No such snapshot: $src_name"
+srel=$(resolve_rel "$src_name"); [ -n "$srel" ] || die "No such snapshot: $src_name"
 srcpath="$TOP/$srel"
 
 # -i: incremental against the source's parent, but only if that parent is a _stock base
@@ -102,7 +101,7 @@ fi
 
 parentpath=""; prel=""
 if [ -n "$parent" ]; then
-    prel=$(resolve "$parent"); [ -n "$prel" ] || die "No such parent snapshot: $parent"
+    prel=$(resolve_rel "$parent"); [ -n "$prel" ] || die "No such parent snapshot: $parent"
     parentpath="$TOP/$prel"
     is_ro "$parentpath" || die "Parent $parent must be read-only"
 fi

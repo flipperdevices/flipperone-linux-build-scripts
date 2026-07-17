@@ -1,7 +1,8 @@
 #!/bin/sh
 # list-snapshots - list the read-only restore-point SNAPSHOTS under @snapshots (made by
-# create-snapshot). PARENT is what each was snapshotted or received from (via Parent UUID);
-# names are top-level paths (what create-profile and delete-snapshot take). For bootable
+# create-snapshot) and, separately, the _stock GOLDEN BASES under @stock-snapshots (build/received
+# factory images). PARENT is what each was snapshotted or received from (via Parent UUID); names
+# are top-level paths (what create-profile and delete-snapshot/delete-profile take). For bootable
 # profiles, see list-profiles. Works via a subvolid=5 (top-level) mount.
 #
 # Example:
@@ -12,8 +13,8 @@ set -eu
 usage() {
     cat <<EOF
 Usage: list-snapshots
-  List read-only restore-point snapshots under @snapshots (made by create-snapshot).
-  For bootable profiles, see list-profiles.
+  List restore-point snapshots under @snapshots and _stock golden bases under
+  @stock-snapshots. For bootable profiles, see list-profiles.
 EOF
 }
 
@@ -40,9 +41,19 @@ emit() {  # $1=display name  $2=fs path
     printf '%s\t%s\t%s\t%s\n' "$1" "${id:-?}" "${otime:-?}" "$parent" >> "$rows"
 }
 
+echo "Restore-point snapshots (@snapshots):"
 printf 'NAME\tID\tCREATED\tPARENT\n' > "$rows"
 for s in "$TOP"/@snapshots/*; do
     [ -e "$s" ] || continue
     emit "@snapshots/${s##*/}" "$s"
+done
+align_table "$rows"
+
+echo
+echo "Golden bases (@stock-snapshots):"
+printf 'NAME\tID\tCREATED\tPARENT\n' > "$rows"
+for s in "$TOP"/@stock-snapshots/*; do
+    [ -e "$s" ] || continue
+    emit "@stock-snapshots/${s##*/}" "$s"
 done
 align_table "$rows"

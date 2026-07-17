@@ -25,7 +25,7 @@ confirm() {
 # Reserved subvolumes the tools must never write/delete/rename.
 is_reserved_subvol() {
     case "$1" in
-        @|@home|@root|@snapshots|@var-log|@var-cache|boot) return 0 ;;
+        @|@home|@root|@snapshots|@stock-snapshots|@var-log|@var-cache|boot) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -58,6 +58,17 @@ top_cleanup() {
     [ -n "${TOP:-}" ] && { umount "$TOP" 2>/dev/null || true; rmdir "$TOP" 2>/dev/null || true; }
     [ -n "${TOP_TMPFILES:-}" ] && rm -f $TOP_TMPFILES
     return 0
+}
+
+# Resolve a subvol NAME to its top-relative path: as given ($TOP/<name>, e.g. a full
+# @snapshots/<name> or @stock-snapshots/@X_stock path), else a bare name found under @snapshots
+# (restore points) or @stock-snapshots (golden bases). Prints the path relative to $TOP; empty if
+# none exists. Needs $TOP.
+resolve_rel() {
+    if   [ -e "$TOP/$1" ];                  then printf '%s' "$1"
+    elif [ -e "$TOP/@snapshots/$1" ];       then printf '%s' "@snapshots/$1"
+    elif [ -e "$TOP/@stock-snapshots/$1" ]; then printf '%s' "@stock-snapshots/$1"
+    fi
 }
 
 # One field from `btrfs subvolume show` output. $1 = output text, $2 = key label.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# receive-snapshot <file> - receive a send-snapshot stream into @snapshots.
+# receive-snapshot <file> - receive a send-snapshot stream (a _stock base -> @stock-snapshots, else @snapshots).
 # The received subvolume keeps the name it had when sent (the leading '@' too, carried in
 # the stream) and is read-only; put it onto a root with create-profile. For an
 # incremental stream (sent with -p/-i), its parent must already exist here (e.g. the _stock
@@ -15,7 +15,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: receive-snapshot <file|->
-  Receive a send-snapshot stream into @snapshots (read-only). Put it onto a root
+  Receive a send-snapshot stream (a _stock base -> @stock-snapshots, else @snapshots). Put it onto a root
   with create-profile. Incremental streams need their parent to exist here first.
 EOF
 }
@@ -35,8 +35,15 @@ have_pv=0; command -v pv >/dev/null 2>&1 && have_pv=1
 
 set_lock
 mount_top
+# route a _stock golden base into @stock-snapshots; every other snapshot into @snapshots. The stream
+# carries the subvol name; peek it from a file (a pipe cannot be peeked, so it stays in @snapshots).
 target="$TOP/@snapshots"
-[ -d "$target" ] || die "@snapshots not found at top level"
+if [ "$src" != "-" ]; then
+    name=$(zstd -dc "$src" 2>/dev/null | head -c 262144 | btrfs receive --dump 2>/dev/null \
+           | awk '/^(subvol|snapshot)[[:space:]]/ { n=$2; sub(/^\.\//,"",n); print n; exit }')
+    case "$name" in ?*_stock) target="$TOP/@stock-snapshots" ;; esac
+fi
+[ -d "$target" ] || die "${target##*/} not found at top level"
 
 before=$(btrfs subvolume list -o "$target" 2>/dev/null | wc -l)
 
@@ -52,4 +59,4 @@ rc=$?
 set -e
 [ "$rc" = 0 ] || die "Receive failed (rc=$rc); check the stream and that any parent snapshot exists here"
 
-echo "Received into @snapshots/ (now $(btrfs subvolume list -o "$target" 2>/dev/null | wc -l) entries, was $before)"
+echo "Received into ${target##*/}/ (now $(btrfs subvolume list -o "$target" 2>/dev/null | wc -l) entries, was $before)"

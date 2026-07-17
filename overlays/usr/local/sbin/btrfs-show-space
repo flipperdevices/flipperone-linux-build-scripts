@@ -1,8 +1,8 @@
 #!/bin/sh
 # btrfs-show-space [-q|--quick] - btrfs usage + per-root-subvolume space.
 # (-q/--quick skips the compsize REFERENCED column, one less extent-walk per subvol.)
-# Lists profile roots and _stock bases, every snapshot under @snapshots, and any other
-# top-level @* (e.g. @.old_*). Shared @home/@var-* are not listed.
+# Lists EVERY subvolume: profile roots and @.old_* leftovers, the snapshots under @snapshots,
+# the _stock bases under @stock-snapshots, and the shared @home / @var-* / boot.
 #   UNIQUE     - data only this subvolume holds; freed if you delete IT ALONE,
 #                others kept (btrfs fi du, exact, uncompressed)
 #   REFERENCED - real on-disk size of all data it references, compressed
@@ -62,17 +62,11 @@ row() {  # $1=display name  $2=fs path  -> append a TSV row
     printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$(human "$exc")" "$ref_h" "$(human "$tot")" >> "$rows"
 }
 
-# collect subvols (cheap), then measure with progress: each row walks extents (slow on flash)
-for s in "$TOP"/@snapshots/*; do
-    [ -e "$s" ] || continue
-    printf '%s\t%s\n' "@snapshots/${s##*/}" "$s" >> "$list"
-done
-for d in "$TOP"/@*; do
-    [ -e "$d" ] || continue
-    n=${d##*/}
-    is_reserved_subvol "$n" && continue
-    btrfs subvolume show "$d" >/dev/null 2>&1 || continue
-    printf '%s\t%s\n' "$n" "$d" >> "$list"
+# collect EVERY subvolume (cheap), then measure with progress: each row walks extents (slow on
+# flash). btrfs subvolume list gives top-relative paths: profile roots + @.old_*, the nested
+# @snapshots/* and @stock-snapshots/* children, and the shared @home / @var-* / boot.
+btrfs subvolume list "$TOP" 2>/dev/null | sed -n 's/.* path //p' | sort | while read -r p; do
+    printf '%s\t%s\n' "$p" "$TOP/$p" >> "$list"
 done
 total=$(wc -l < "$list" 2>/dev/null | tr -d ' '); [ -n "$total" ] || total=0
 
@@ -89,7 +83,7 @@ while IFS="$tab" read -r nm pth; do
 done < "$list"
 { [ -t 2 ] && [ "$total" -gt 0 ] && printf '\r\033[K' >&2; } || true
 
-echo "== root subvolumes & snapshots =="
+echo "== subvolumes =="
 # align: NAME auto-width; marker column after NAME; numeric columns right-justified
 awk -F'\t' '
 { r[NR]=$0; if (length($1) > w) w = length($1) }
