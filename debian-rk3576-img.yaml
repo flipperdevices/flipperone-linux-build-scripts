@@ -413,9 +413,10 @@ actions:
       btrfs subvolume snapshot "$TOP/@stock-snapshots/@No-Graphics_{{ $buildid }}_stock" "$TOP/@No-Graphics"
 
   # Export each _stock as versioned send streams (receive-snapshot format): a FULL stream
-  # (_pack.zst) for all, plus an INCREMENTAL vs @Minimal (_inc_pack.zst) for the rest.
+  # (_pack.zst) for all, plus an INCREMENTAL vs @Minimal (_inc_pack.zst) for the rest. @home
+  # (shared across profiles, version-independent) is exported as a FULL stream only.
   - action: run
-    description: Export each _stock as versioned send streams (full for all, plus incrementals)
+    description: Export each _stock as versioned send streams (full for all, plus incrementals) and @home
     chroot: false
     command: |
       set -eu
@@ -429,6 +430,11 @@ actions:
           btrfs send -p "$TOP/@stock-snapshots/$MIN" "$s" | zstd -T0 -o "$ARTIFACTDIR/${name#@}_inc_pack.zst"
         fi
       done
+      # @home: full stream only. It is unmounted here, so set it ro (btrfs send needs a ro source),
+      # send, then restore rw for the image.
+      btrfs property set "$TOP/@home" ro true
+      btrfs send "$TOP/@home" | zstd -T0 -o "$ARTIFACTDIR/home_{{ $buildid }}_pack.zst"
+      btrfs property set "$TOP/@home" ro false
 
   # Unmount the top level and remount @Minimal at the mountpoint debos owns, so its
   # image-partition Cleanup can unmount it and detach the loop. (The profile builds left
