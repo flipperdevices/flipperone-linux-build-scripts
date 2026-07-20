@@ -14,7 +14,7 @@
 #
 # If <@dest> does not exist it is created and a BLS boot entry is generated for it. If it
 # already exists it is replaced and the previous copy kept as <@dest>.old_<ts> (recoverable;
-# existing profiles already have their own boot entry, so none is added). The result is always
+# its boot entry is refreshed in place, so no duplicate is left behind). The result is always
 # writable, even when <@source> is read-only.
 #
 # Examples:
@@ -109,6 +109,17 @@ btrfs property set "$tgt" ro false 2>/dev/null || true
 # reset machine-id so the profile first-boots (fresh id + hostname/banner) instead of inheriting the source's
 printf 'uninitialized\n' > "$tgt/etc/machine-id" 2>/dev/null || true
 rm -f "$tgt/var/lib/dbus/machine-id" 2>/dev/null || true
+
+# rewrite the profile's fstab btrfs UUID to THIS device's fs, so a profile built or received on
+# another machine (different fs UUID) still mounts boot/@home/@var-* here (the kernel cmdline root=
+# UUID is rewritten separately by flipper-bls). The build-time UUID is whatever its own root (/)
+# entry uses; swap every occurrence for the live one.
+fst="$tgt/etc/fstab"
+if [ -f "$fst" ]; then
+    cur=$(findmnt -no UUID / 2>/dev/null)
+    old=$(awk '$2=="/"{for(i=1;i<=NF;i++) if($i ~ /^UUID=/){sub(/^UUID=/,"",$i); print $i; exit}}' "$fst")
+    [ -n "$cur" ] && [ -n "$old" ] && [ "$cur" != "$old" ] && { sed -i "s/$old/$cur/g" "$fst"; echo "fstab: rewrote fs UUID $old -> $cur"; }
+fi
 
 # BLS entry + /etc/kernel/entry-token via flipper-bls.sh, in a subshell so its die can't abort
 # us. Pass the SOURCE as origin hint so the root lands in that profile's band if parent_uuid is

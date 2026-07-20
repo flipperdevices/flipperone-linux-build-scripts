@@ -362,6 +362,11 @@ flipper_write_entry() {
     OVERLAY_DIR="$DTB_DIR/$VENDOR"
     # pin the root's own entry-token so a later runtime apt install in it lands in the same band
     mkdir -p "$_snap/etc/kernel" && printf '%s\n' "$ENTRY_TOKEN" > "$_snap/etc/kernel/entry-token"
+    # Remove any existing entry for this root+version first. The entry filename holds a sort
+    # number tied to the profile's btrfs snapshot depth, which changes when a profile is
+    # re-created; a new entry would then get a different filename instead of overwriting the
+    # old one, leaving a duplicate. Deleting first refreshes it in place.
+    remove_entries "$_name" "$KERNEL_VERSION"
     emit_entry "$(printf '%s' "$_name" | tr -d '@')" "rootflags=subvol=$_name" "" ""
     echo "flipper-bls: wrote entry for $_name (kernel $KERNEL_VERSION, token $ENTRY_TOKEN)"
 }
