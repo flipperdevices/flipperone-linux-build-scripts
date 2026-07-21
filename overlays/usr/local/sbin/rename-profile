@@ -27,15 +27,10 @@ old=$1; new=$2
 
 need_root
 need_btrfs
-for n in "$old" "$new"; do
-    case "$n" in *..*|/*|*/*) die "Invalid name: $n (top-level names only, e.g. @Desktop-2)" ;; esac
-done
+case "$old" in *..*|/*|*/*) die "Invalid name: $old (top-level names only, e.g. @Desktop-2)" ;; esac
+validate_profile_name "$new"
 [ "$old" = "$new" ] && die "Old and new names are the same"
 is_reserved_subvol "$new" && die "Refusing to use reserved name: $new"
-case "$new" in
-    @?*) ;;
-    *) die "New profile name must start with '@' (e.g. @Desktop-2): $new" ;;
-esac
 
 set_lock
 mount_top

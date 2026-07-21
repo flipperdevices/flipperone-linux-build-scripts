@@ -61,14 +61,9 @@ src="$TOP/$src_rel"
 case "$dest" in
     current|booted|"") rel=$(findmnt -no FSROOT / | sed 's,^/,,')
                        [ -n "$rel" ] || die "Cannot determine booted subvolume" ;;
-    *)                 case "$dest" in *..*|/*|*/*) die "Invalid dest: $dest (top-level name only, e.g. @Desktop-2)" ;; esac
-                       rel=$dest ;;
+    *)                 rel=$dest; validate_profile_name "$rel" ;;
 esac
 is_reserved_subvol "$rel" && die "Refusing to write reserved subvolume: $rel"
-case "$rel" in
-    @?*) ;;
-    *) die "Profile name must start with '@' (e.g. @Desktop-2): $rel" ;;
-esac
 [ "$rel" = "$src_rel" ] && die "Dest and source are the same subvolume"
 
 existed=0; [ -e "$TOP/$rel" ] && existed=1
