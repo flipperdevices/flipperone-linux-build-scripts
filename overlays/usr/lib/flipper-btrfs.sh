@@ -30,6 +30,21 @@ is_reserved_subvol() {
     esac
 }
 
+# Reject a profile (top-level subvol) name that would break rootflags=subvol= on the kernel
+# cmdline and leave the profile unbootable. Requires a leading '@' and only [A-Za-z0-9_-].
+validate_profile_name() {
+    case "$1" in
+        *..*|/*|*/*) die "Invalid profile name: $1 (top-level name only, e.g. @Desktop-2)" ;;
+    esac
+    case "$1" in
+        @?*) ;;
+        *) die "Profile name must start with '@' (e.g. @Desktop-2): $1" ;;
+    esac
+    case "$1" in
+        *[!@A-Za-z0-9_-]*) die "Profile name has symbols that are not allowed: $1 (use only letters, digits, '-', '_')" ;;
+    esac
+}
+
 # Serialize our writers: an exclusive advisory lock (flock) held on FD 9 for the script's
 # lifetime, released on any exit (including crash/kill). The holder records "PID (tool)" in the
 # file so a blocked waiter can say who it is waiting on. Read-only tools do not take it, and it
