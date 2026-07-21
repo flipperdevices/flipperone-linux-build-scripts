@@ -18,17 +18,6 @@ trim() { printf '%s' "$1" | sed 's/^ *//; s/ *$//'; }
 # copy a file into the entry dir as root:root 0644
 stage_file() { install -m 0644 -o root -g root "$1" "$2" || die "could not copy '$1'"; }
 
-# Rewrite a file uncompressed: set its dir to compression=none (new files inherit it), then rewrite
-# via a real copy. U-Boot cannot read inline zstd extents, so the kernel/initrd/dtb it reads must be
-# uncompressed. Best-effort; no-op off btrfs.
-uncompress() {
-    [ -f "$1" ] || return 0
-    btrfs property set "${1%/*}" compression none 2>/dev/null || :
-    if cp --reflink=never -p "$1" "$1.tmp" && mv -f "$1.tmp" "$1"; then return 0; fi
-    rm -f "$1.tmp" 2>/dev/null || :
-    echo "flipper-bls: could not rewrite '$1' uncompressed" >&2
-}
-
 # absolute path under BOOT_ROOT -> path as it must appear inside a BLS entry (relative to the
 # boot partition; identical to the absolute path while /boot is on the rootfs). On Flipper One
 # BOOT_MNT=/ (/boot is a subvol on the root partition, never a separate boot partition).
