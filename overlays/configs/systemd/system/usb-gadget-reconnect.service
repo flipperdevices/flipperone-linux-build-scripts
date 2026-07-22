@@ -1,0 +1,7 @@
+[Unit]
+Description=Re-assert USB gadget pullup on Type-C connect
+After=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-gadget-reconnect.sh

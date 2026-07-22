@@ -1,0 +1,3 @@
+# dwc3 does not reconnect the gadget on a Type-C cable replug; re-assert the pullup when a
+# USB-C partner attaches by kicking usb-gadget-reconnect.service.
+ACTION=="add", SUBSYSTEM=="typec", KERNEL=="port[0-9]-partner", TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-gadget-reconnect.service"
