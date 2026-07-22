@@ -1,0 +1,15 @@
+[Unit]
+Description=USB Composite Gadget Setup (NCM Ethernet + Mass Storage + MTP)
+After=sys-kernel-config.mount local-fs.target
+Requires=sys-kernel-config.mount
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-ncm-msc-mtp-gadget.sh start
+ExecStopPost=/usr/local/bin/usb-ncm-msc-mtp-gadget.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -117,6 +117,7 @@ actions:
       - tcpdump
       - traceroute
       - udev
+      - umtp-responder
       - unzip
       - upower
       - usb-modeswitch

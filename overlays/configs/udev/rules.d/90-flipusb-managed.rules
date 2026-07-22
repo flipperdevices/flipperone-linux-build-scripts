@@ -1,2 +1,3 @@
-# Allow NetworkManager to manage the built-in USB NCM gadget interface
-SUBSYSTEM=="net", ENV{DEVTYPE}=="gadget", DRIVERS=="configfs-gadget.ncmg", ENV{NM_UNMANAGED}="0"
+# NetworkManager unmanages USB gadget net devices by default (85-nm-unmanaged.rules).
+# Re-manage ours by its fixed dev_addr, independent of gadget name or function order.
+SUBSYSTEM=="net", ATTR{address}=="02:1a:7d:01:02:03", ENV{NM_UNMANAGED}="0"
