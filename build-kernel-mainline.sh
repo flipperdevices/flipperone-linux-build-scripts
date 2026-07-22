@@ -7,8 +7,8 @@
 : "${BASE_CONFIG:=configs/minconfig-mainline}"
 : "${CONFIGS:=configs/linux}"
 
-: "${LINUX_GIT:=https://github.com/flipperdevices/flipper-linux-kernel.git}"
-: "${LINUX_BRANCH:=flipper-devel}"
+: "${LINUX_GIT:=https://github.com/fracho123/flipper-linux-kernel.git}"
+: "${LINUX_BRANCH:=rock4d-aic8800d80}"
 
 set -e
 
