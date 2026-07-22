@@ -1,0 +1,14 @@
+AICSemi AIC8800D80 firmware
+===========================
+
+Source: https://github.com/radxa-pkg/aic8800
+Release: 5.0+git20260123.5f7be68d-7
+Commit: 6e07604
+
+The files under USB/aic8800D80 were copied from:
+
+  src/USB/driver_fw/fw/aic8800D80
+
+The image build installs this directory below /usr/lib/firmware. Debian's
+merged-/usr layout exposes the same files below /lib/firmware, which matches
+the firmware path used by the patched Radxa driver.
