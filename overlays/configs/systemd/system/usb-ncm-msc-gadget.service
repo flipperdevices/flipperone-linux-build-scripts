@@ -1,0 +1,15 @@
+[Unit]
+Description=USB Composite Gadget Setup (NCM Ethernet + Mass Storage)
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-ncm-msc-gadget.sh start
+ExecStopPost=/usr/local/bin/usb-ncm-msc-gadget.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
