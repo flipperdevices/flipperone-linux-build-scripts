@@ -1,0 +1,10 @@
+[Unit]
+Description=USB Mass Storage Gadget (share UFS as a thumb drive, read-only)
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-msc-gadget.sh start
+ExecStopPost=/usr/local/bin/usb-msc-gadget.sh stop
+RemainAfterExit=yes
