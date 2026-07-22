@@ -9,6 +9,18 @@ The files under USB/aic8800D80 were copied from:
 
   src/USB/driver_fw/fw/aic8800D80
 
+Licensing and provenance
+------------------------
+
+COPYRIGHT.radxa.original is a byte-for-byte copy of Radxa's
+debian/copyright. Its Files patterns refer to paths in Radxa's original
+package, not to paths in this image overlay.
+
+The imported firmware and configuration files originated below src/ and are
+therefore covered by the original src/* paragraph, which Radxa declares as
+GPL-2. This import preserves Radxa's package metadata; it does not change the
+license or claim that Radxa authored every imported vendor file.
+
 The image build installs this directory below /usr/lib/firmware. Debian's
 merged-/usr layout exposes the same files below /lib/firmware, which matches
 the firmware path used by the patched Radxa driver.
