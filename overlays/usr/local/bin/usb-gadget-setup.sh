@@ -195,18 +195,31 @@ start()
 
     # bind if not bound (also the reconnect path after a replug)
     if [ -z "$(cat $G/UDC 2>/dev/null)" ]; then
-        udc=$(ls /sys/class/udc 2>/dev/null | head -n1)
+        # Prefer a hardware UDC; skip virtual ones (e.g. usbip-vudc.0) that would
+        # "bind" fine but expose nothing on the physical Type-C port.
+        udc=$(ls /sys/class/udc 2>/dev/null | grep -v vudc | head -n1)
+        udc=${udc:-$(ls /sys/class/udc 2>/dev/null | head -n1)}
         [ -n "$udc" ] || { echo "No UDC available" >&2; exit 1; }
         # only one gadget can hold the single dwc3 UDC; refuse with a clear message
         for other in /sys/kernel/config/usb_gadget/*/UDC; do
             [ -e "$other" ] || continue
             [ "$other" = "$G/UDC" ] && continue
             if [ "$(cat "$other" 2>/dev/null)" = "$udc" ]; then
-                echo "UDC $udc is busy (held by $(basename "$(dirname "$other")")); stop it first, e.g. 'systemctl stop usb-ncm-gadget'" >&2
+                echo "UDC $udc is busy (held by $(basename "$(dirname "$other")")); stop that gadget first" >&2
                 exit 1
             fi
         done
-        echo "$udc" > $G/UDC
+        # Early in boot the dwc3 controller may not be ready yet: writing UDC fails
+        # with -19 (ENODEV) / EBUSY and leaves it empty, so the gadget never comes
+        # up on the port. Retry until the bind sticks (up to ~5s).
+        i=0
+        while :; do
+            echo "$udc" > "$G/UDC" 2>/dev/null
+            [ -n "$(cat $G/UDC 2>/dev/null)" ] && break
+            i=$((i + 1))
+            [ "$i" -ge 15 ] && { echo "UDC $udc not ready after 15s" >&2; break; }
+            sleep 1
+        done
     fi
 }
 
