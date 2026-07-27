@@ -94,9 +94,13 @@ if [ "$move" = 1 ]; then
     btrfs property set -f "$src" ro false || die "Could not clear ro on $src_name (needed to move it)"
 fi
 if [ "$existed" = 1 ]; then
+    # the stamp is per-second, so a second replace within the same second would land on an
+    # existing .old_<ts> and mv would nest the profile INSIDE it; take the next free name
     ts=$(date +%Y-%m-%d_%H-%M-%S)
     aside="$tgt.old_$ts"
-    mv "$tgt" "$aside"
+    n=1
+    while [ -e "$aside" ]; do aside="$tgt.old_${ts}_$n"; n=$((n + 1)); done
+    mv -T "$tgt" "$aside" || die "Could not move '$rel' aside; nothing changed"
 fi
 if [ "$move" = 1 ]; then
     if ! mv "$src" "$tgt"; then
@@ -140,9 +144,9 @@ fi
 
 if [ "$move" = 1 ]; then verb="moved"; else verb="created"; fi
 if [ "$existed" = 1 ]; then
-    echo "Profile '$rel' $verb from '$src_name' (writable); previous kept as ${rel}.old_$ts"
+    echo "Profile '$rel' $verb from '$src_name' (writable); previous kept as ${aside##*/}"
     echo "Reboot into '$rel' to use it; remove the old copy later with:"
-    echo "  sudo delete-profile ${rel}.old_$ts"
+    echo "  sudo delete-profile ${aside##*/}"
 else
     echo "Profile '$rel' $verb from '$src_name' (writable, boot entry added)"
     echo "Reboot and pick '$rel' from the boot menu to use it"
