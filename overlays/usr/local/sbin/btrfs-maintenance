@@ -24,17 +24,24 @@ Usage: btrfs-maintenance <check|fix|dedup|balance|all>
 EOF
 }
 
-do_scrub=0; scrub_ro=; dedup=0; balance=0; lock=1
-case "${1:-}" in
-    -h|--help) usage; exit 0 ;;
+do_scrub=0; scrub_ro=; dedup=0; balance=0; lock=1; cmd=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -y|--yes)    ASSUME_YES=1 ;;
+        -h|--help)   usage; exit 0 ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           [ -z "$cmd" ] || { echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1; }; cmd=$1 ;;
+    esac
+    shift
+done
+case "$cmd" in
     check)     do_scrub=1; scrub_ro=-r; lock=0 ;;
     fix)       do_scrub=1 ;;
     dedup)     dedup=1 ;;
     balance)   balance=1 ;;
     all)       do_scrub=1; scrub_ro=-r; dedup=1; balance=1 ;;
-    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
     "")        usage >&2; exit 1 ;;
-    *)         echo "Error: unknown command: $1" >&2; usage >&2; exit 1 ;;
+    *)         echo "Error: unknown command: $cmd" >&2; usage >&2; exit 1 ;;
 esac
 
 need_root

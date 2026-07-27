@@ -34,11 +34,12 @@ EOF
 parent=""; incremental=0
 while :; do
     case "${1:-}" in
-        -p)        [ $# -ge 2 ] || die "-p requires a PARENT snapshot"; parent=$2; shift 2 ;;
-        -i)        incremental=1; shift ;;
-        -h|--help) usage; exit 0 ;;
-        -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
-        *)         break ;;
+        -p)          [ $# -ge 2 ] || die "-p requires a PARENT snapshot"; parent=$2; shift 2 ;;
+        -i)          incremental=1; shift ;;
+        -y|--yes)    ASSUME_YES=1; shift ;;
+        -h|--help)   usage; exit 0 ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           break ;;
     esac
 done
 [ $# -ge 2 ] || { usage >&2; exit 1; }

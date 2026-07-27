@@ -15,8 +15,13 @@ need_root()  { [ "$(id -u)" -eq 0 ] || die "Must run as root (use sudo)"; }
 need_btrfs() { command -v btrfs >/dev/null 2>&1 || die "Btrfs-progs not installed"; }
 need_cmd()   { command -v "$1" >/dev/null 2>&1 || die "Command not installed: $1${2:+ ($2)}"; }
 
-# Ask on stderr, read stdin; abort unless yes. $1 may span lines.
+# Non-interactive switch for confirm(): set to 1 by -y/--yes, or via the environment
+# (ASSUME_YES=1 <tool> ...) so the tools can run unattended from scripts.
+ASSUME_YES=${ASSUME_YES:-0}
+
+# Ask on stderr, read stdin; abort unless yes. $1 may span lines. -y/--yes auto-confirms.
 confirm() {
+    if [ "$ASSUME_YES" = 1 ]; then printf '%s [auto-yes]\n' "$1" >&2; return 0; fi
     printf '%s [y/N] ' "$1" >&2
     read -r _a || die "Aborted"
     case "$_a" in y|Y|yes|YES) return 0 ;; *) die "Aborted" ;; esac
