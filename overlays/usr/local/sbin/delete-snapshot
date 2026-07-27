@@ -2,7 +2,7 @@
 # delete-snapshot <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock> - delete a read-only
 # restore-point SNAPSHOT under @snapshots or a _stock GOLDEN BASE under @stock-snapshots (as listed
 # by list-snapshots); a bare _stock name resolves under @stock-snapshots. Confirms once, plus again
-# for a golden base. For bootable profiles or .old leftovers, use delete-profile. Works via a
+# for a golden base. For bootable profiles or _old leftovers, use delete-profile. Works via a
 # subvolid=5 (top-level) mount.
 #
 # Examples:
@@ -17,7 +17,7 @@ Usage: delete-snapshot [-y|--yes] [-d|--device DEV] <@snapshots/@name | @stock-s
   -y,--yes    assume yes to prompts (non-interactive)
   -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
   Delete a restore-point snapshot under @snapshots or a _stock golden base under
-  @stock-snapshots (see list-snapshots). For profiles or .old leftovers use delete-profile.
+  @stock-snapshots (see list-snapshots). For profiles or _old leftovers use delete-profile.
 EOF
 }
 
