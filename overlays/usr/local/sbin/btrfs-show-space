@@ -1,7 +1,7 @@
 #!/bin/sh
 # btrfs-show-space [-q|--quick] - btrfs usage + per-root-subvolume space.
 # (-q/--quick skips the compsize REFERENCED column, one less extent-walk per subvol.)
-# Lists EVERY subvolume: profile roots and @.old_* leftovers, the snapshots under @snapshots,
+# Lists EVERY subvolume: profile roots and @_old_* leftovers, the snapshots under @snapshots,
 # the _stock bases under @stock-snapshots, and the shared @home / @var-* / boot.
 #   UNIQUE     - data only this subvolume holds; freed if you delete IT ALONE,
 #                others kept (btrfs fi du, exact, uncompressed)
@@ -70,7 +70,7 @@ row() {  # $1=display name  $2=fs path  -> append a TSV row
 }
 
 # collect EVERY subvolume (cheap), then measure with progress: each row walks extents (slow on
-# flash). btrfs subvolume list gives top-relative paths: profile roots + @.old_*, the nested
+# flash). btrfs subvolume list gives top-relative paths: profile roots + @_old_*, the nested
 # @snapshots/* and @stock-snapshots/* children, and the shared @home / @var-* / boot.
 btrfs subvolume list "$TOP" 2>/dev/null | sed -n 's/.* path //p' | sort | while read -r p; do
     printf '%s\t%s\n' "$p" "$TOP/$p" >> "$list"

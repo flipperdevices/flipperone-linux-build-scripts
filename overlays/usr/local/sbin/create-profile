@@ -13,7 +13,7 @@
 #             profile root while keeping its _stock parent.
 #
 # If <@dest> does not exist it is created and a BLS boot entry is generated for it. If it
-# already exists it is replaced and the previous copy kept as <@dest>.old_<ts> (recoverable;
+# already exists it is replaced and the previous copy kept as <@dest>_old_<ts> (recoverable;
 # its boot entry is refreshed in place, so no duplicate is left behind). The result is always
 # writable, even when <@source> is read-only.
 #
@@ -83,7 +83,7 @@ else
     how="with a writable copy of '$src_name'"
 fi
 if [ "$existed" = 1 ]; then
-    confirm "$(printf "Replace existing profile '%s' %s on %s?\nThe current '%s' is kept as %s.old_<ts>." \
+    confirm "$(printf "Replace existing profile '%s' %s on %s?\nThe current '%s' is kept as %s_old_<ts>." \
         "$rel" "$how" "$ROOTDEV" "$rel" "$rel")"
 else
     confirm "Create bootable profile '$rel' $how on $ROOTDEV?"
@@ -99,11 +99,11 @@ if [ "$move" = 1 ]; then
 fi
 if [ "$existed" = 1 ]; then
     # the stamp is per-second, so a second replace within the same second would land on an
-    # existing .old_<ts> and mv would nest the profile INSIDE it; take the next free name
+    # existing _old_<ts> and mv would nest the profile INSIDE it; take the next free name
     ts=$(stamp)
-    aside="$tgt.old_$ts"
+    aside="${tgt}_old_$ts"
     n=1
-    while [ -e "$aside" ]; do aside="$tgt.old_${ts}_$n"; n=$((n + 1)); done
+    while [ -e "$aside" ]; do aside="${tgt}_old_${ts}_$n"; n=$((n + 1)); done
     mv -T "$tgt" "$aside" || die "Could not move '$rel' aside; nothing changed"
 fi
 if [ "$move" = 1 ]; then
