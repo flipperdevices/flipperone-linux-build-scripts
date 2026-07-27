@@ -1,0 +1,581 @@
+#!/bin/sh
+# migrate-profile [-a|--apply] [--force] [--keep-removed] [--show-noise] [--do-not-resolve] <@src> [<@dst>]
+# migrate-profile --resolve <@profile>
+#
+# Carry the changes a user made to profile <@src> onto profile <@dst> (typically a fresh profile
+# built on a newer _stock), so <@dst> keeps its new base but gains <@src>'s added packages, config
+# and data.
+#
+# <@src>'s factory base (the _stock it was built from) is read from /etc/profile_origin
+# (origin_stock_name); if that stock is present and its build (os-release BUILD_GIT) matches
+# <@src>'s, it is the merge ancestor. The delta ancestor -> src is computed with `btrfs send
+# --no-data` (adds/mods/deletes/renames). Packages are replayed by intent (apt); files are 3-way
+# merged (base=ancestor, ours=dst, theirs=src; syntax-aware via mergiraf when installed, else git
+# merge-file): non-overlapping changes auto-merge into dst, a real
+# conflict leaves dst's file intact and drops a <f>.migrate-conflict (text) or <f>.migrate-theirs
+# (binary) sidecar. Account databases (passwd/shadow/group/gshadow) are merged per entry, not as
+# text: user-added or user-changed accounts and group memberships are carried while service
+# accounts follow the new base. Everything the user changed is migrated EXCEPT a denylist of noise: package
+# files (replayed via apt instead), caches, regenerated runtime state, and generated/per-device
+# identity files (machine-id, ld.so.cache, and the like). SSH host keys ARE carried, so the
+# migrated profile keeps the device's ssh identity (no host-key-changed warnings).
+#
+# Default is a DRY RUN. -a/--apply performs it (snapshots <@dst> to @snapshots/<dst>_<ts>_before_
+# migrate first) and then, if any conflicts remain, drops straight into interactive resolution
+# unless --do-not-resolve is given. --resolve walks a profile's leftover conflict sidecars later.
+set -eu
+. /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: migrate-profile [-a|--apply] [-y|--yes] [-d|--device DEV] [--force] [--purge-removed] [--show-noise] [--do-not-resolve] <@src> [<@dst>|current]
+       migrate-profile --resolve <@profile>
+  Dry run by default; -a/--apply performs the migration (snapshots <@dst> first) and then
+  resolves any remaining conflicts interactively.
+  -y,--yes          assume yes to prompts; leave conflicts as sidecars (non-interactive)
+  -d,--device DEV   operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+  --force           allow <@dst> to be the booted profile (modifies the live system)
+  --keep-removed    keep packages the user removed (default: purge them on apply)
+  -v, --verbose     list every affected file (default: show counts only)
+  --show-noise      list the paths skipped as noise (not just the count)
+  --do-not-resolve  after --apply, leave conflicts as sidecars instead of resolving now
+  --resolve         interactively resolve leftover conflict sidecars in a profile
+EOF
+}
+
+apply=0; resolve=0; force=0; purge_removed=1; show_noise=0; no_resolve=0; verbose=0
+while :; do
+    case "${1:-}" in
+        -a|--apply)        apply=1; shift ;;
+        -y|--yes)          ASSUME_YES=1; shift ;;
+        --resolve)         resolve=1; shift ;;
+        --force)           force=1; shift ;;
+        --keep-removed)    purge_removed=0; shift ;;
+        -v|--verbose)      verbose=1; shift ;;
+        --show-noise)      show_noise=1; shift ;;
+        --do-not-resolve)  no_resolve=1; shift ;;
+        -d|--device)       shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1; shift ;;
+        --device=*)        ROOTDEV=${1#*=}; shift ;;
+        -h|--help)       usage; exit 0 ;;
+        -?*)             echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)               break ;;
+    esac
+done
+[ $# -ge 1 ] || { usage >&2; exit 1; }
+[ $# -le 2 ] || { echo "Error: too many arguments; options must come before <@src> (got: $*)" >&2; usage >&2; exit 1; }
+
+need_root
+need_btrfs
+
+WORK=$(mktemp -d)
+SRCSNAP=""
+mig_cleanup() {
+    [ -n "$SRCSNAP" ] && btrfs subvolume delete "$SRCSNAP" >/dev/null 2>&1 || true
+    top_cleanup
+    rm -rf "$WORK"
+}
+
+ask_tty() {
+    printf '%s' "$1" >&2
+    [ "$ASSUME_YES" = 1 ] && { _ans=s; echo "[auto-skip]" >&2; return; }
+    IFS= read -r _ans </dev/tty 2>/dev/null || _ans=s
+}
+
+# --- interactive resolution of leftover sidecars ---------------------------------------------
+resolve_mode() {
+    _p=$1
+    case "$_p" in current|booted|"") root_is_btrfs || die "no booted profile to default to; name the profile explicitly"; _p=$(findmnt -no FSROOT / | sed 's,^/,,') ;; esac
+    case "$_p" in *..*|/*|*/*) die "Invalid profile: $_p" ;; esac
+    [ -d "$TOP/$_p" ] || die "No such profile: $_p"
+    _root="$TOP/$_p"; _dstname=$_p; _srcname=${2:-}
+    find "$_root" -type f \( -name '*.migrate-conflict' -o -name '*.migrate-theirs' \) 2>/dev/null | sort > "$WORK/sidecars"
+    [ -s "$WORK/sidecars" ] || { echo "No unresolved migration files in $_p."; return 0; }
+    _ntot=$(wc -l < "$WORK/sidecars" | tr -d ' ')
+    echo "$_ntot file(s) in $_p need a decision. For each, choose what to keep."
+    while IFS= read -r sc; do
+        case "$sc" in
+            *.migrate-conflict) real=${sc%.migrate-conflict}; kind=text ;;
+            *.migrate-theirs)   real=${sc%.migrate-theirs};   kind=bin ;;
+            *) continue ;;
+        esac
+        rel=${real#"$_root"/}
+        [ -n "$_srcname" ] || _srcname=$(sed -n 's/^>>>>>>> your changes (\(.*\))$/\1/p' "$sc" 2>/dev/null | head -n1)
+        _sn=${_srcname:-the other profile}
+        echo; echo "==================== FILE: /$rel ===================="
+        if [ "$kind" = text ]; then
+            echo "  Both $_dstname and $_sn changed this; the live file is $_dstname's."
+            echo "  $_sn's conflicting change is in the marked region(s) below:"
+            awk '/^<<<<<<< /{print ""; f=1} f{print "    "$0} /^>>>>>>> /{f=0; print ""}' "$sc"
+            while :; do
+                echo "  FILE: /$rel"
+                echo "    [c] combine: keep BOTH $_dstname's lines and $_sn's"
+                echo "    [y] keep only $_sn's version (discard $_dstname's)"
+                echo "    [e] edit by hand to combine, then use it"
+                echo "    [n] keep $_dstname's version (discard $_sn's)"
+                echo "    [d] show the whole merged file"
+                echo "    [s] skip and decide later"
+                ask_tty "  /$rel  [c/y/e/n/d/s]: "
+                case "$_ans" in
+                    c) if awk '/^<<<<<<< /{next} /^\|\|\|\|\|\|\|/{b=1;next} /^=======/{b=0;next} /^>>>>>>> /{next} !b{print}' "$sc" > "$sc.combined"; then
+                           mv "$sc.combined" "$real"; rm -f "$sc"; echo "  combined both versions."
+                       else rm -f "$sc.combined"; echo "  combine failed; left for later."; fi; break ;;
+                    y) if awk '/^<<<<<<< /{s=1;next} /^\|\|\|\|\|\|\|/{s=1;next} /^=======/{s=0;next} /^>>>>>>> /{s=0;next} !s{print}' "$sc" > "$sc.yours"; then
+                           mv "$sc.yours" "$real"; rm -f "$sc"; echo "  kept only $_sn's version."
+                       else rm -f "$sc.yours"; echo "  failed; left for later."; fi; break ;;
+                    e) "${EDITOR:-nano}" "$sc" </dev/tty >/dev/tty 2>&1 || true
+                       if grep -q '^<<<<<<< \|^>>>>>>> ' "$sc"; then echo "  still has <<<< markers; left for later."
+                       else mv "$sc" "$real"; echo "  applied your combined version." ; fi; break ;;
+                    n) rm -f "$sc"; echo "  kept $_dstname's version."; break ;;
+                    d) "${PAGER:-less}" "$sc" </dev/tty >/dev/tty 2>&1 || cat "$sc" ;;
+                    *) echo "  skipped."; break ;;
+                esac
+            done
+        else
+            echo "  This file could not be merged automatically (binary, or merge error)."
+            echo "  $_sn's version is in the sidecar; the live file is $_dstname's."
+            echo "    [y] use $_sn's version   [n] keep $_dstname's   [s] skip"
+            ask_tty "  /$rel  [y/n/s]: "
+            case "$_ans" in
+                y) mv "$sc" "$real"; echo "  used $_sn's version." ;;
+                n) rm -f "$sc"; echo "  kept $_dstname's version." ;;
+                *) echo "  skipped." ;;
+            esac
+        fi
+    done < "$WORK/sidecars"
+    echo
+    if find "$_root" -type f \( -name '*.migrate-conflict' -o -name '*.migrate-theirs' \) 2>/dev/null | grep -q .; then
+        echo "Done. Some files are still unresolved; re-run to finish: migrate-profile --resolve $_p"
+    else
+        echo "Done. All conflicts resolved."
+    fi
+}
+
+mount_top
+trap mig_cleanup EXIT
+
+if [ "$resolve" = 1 ]; then resolve_mode "$1"; exit 0; fi
+
+need_cmd rsync
+need_cmd git
+merger="git merge-file"; command -v mergiraf >/dev/null 2>&1 && merger="mergiraf"
+EMPTY="$WORK/empty"; : > "$EMPTY"
+src=$1
+dst=${2:-current}
+case "$src" in
+    *..*|/*)      die "Invalid src: $src" ;;
+    @snapshots/*) case "${src#@snapshots/}" in ''|*/*) die "Invalid src: $src (use @snapshots/<name>)" ;; esac ;;
+    */*)          die "Invalid src: $src (top-level profile, e.g. @Desktop, or @snapshots/<name>)" ;;
+esac
+
+[ -d "$TOP/$src" ] || die "No such profile: $src"
+case "$dst" in
+    current|booted|"") root_is_btrfs || die "no booted profile to default <@dst> to; pass an explicit <@dst>"; dst=$(findmnt -no FSROOT / | sed 's,^/,,'); [ -n "$dst" ] || die "cannot determine booted profile" ;;
+    *)                 case "$dst" in *..*|/*|*/*) die "Invalid dst: $dst (top-level name)" ;; esac ;;
+esac
+[ -d "$TOP/$dst" ] || die "No such profile: $dst"
+[ "$src" = "$dst" ] && die "src and dst are the same profile"
+is_reserved_subvol "$src" && die "src is a reserved subvolume"
+is_reserved_subvol "$dst" && die "dst is a reserved subvolume"
+
+booted=$(findmnt -no FSROOT / | sed 's,^/,,')
+if [ "$apply" = 1 ] && [ "$dst" = "$booted" ] && [ "$force" != 1 ]; then
+    die "won't modify '$dst': it is the profile you are booted into.
+Boot into another profile and run this again, or pass --force to override."
+fi
+
+# --- resolve the merge ancestor: src's factory base, present and same build ---
+build_of() { sed -n 's/^BUILD_GIT=//p' "$TOP/$1/etc/os-release" 2>/dev/null | tr -d '"'; }
+
+marker="$TOP/$src/etc/profile_origin"
+[ -f "$marker" ] || die "$src has no /etc/profile_origin marker; cannot determine its base"
+base=$(sed -n 's/^origin_stock_name=//p' "$marker")
+[ -n "$base" ] || die "$src marker has no origin_stock_name"
+src_build=$(build_of "$src")
+
+# the marker records the stock by bare name; it now lives under @stock-snapshots (resolve_rel)
+base_rel=$(resolve_rel "$base")
+[ -n "$base_rel" ] || die "You must have the '$base' _stock image on disk to migrate $src.
+migrate compares $src against the _stock it was built from to work out what you changed, but
+'$base' (build ${src_build:-unknown}) is not on this device. Receive that _stock and retry:
+  receive-snapshot <path-to-${base#@}_pack.zst>"
+base_build=$(build_of "$base_rel")
+[ "$base_build" = "$src_build" ] || die "You must have the exact '$base' _stock $src was built from on disk.
+The '$base' on disk is a different build than $src:
+  on disk:    build ${base_build:-?}
+  $src needs: build ${src_build:-?}
+Receive the matching _stock and retry:  receive-snapshot <path-to-${base#@}_pack.zst>"
+
+echo "migrate: $src -> $dst"
+echo "  ancestor: $base (build ${src_build:-unknown})"
+echo "  merge engine: $merger"
+[ "$apply" = 1 ] && echo "  mode: APPLY" || echo "  mode: dry run"
+
+set_lock
+
+# --- authoritative delta ancestor -> src via btrfs send --no-data ---
+SRCSNAP="$TOP/@snapshots/.migrate-src-$$"
+btrfs subvolume snapshot -r "$TOP/$src" "$SRCSNAP" >/dev/null
+if ! btrfs send --no-data -p "$TOP/$base_rel" "$SRCSNAP" >"$WORK/stream" 2>"$WORK/senderr"; then
+    sed 's/^/  /' "$WORK/senderr" >&2
+    die "btrfs send failed (is '$base' a proper ancestor of $src?)"
+fi
+btrfs receive --dump -f "$WORK/stream" >"$WORK/dump" 2>/dev/null \
+    || btrfs receive --dump <"$WORK/stream" >"$WORK/dump"
+
+# Classify each op path: C=changed / D=deleted (in migrated scope), S=skipped (a real user change
+# outside scope, reported not carried), noise (package/shared/transient/identity/temp) is dropped.
+snapname=".migrate-src-$$"
+awk -v snap="$snapname" '
+function strip(p,  s){ s="./" snap "/"; if (index(p,s)==1) return substr(p, length(s)+1); return "" }
+# Denylist: migrate everything the user changed EXCEPT known-useless paths. 1 = noise, 0 = migrate.
+function is_noise(p) {
+    if (p ~ /^(proc|sys|dev|run|tmp|mnt|media|home|boot)(\/|$)/) return 1
+    if (p ~ /^flipperone-testing(\/|$)/) return 1
+    if (p ~ /^var\/(cache|tmp|log)(\/|$)/) return 1
+    if (p ~ /(^|\/)\.cache(\/|$)/) return 1
+    if (p ~ /^usr\/local(\/|$)/) return 0
+    if (p ~ /^usr(\/|$)/) return 1
+    if (p ~ /^var\/lib\/(dpkg|apt|ucf)(\/|$)/) return 1
+    if (p=="var/.updated") return 1
+    if (p=="etc/machine-id"||p=="etc/machine-info"||p=="etc/hostname"||p=="etc/fstab"||p=="etc/os-release"||p=="etc/profile_origin"||p=="etc/ld.so.cache"||p=="etc/.updated"||p=="etc/resolv.conf") return 1
+    if (p ~ /^etc\/kernel\/(entry-token|cmdline)$/) return 1
+    if (p ~ /^etc\/ssh\/welcome_banner/) return 1
+    if (p ~ /^etc\/avahi\/services(\/|$)/) return 1
+    if (p ~ /^etc\/ssl\/certs(\/|$)/) return 1
+    if (p=="var/lib/dbus/machine-id") return 1
+    if (p ~ /^var\/lib\/systemd\/(random-seed|timers|timesync|rfkill|catalog|coredump|pstore|deb-systemd(-user)?-helper-enabled)(\/|$)/) return 1
+    if (p ~ /^var\/lib\/(upower|NetworkManager|wtmpdb)(\/|$)/) return 1
+    if (p ~ /^var\/lib\/cog(\/|$)/) return 1
+    return 0
+}
+function emit(tag, p){ if (p=="" || p ~ /^o[0-9]+-[0-9]+/) return; if (is_noise(p)) print "N", p; else print tag, p }
+{
+    op=$1
+    if (op=="rename") {
+        d=""
+        for (i=2;i<=NF;i++) if ($i ~ /^dest=/) { d=substr($i,6); break }
+        emit("D", strip($2)); emit("C", strip(d)); next
+    }
+    if (op=="unlink"||op=="rmdir") { emit("D", strip($2)); next }
+    if (op ~ /^(write|update_extent|truncate|mkfile|mknod|mkfifo|symlink|link|mkdir|clone|chmod|chown|utimes|set_xattr|remove_xattr)$/) { emit("C", strip($2)); next }
+}' "$WORK/dump" | sort -u > "$WORK/ops"
+sed -n 's/^C //p' "$WORK/ops" | sort -u > "$WORK/changed"
+sed -n 's/^D //p' "$WORK/ops" | sort -u > "$WORK/deleted.all"
+sed -n 's/^N //p' "$WORK/ops" | sort -u > "$WORK/noise"
+comm -23 "$WORK/deleted.all" "$WORK/changed" > "$WORK/deleted"
+
+btrfs subvolume delete "$SRCSNAP" >/dev/null 2>&1 || true; SRCSNAP=""
+
+# --- packages the user added/removed vs the ancestor (intent, replayed with apt) ---
+manual_set() {  # $1 = subvol rel -> sorted list of manually-installed packages
+    _st="$TOP/$1/var/lib/dpkg/status"; _ex="$TOP/$1/var/lib/apt/extended_states"
+    [ -f "$_st" ] || return 0
+    awk 'BEGIN{RS="";FS="\n"} { p=""; ok=0;
+        for(i=1;i<=NF;i++){ if($i ~ /^Package: /) p=substr($i,10);
+                            else if($i=="Status: install ok installed") ok=1 }
+        if(p!="" && ok) print p }' "$_st" | sort -u > "$WORK/inst"
+    if [ -f "$_ex" ]; then
+        awk 'BEGIN{RS="";FS="\n"} { p=""; a=0;
+            for(i=1;i<=NF;i++){ if($i ~ /^Package: /) p=substr($i,10);
+                                else if($i=="Auto-Installed: 1") a=1 }
+            if(p!="" && a) print p }' "$_ex" | sort -u > "$WORK/auto"
+    else : > "$WORK/auto"; fi
+    comm -23 "$WORK/inst" "$WORK/auto"
+}
+manual_set "$base_rel" > "$WORK/pkg.base"
+manual_set "$src"  > "$WORK/pkg.src"
+added_pkgs=$(comm -13 "$WORK/pkg.base" "$WORK/pkg.src" | tr '\n' ' ')
+removed_pkgs=$(comm -23 "$WORK/pkg.base" "$WORK/pkg.src" | tr '\n' ' ')
+
+# --- 3-way merge helpers (base=ancestor, ours=dst, theirs=src) ---
+is_text() { grep -Iq . "$1" 2>/dev/null; }
+
+# Apply src's mode/owner to dst only where the user changed them vs base (a 3-way for metadata).
+sync_meta() {  # $1 src $2 dst $3 base
+    _sm=$(stat -c '%a' "$1" 2>/dev/null || echo); _bm=""
+    { [ -n "${3:-}" ] && [ -e "$3" ]; } && _bm=$(stat -c '%a' "$3" 2>/dev/null || echo)
+    [ -n "$_sm" ] && [ "$_sm" != "$_bm" ] && chmod "$_sm" "$2" 2>/dev/null || true
+    _so=$(stat -c '%u:%g' "$1" 2>/dev/null || echo); _bo=""
+    { [ -n "${3:-}" ] && [ -e "$3" ]; } && _bo=$(stat -c '%u:%g' "$3" 2>/dev/null || echo)
+    [ -n "$_so" ] && [ "$_so" != "$_bo" ] && chown "$_so" "$2" 2>/dev/null || true
+}
+
+# mergiraf picks a grammar from the -p extension, so files it cannot name-match fall back to a
+# line merge. Hint the language for the ones we ship under other names: INI-shaped .conf and
+# systemd units (mergiraf only maps .ini), and extensionless shebang scripts. Sniff first so a
+# non-INI .conf (wpa_supplicant, sane.d) is left to the line merge. $1 = path, $2 = file to sniff.
+mergiraf_lang() {
+    case "${1##*/}" in
+        *.conf|*.service|*.socket|*.timer|*.target|*.mount|*.automount|*.path|*.slice|*.network|*.netdev|*.link)
+            grep -qE '^[[:space:]]*\[[^]]+\][[:space:]]*$|^[[:space:]]*[[:alnum:]_.-]+[[:space:]]*=' "$2" 2>/dev/null && echo ini ;;
+        *.*) : ;;
+        *) head -n1 "$2" 2>/dev/null | grep -qE '^#!.*(bash|sh)([[:space:]]|$)' && echo bash ;;
+    esac
+}
+
+# Account databases (passwd/shadow/group/gshadow + backups) are keyed by the first field, not by
+# line order, so a text merge conflicts on every epoch bump and could duplicate entries. Merge them
+# per entry instead: an account the user did not touch follows the new base (apt replay is the
+# authority for service accounts), an account the user added or changed rides along from src, and
+# group/gshadow memberships are set-merged. Deterministic, never conflicts.
+cat > "$WORK/accountdb.awk" <<'AWK'
+BEGIN { FS=":"; nlf=split(LF,_l,","); for(i=1;i<=nlf;i++) islist[_l[i]+0]=1; fidx=0 }
+FNR==1 { fidx++ }
+{
+    if ($0=="") next
+    k=$1
+    if      (fidx==1) { Bl[k]=$0; hB[k]=1 }
+    else if (fidx==2) { Ol[k]=$0; hO[k]=1; if(!(k in os)){ os[k]=1; oord[++no]=k } }
+    else              { Tl[k]=$0; hT[k]=1; if(!(k in ts)){ ts[k]=1; tord[++nt]=k } }
+}
+END {
+    for (i=1;i<=no;i++) put(oord[i])
+    for (i=1;i<=nt;i++) if (!(tord[i] in os)) put(tord[i])
+}
+function put(k,   line) { line=decide(k); if (line!="") print line }
+function decide(k,   ib,io,it) {
+    ib=(k in hB); io=(k in hO); it=(k in hT)
+    if (!io && !it) return ""
+    if ( io && !it) { if (ib && Ol[k]==Bl[k]) return ""; return Ol[k] }
+    if (!io &&  it) { if (ib && Tl[k]==Bl[k]) return ""; return Tl[k] }
+    if (LF!="") return mergerec(k, ib)
+    if (Ol[k]==Tl[k]) return Ol[k]
+    if (!ib)          return Ol[k]
+    if (Tl[k]==Bl[k]) return Ol[k]
+    if (Ol[k]==Bl[k]) return Tl[k]
+    return Tl[k]
+}
+function mergerec(k, ib,   nb,no2,nt2,fb,fo,ft,fi,res) {
+    nb  = ib ? split(Bl[k], fb, ":") : 0
+    no2 =      split(Ol[k], fo, ":")
+    nt2 =      split(Tl[k], ft, ":")
+    for (fi=1; fi<=no2; fi++)
+        rf[fi] = (fi in islist) ? merge_members(fi, ib, fb, fo, ft, nb, no2, nt2) : fo[fi]
+    res=rf[1]; for(fi=2;fi<=no2;fi++) res=res ":" rf[fi]
+    delete rf
+    return res
+}
+function merge_members(fi, ib, fb, fo, ft, nb, no2, nt2,   i,m,res) {
+    delete inB; delete inO; delete inT; delete ordm; delete ordseen; nord=0
+    if (ib && nb >=fi) mark(fb[fi], inB)
+    if (      no2>=fi) mark(fo[fi], inO)
+    if (      nt2>=fi) mark(ft[fi], inT)
+    if (      no2>=fi) order(fo[fi])
+    if (      nt2>=fi) order(ft[fi])
+    if (ib && nb >=fi) order(fb[fi])
+    res=""
+    for (i=1;i<=nord;i++) {
+        m=ordm[i]
+        if ((m in inB) && !(m in inO)) continue
+        if ((m in inB) && !(m in inT)) continue
+        res = (res=="") ? m : res "," m
+    }
+    return res
+}
+function mark(s, arr,   n,a,i) { n=split(s,a,","); for(i=1;i<=n;i++) if(a[i]!="") arr[a[i]]=1 }
+function order(s,   n,a,i)     { n=split(s,a,","); for(i=1;i<=n;i++) if(a[i]!="" && !(a[i] in ordseen)){ ordseen[a[i]]=1; ordm[++nord]=a[i] } }
+AWK
+
+merge_accountdb() {  # $1 = etc/<db>: per-entry 3-way merge into dst (deterministic, no sidecar)
+    _f=$1; _S="$TOP/$src/$_f"; _O="$TOP/$dst/$_f"; _B="$TOP/$base_rel/$_f"
+    _mb="$EMPTY"; [ -f "$_B" ] && _mb="$_B"
+    case "${_f##*/}" in
+        group|group-)     _lf=4 ;;
+        gshadow|gshadow-) _lf=3,4 ;;
+        *)                _lf="" ;;
+    esac
+    if [ -f "$_O" ] && awk -v LF="$_lf" -f "$WORK/accountdb.awk" "$_mb" "$_O" "$_S" > "$WORK/adb" 2>/dev/null; then
+        cat "$WORK/adb" > "$_O"; sync_meta "$_S" "$_O" "$_B"
+    else
+        rsync -aHAX "$_S" "$_O"          # dst lacks the db -> take the user's copy verbatim
+    fi
+    echo x >> "$WORK/merged"
+}
+
+# Merge one changed file onto dst. Clean auto-merges are written to dst; a conflict leaves dst's
+# file intact and drops <f>.migrate-conflict (text) or <f>.migrate-theirs (binary) beside it.
+merge_one() {
+    _f=$1; _S="$TOP/$src/$_f"; _O="$TOP/$dst/$_f"; _B="$TOP/$base_rel/$_f"
+    [ -e "$_S" ] || return 0
+    case "$_f" in
+        etc/passwd|etc/passwd-|etc/shadow|etc/shadow-|etc/group|etc/group-|etc/gshadow|etc/gshadow-)
+            merge_accountdb "$_f"; return 0 ;;
+    esac
+    mkdir -p "$(dirname "$_O")"
+    if [ -d "$_S" ] && [ ! -L "$_S" ]; then mkdir -p "$_O"; sync_meta "$_S" "$_O" "$_B"; echo x >> "$WORK/merged"; return 0; fi
+    if [ -L "$_S" ] || [ ! -f "$_S" ]; then rsync -aHAX "$_S" "$_O"; echo x >> "$WORK/merged"; return 0; fi
+    if [ ! -e "$_O" ] || { [ -f "$_B" ] && cmp -s "$_B" "$_O"; }; then
+        rsync -aHAX "$_S" "$_O"; echo x >> "$WORK/merged"; return 0     # dst untouched -> take user's (meta preserved)
+    fi
+    if cmp -s "$_S" "$_O"; then sync_meta "$_S" "$_O" "$_B"; return 0; fi   # same content -> maybe a mode-only change
+    _mb="$EMPTY"; [ -f "$_B" ] && _mb="$_B"
+    if is_text "$_S" && is_text "$_O"; then
+        set +e
+        if [ "$merger" = mergiraf ]; then
+            _lang=$(mergiraf_lang "$_f" "$_S")
+            mergiraf merge "$_mb" "$_O" "$_S" -o "$WORK/m" -p "$_f" --allow-parse-errors ${_lang:+-L "$_lang"} \
+                -s "factory base (${src_build:-unknown})" -x "new base ($dst)" -y "your changes ($src)" 2>/dev/null
+            _rc=$?
+        else
+            git merge-file -p --diff3 \
+                -L "new base ($dst)" -L "factory base (${src_build:-unknown})" -L "your changes ($src)" \
+                "$_O" "$_mb" "$_S" > "$WORK/m" 2>/dev/null
+            _rc=$?
+        fi
+        set -e
+        if [ "$_rc" -eq 0 ]; then
+            cat "$WORK/m" > "$_O"; sync_meta "$_S" "$_O" "$_B"; echo x >> "$WORK/merged"
+        elif grep -q '^<<<<<<< \|^>>>>>>> ' "$WORK/m"; then
+            cat "$WORK/m" > "$_O.migrate-conflict"
+            printf '%s\n' "$_f" >> "$WORK/conflicts"
+        else
+            rsync -aHAX "$_S" "$_O.migrate-theirs"
+            printf '%s (merge failed)\n' "$_f" >> "$WORK/conflicts"
+        fi
+    else
+        rsync -aHAX "$_S" "$_O.migrate-theirs"
+        printf '%s (binary)\n' "$_f" >> "$WORK/conflicts"
+    fi
+}
+
+# Remove a user-deleted path from dst. A file the new base changed is kept (delete/modify
+# conflict). A directory is only rmdir'd when it ends up empty; if the new base still has files in
+# it, it is kept and flagged. Relies on deletions being processed deepest-first (files before dir).
+delete_one() {
+    _f=$1; _O="$TOP/$dst/$_f"; _B="$TOP/$base_rel/$_f"
+    { [ -e "$_O" ] || [ -L "$_O" ]; } || return 0
+    if [ -d "$_O" ] && [ ! -L "$_O" ]; then
+        rmdir "$_O" 2>/dev/null || printf '%s/ (you deleted this dir; new base still has files in it -> kept)\n' "$_f" >> "$WORK/conflicts"
+        return 0
+    fi
+    if [ -f "$_O" ] && [ ! -L "$_O" ] && [ -f "$_B" ] && ! cmp -s "$_O" "$_B"; then
+        printf '%s (you deleted it; new base changed it -> kept new version)\n' "$_f" >> "$WORK/conflicts"
+        return 0
+    fi
+    rm -f "$_O"
+}
+
+# Classify the change set for the report: clean take vs both-sides overlap.
+: > "$WORK/clean"; : > "$WORK/overlap"
+while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    _O="$TOP/$dst/$f"; _B="$TOP/$base_rel/$f"; _S="$TOP/$src/$f"
+    if [ -d "$_S" ] && [ ! -L "$_S" ]; then echo "$f" >> "$WORK/clean"; continue; fi   # dir: created + metadata
+    if [ ! -e "$_O" ] || { [ -f "$_B" ] && cmp -s "$_B" "$_O"; }; then echo "$f" >> "$WORK/clean"
+    elif [ -f "$_S" ] && cmp -s "$_S" "$_O"; then :
+    else echo "$f" >> "$WORK/overlap"; fi
+done < "$WORK/changed"
+
+# --- report ---
+cnt() { _c=$(wc -l < "$1" 2>/dev/null | tr -d ' '); printf '%s' "${_c:-0}"; }
+_na=$(printf '%s' "$added_pkgs" | wc -w | tr -d ' ')
+_nr=$(printf '%s' "$removed_pkgs" | wc -w | tr -d ' ')
+_nc=$(cnt "$WORK/clean"); _no=$(cnt "$WORK/overlap"); _nd=$(cnt "$WORK/deleted"); _noise=$(cnt "$WORK/noise")
+
+echo
+echo "== migration preview: $src -> $dst =="
+printf '  packages:  +%s added   -%s removed\n' "$_na" "$_nr"
+printf '  files:     %s carried   %s changed by both sides   %s deleted   %s skipped as noise\n' "$_nc" "$_no" "$_nd" "$_noise"
+echo
+echo "  Carried, deleted and account databases apply automatically. The $_no changed-by-both"
+echo "  file(s) are 3-way merged on apply; only those that cannot merge cleanly will ask you to"
+echo "  decide. Run with -v/--verbose to see every file."
+
+if [ "$verbose" = 1 ]; then
+    echo
+    echo "-- packages added (reinstalled with apt) --";  [ -n "$added_pkgs" ] && echo "  $added_pkgs" || echo "  (none)"
+    echo "-- packages removed --";                       [ -n "$removed_pkgs" ] && { echo "  $removed_pkgs"; [ "$purge_removed" = 1 ] && echo "  (purged on apply; --keep-removed to keep)" || echo "  (kept)"; } || echo "  (none)"
+    echo "-- files carried (dst unchanged from base) --"; [ -s "$WORK/clean" ] && sed 's,^,  ,' "$WORK/clean" || echo "  (none)"
+    echo "-- files changed by BOTH sides (3-way merged) --"; [ -s "$WORK/overlap" ] && sed 's,^,  ,' "$WORK/overlap" || echo "  (none)"
+    echo "-- files the user deleted --";                 [ -s "$WORK/deleted" ] && sed 's,^,  ,' "$WORK/deleted" || echo "  (none)"
+fi
+[ "$show_noise" = 1 ] && [ -s "$WORK/noise" ] && { echo; echo "-- skipped as noise --"; sed 's,^,  ,' "$WORK/noise"; }
+
+if [ "$apply" != 1 ]; then
+    echo
+    echo "Dry run only. Re-run with -a/--apply to perform the migration."
+    exit 0
+fi
+
+# ================= APPLY =================
+confirm "Apply the above to '$dst'? A '$dst' snapshot is taken first."
+
+ts=$(date +%Y-%m-%d_%H-%M-%S)
+snap="@snapshots/@${dst#@}_${ts}_before_migrate"
+btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null \
+    && echo "snapshot: $snap" || die "could not snapshot $dst; aborting before any change"
+
+: > "$WORK/merged"; : > "$WORK/conflicts"
+
+# 1) replay package intent FIRST (lays down package files + default conffiles), so the user's
+#    config edits in step 2 merge on top of them. Needs a working apt source / network.
+if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ]; }; then
+    echo "replaying packages with apt (needs network; this can take a few minutes)..."
+    for _m in proc sys dev dev/pts; do mount --bind "/$_m" "$TOP/$dst/$_m" 2>/dev/null || true; done
+    # DNS for apt: dst's /etc/resolv.conf is usually a systemd symlink into /run (absent here), so
+    # move it aside and drop in a real copy of ours; restored afterwards.
+    _rc="$TOP/$dst/etc/resolv.conf"; _rcbak=""
+    { [ -e "$_rc" ] || [ -L "$_rc" ]; } && { _rcbak="$_rc.migrate-bak"; mv "$_rc" "$_rcbak"; }
+    cp -fL /etc/resolv.conf "$_rc" 2>/dev/null || true
+    # the build wipes the package index, so refresh it before resolving/installing anything
+    echo "  refreshing package index..."
+    chroot "$TOP/$dst" apt-get update >/dev/null 2>&1 || echo "WARN: apt-get update failed (no network?); package replay may not work" >&2
+    if [ -n "$added_pkgs" ]; then
+        # only reinstall packages apt can actually find; report the rest (e.g. loose .deb installs)
+        echo "  checking which packages are installable..."
+        _ok=""; _miss=""
+        for _p in $added_pkgs; do
+            if chroot "$TOP/$dst" apt-get install -y --dry-run "$_p" >/dev/null 2>&1; then _ok="$_ok $_p"; else _miss="$_miss $_p"; fi
+        done
+        [ -n "$_ok" ] && { echo "  installing:$_ok"; chroot "$TOP/$dst" apt-get install -y $_ok || echo "WARN: apt install failed; packages not installed:$_ok" >&2; }
+        [ -n "$_miss" ] && echo "NOTE: could not reinstall (not in a repo; install by hand):$_miss" >&2
+    fi
+    [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ] && { echo "  purging removed:$removed_pkgs"; chroot "$TOP/$dst" apt-get purge -y $removed_pkgs || true; }
+    rm -f "$_rc"; [ -n "$_rcbak" ] && mv "$_rcbak" "$_rc"   # restore dst's original resolv.conf
+    for _m in dev/pts dev sys proc; do umount "$TOP/$dst/$_m" 2>/dev/null || true; done
+fi
+
+# 2) 3-way merge the user's changed files onto dst
+_total=$(wc -l < "$WORK/changed" 2>/dev/null | tr -d ' '); [ -n "$_total" ] || _total=0
+echo "merging your files onto $dst ($_total, via $merger)..."
+_n=0
+while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    _n=$((_n+1)); printf '\r  merging %d/%d' "$_n" "$_total" >&2
+    merge_one "$f"
+done < "$WORK/changed"
+[ "$_n" -gt 0 ] && printf '\r  merged %d/%d files \n' "$_n" "$_total" >&2
+
+# 3) apply the user's deletions, deepest-first (files before their dir) so empty dirs can rmdir
+if [ -s "$WORK/deleted" ]; then
+    echo "applying your deletions..."
+    sort -r "$WORK/deleted" > "$WORK/deleted.rev"
+    while IFS= read -r f; do [ -n "$f" ] && delete_one "$f"; done < "$WORK/deleted.rev"
+fi
+
+_nmerged=$(cnt "$WORK/merged"); _nconf=$(cnt "$WORK/conflicts")
+echo
+echo "== migration summary: $src -> $dst =="
+printf '  packages:  +%s added   -%s removed\n' "$_na" "$_nr"
+printf '  files:     %s merged automatically   %s deleted\n' "$_nmerged" "$_nd"
+if [ "$_nconf" -gt 0 ]; then
+    printf '  >> %s file(s) need your decision (could not merge cleanly)\n' "$_nconf"
+else
+    echo "  everything merged cleanly; nothing to decide"
+fi
+[ "$verbose" = 1 ] && [ -s "$WORK/conflicts" ] && { echo; echo "-- files needing a decision --"; sed 's,^,  ,' "$WORK/conflicts"; }
+
+if [ -s "$WORK/conflicts" ]; then
+    if [ "$no_resolve" = 1 ] || [ "$ASSUME_YES" = 1 ]; then
+        echo
+        echo "Left as sidecars next to each file ($dst keeps its version). Resolve later with:"
+        echo "    sudo migrate-profile --resolve $dst"
+    else
+        echo
+        resolve_mode "$dst" "$src"
+    fi
+fi
+echo
+echo "Migration applied to $dst. Reboot into it to verify."
+echo "To undo everything, restore the pre-migration snapshot:"
+echo "  sudo create-profile $snap $dst"
