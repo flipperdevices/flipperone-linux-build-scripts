@@ -1,13 +1,13 @@
 #!/bin/sh
 # list-profiles - list the bootable PROFILES at the btrfs top level: the profile roots
-# (@Desktop, @Minimal, ...) and @<profile>.old_* leftovers from create-profile. KIND tags each
+# (@Desktop, @Minimal, ...) and @<profile>_old_* leftovers from create-profile. KIND tags each
 # (profile/old); PARENT is what it was snapshotted from (via Parent UUID). Names are top-level
 # paths (what create-profile/rename-profile/delete-profile take). The booted profile is marked
 # <- booted. For _stock golden bases and restore points, see list-snapshots.
 # Works via a subvolid=5 (top-level) mount.
 #
 # Example:
-#   list-profiles   # @SourceProfile / @DestinationProfile roots, _stock bases and .old leftovers
+#   list-profiles   # @SourceProfile / @DestinationProfile roots, _stock bases and _old leftovers
 set -eu
 . /usr/lib/flipper-btrfs.sh 2>/dev/null || { echo "Error: /usr/lib/flipper-btrfs.sh not found" >&2; exit 1; }
 
@@ -15,7 +15,7 @@ usage() {
     cat <<EOF
 Usage: list-profiles [-d|--device DEV]
 $HELP_DEVICE
-  List bootable profiles at the btrfs top level: profile roots and @<profile>.old_*
+  List bootable profiles at the btrfs top level: profile roots and @<profile>_old_*
   leftovers. For _stock golden bases and restore points, see list-snapshots.
 EOF
 }
@@ -54,7 +54,9 @@ emit() {  # $1=display name  $2=fs path
     flags=$(get "$info" "Flags"); case "$flags" in *readonly*) flags=ro ;; *) flags=rw ;; esac
     parent=$(parent_of "$map" "$(get "$info" "Parent UUID")")
     case "$1" in
-        *.old_*) kind=old ;;
+        # _old_<ts> leftovers from create-profile; anchored on the stamp so a user-chosen
+        # name that merely contains "_old_" stays a profile ('.old_' is the legacy spelling)
+        *_old_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*|*.old_*) kind=old ;;
         *)       kind=profile ;;
     esac
     mark=""; is_running_id "$id" "$cur_id" && mark="<- booted"
@@ -62,7 +64,7 @@ emit() {  # $1=display name  $2=fs path
 }
 
 printf 'NAME\t\tKIND\tID\tCREATED\tRO\tPARENT\n' > "$rows"
-# top-level profile roots + @.old_* leftovers; skip shared/reserved subvols (@snapshots,
+# top-level profile roots + @_old_* leftovers; skip shared/reserved subvols (@snapshots,
 # @stock-snapshots, ...) so stocks (now nested under @stock-snapshots) are not listed here
 for d in "$TOP"/@*; do
     [ -e "$d" ] || continue
