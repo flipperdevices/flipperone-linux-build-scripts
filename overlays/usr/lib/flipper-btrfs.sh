@@ -15,6 +15,9 @@ need_root()  { [ "$(id -u)" -eq 0 ] || die "Must run as root (use sudo)"; }
 need_btrfs() { command -v btrfs >/dev/null 2>&1 || die "Btrfs-progs not installed"; }
 need_cmd()   { command -v "$1" >/dev/null 2>&1 || die "Command not installed: $1${2:+ ($2)}"; }
 
+# True if / is a btrfs mount (a normally booted system, not a RAM recovery root).
+root_is_btrfs() { [ "$(findmnt -no FSTYPE / 2>/dev/null)" = btrfs ]; }
+
 # Non-interactive switch for confirm(): set to 1 by -y/--yes, or via the environment
 # (ASSUME_YES=1 <tool> ...) so the tools can run unattended from scripts.
 ASSUME_YES=${ASSUME_YES:-0}
@@ -52,9 +55,12 @@ set_lock() {
 
 # Mount the btrfs top level (subvolid=5) at a temp dir and arrange teardown on EXIT.
 # Sets ROOTDEV and TOP. Extra temp files to remove: assign them to TOP_TMPFILES first.
+# ROOTDEV may be preset (by -d/--device) to run against a filesystem that is not the
+# booted root, e.g. from a RAM recovery boot where / is not the btrfs filesystem.
 mount_top() {
-    ROOTDEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
-    [ -n "$ROOTDEV" ] || die "Cannot determine root device"
+    [ -n "${ROOTDEV:-}" ] || ROOTDEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
+    [ -n "$ROOTDEV" ] || die "Cannot determine root device (use -d/--device)"
+    [ -b "$ROOTDEV" ] || die "Not a block device: $ROOTDEV"
     TOP=$(mktemp -d)
     trap 'top_cleanup' EXIT
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"

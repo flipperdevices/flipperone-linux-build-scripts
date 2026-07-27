@@ -15,18 +15,21 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: btrfs-maintenance <check|fix|dedup|balance|all>
+Usage: btrfs-maintenance [-d|--device DEV] <check|fix|dedup|balance|all>
   check     read-only scrub (verify checksums, no writes)
   fix       scrub with repair (only where a good copy exists)
   dedup     offline dedup via duperemove across all writable subvolumes
   balance   light filtered balance to reclaim partly-empty chunks
   all       check + dedup + balance
+  -d,--device  operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
 EOF
 }
 
 do_scrub=0; scrub_ro=; dedup=0; balance=0; lock=1; cmd=""
 while [ $# -gt 0 ]; do
     case "$1" in
+        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        --device=*)  ROOTDEV=${1#*=} ;;
         -y|--yes)    ASSUME_YES=1 ;;
         -h|--help)   usage; exit 0 ;;
         -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
@@ -46,7 +49,10 @@ esac
 
 need_root
 need_btrfs
+# On a booted system operate on / (scrub/balance are filesystem-wide). With -d/--device,
+# or a RAM recovery boot where / is not btrfs, mount the top level and act there instead.
 MNT=/
+if [ -n "${ROOTDEV:-}" ] || ! root_is_btrfs; then mount_top; MNT=$TOP; fi
 
 # Dedup across every profile/snapshot: duperemove must run on the btrfs TOP LEVEL (subvolid=5),
 # where all subvolumes appear as subdirectories. Run on / and it only sees the booted root.
@@ -55,7 +61,7 @@ MNT=/
 # would otherwise raise on each RO file.
 do_dedup() {
     need_cmd duperemove
-    mount_top
+    [ -n "${TOP:-}" ] || mount_top
     HASHFILE=$TOP/@var-cache/.duperemove_hashes.db
     _excl=""
     for _p in $(btrfs subvolume list -r "$TOP" | awk '{print $NF}'); do

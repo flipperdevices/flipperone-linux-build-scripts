@@ -33,6 +33,7 @@ done
 
 need_root
 need_btrfs
+root_is_btrfs || die "create-snapshot captures the running root; not available when / is not btrfs (e.g. RAM recovery)"
 
 tag=$*
 if [ -n "$tag" ]; then
