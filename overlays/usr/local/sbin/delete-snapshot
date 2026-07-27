@@ -13,8 +13,9 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: delete-snapshot [-y|--yes] <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock>
+Usage: delete-snapshot [-y|--yes] [-d|--device DEV] <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock>
   -y,--yes    assume yes to prompts (non-interactive)
+  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
   Delete a restore-point snapshot under @snapshots or a _stock golden base under
   @stock-snapshots (see list-snapshots). For profiles or .old leftovers use delete-profile.
 EOF
@@ -23,6 +24,8 @@ EOF
 while [ $# -gt 0 ]; do
     case "$1" in
         -y|--yes)    ASSUME_YES=1 ;;
+        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        --device=*)  ROOTDEV=${1#*=} ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift; break ;;
         -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;

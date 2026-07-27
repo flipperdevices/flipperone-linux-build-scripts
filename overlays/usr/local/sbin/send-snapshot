@@ -23,9 +23,10 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: send-snapshot [-p PARENT | -i] <@snapshot> <file|dir|->
+Usage: send-snapshot [-p PARENT | -i] [-d|--device DEV] <@snapshot> <file|dir|->
   -p PARENT   incremental: send only changes since PARENT (ro, must exist on receiver)
   -i          incremental vs the source's _stock parent (else a full send)
+  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
   <@snapshot> full path or bare name, e.g. @snapshots/<name> (rw source auto-snapshotted ro)
   <file|dir>  output file, a directory (writes <leaf>_pack.zst), or - for stdout
 EOF
@@ -37,6 +38,8 @@ while :; do
         -p)          [ $# -ge 2 ] || die "-p requires a PARENT snapshot"; parent=$2; shift 2 ;;
         -i)          incremental=1; shift ;;
         -y|--yes)    ASSUME_YES=1; shift ;;
+        -d|--device) [ $# -ge 2 ] || die "--device requires an argument"; ROOTDEV=$2; shift 2 ;;
+        --device=*)  ROOTDEV=${1#*=}; shift ;;
         -h|--help)   usage; exit 0 ;;
         -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
         *)           break ;;

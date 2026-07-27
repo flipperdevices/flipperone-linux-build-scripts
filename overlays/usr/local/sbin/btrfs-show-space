@@ -18,33 +18,40 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: btrfs-show-space [-q|--quick]
+Usage: btrfs-show-space [-q|--quick] [-d|--device DEV]
   Btrfs usage plus per-root-subvolume space (UNIQUE / REFERENCED / TOTAL).
   -q,--quick  skip the compsize REFERENCED column (one less extent-walk per subvol)
+  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
 EOF
 }
 
 quick=0
-case "${1:-}" in
-    -h|--help)  usage; exit 0 ;;
-    -q|--quick) quick=1; shift ;;
-    -?*)        echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
-esac
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -q|--quick)  quick=1 ;;
+        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        --device=*)  ROOTDEV=${1#*=} ;;
+        -h|--help)   usage; exit 0 ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1 ;;
+    esac
+    shift
+done
 
 need_root
 need_btrfs
 have_cs=0
 if [ "$quick" = 0 ] && command -v compsize >/dev/null 2>&1; then have_cs=1; fi
 
-echo "== filesystem =="
-btrfs filesystem usage -T /
-echo
-
 rows=$(mktemp)
 list=$(mktemp)
 TOP_TMPFILES="$rows $list"
 mount_top
 cur_id=$(booted_id)
+
+echo "== filesystem =="
+btrfs filesystem usage -T "$TOP"
+echo
 
 row() {  # $1=display name  $2=fs path  -> append a TSV row
     line=$(btrfs filesystem du -s --raw "$2" 2>/dev/null | awk 'NR==2{print $1, $2}')

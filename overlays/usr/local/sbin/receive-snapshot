@@ -14,7 +14,8 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: receive-snapshot <file|->
+Usage: receive-snapshot [-d|--device DEV] <file|->
+  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
   Receive a send-snapshot stream (a _stock base -> @stock-snapshots, else @snapshots). Put it onto a root
   with create-profile. Incremental streams need their parent to exist here first.
 EOF
@@ -23,6 +24,8 @@ EOF
 while [ $# -gt 0 ]; do
     case "$1" in
         -y|--yes)    ASSUME_YES=1 ;;
+        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        --device=*)  ROOTDEV=${1#*=} ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift; break ;;
         -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
