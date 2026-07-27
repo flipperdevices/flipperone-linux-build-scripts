@@ -13,16 +13,23 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: delete-snapshot <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock>
+Usage: delete-snapshot [-y|--yes] <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock>
+  -y,--yes    assume yes to prompts (non-interactive)
   Delete a restore-point snapshot under @snapshots or a _stock golden base under
   @stock-snapshots (see list-snapshots). For profiles or .old leftovers use delete-profile.
 EOF
 }
 
-case "${1:-}" in
-    -h|--help) usage; exit 0 ;;
-    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
-esac
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -y|--yes)    ASSUME_YES=1 ;;
+        -h|--help)   usage; exit 0 ;;
+        --)          shift; break ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           break ;;
+    esac
+    shift
+done
 [ $# -ge 1 ] || { usage >&2; exit 1; }
 
 need_root

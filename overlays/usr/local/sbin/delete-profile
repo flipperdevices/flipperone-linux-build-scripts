@@ -13,17 +13,24 @@ set -eu
 
 usage() {
     cat <<EOF
-Usage: delete-profile <@profile>
+Usage: delete-profile [-y|--yes] <@profile>
+  -y,--yes    assume yes to prompts (non-interactive)
   Delete a bootable profile at the btrfs top level (see list-profiles) and its boot
   entry: a profile root or an @<profile>.old_* leftover. For restore points and
   _stock golden bases use delete-snapshot.
 EOF
 }
 
-case "${1:-}" in
-    -h|--help) usage; exit 0 ;;
-    -?*)       echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
-esac
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -y|--yes)    ASSUME_YES=1 ;;
+        -h|--help)   usage; exit 0 ;;
+        --)          shift; break ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           break ;;
+    esac
+    shift
+done
 [ $# -ge 1 ] || { usage >&2; exit 1; }
 
 need_root
