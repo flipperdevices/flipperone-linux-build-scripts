@@ -469,7 +469,9 @@ delete_one() {
 while IFS= read -r f; do
     [ -n "$f" ] || continue
     _O="$TOP/$dst/$f"; _B="$TOP/$base_rel/$f"; _S="$TOP/$src/$f"
-    if [ -d "$_S" ] && [ ! -L "$_S" ]; then echo "$f" >> "$WORK/clean"; continue; fi   # dir: created + metadata
+    # merge_one takes anything that is not a regular file wholesale (dirs are created, symlinks
+    # and specials are rsynced), so it is never a both-sides merge, whatever the base looks like
+    if [ ! -f "$_S" ] || [ -L "$_S" ]; then echo "$f" >> "$WORK/clean"; continue; fi
     if [ ! -e "$_O" ] || { [ -f "$_B" ] && cmp -s "$_B" "$_O"; }; then echo "$f" >> "$WORK/clean"
     elif [ -f "$_S" ] && cmp -s "$_S" "$_O"; then :
     else echo "$f" >> "$WORK/overlap"; fi
