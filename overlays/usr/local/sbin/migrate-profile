@@ -228,6 +228,7 @@ function is_noise(p) {
     if (p ~ /^var\/(cache|tmp|log)(\/|$)/) return 1
     if (p ~ /(^|\/)\.cache(\/|$)/) return 1
     if (p ~ /^usr\/local(\/|$)/) return 0
+    if (p ~ /^usr\/share\/keyrings(\/|$)/) return 0
     if (p ~ /^usr(\/|$)/) return 1
     if (p ~ /^var\/lib\/(dpkg|apt|ucf)(\/|$)/) return 1
     if (p=="var/.updated") return 1
@@ -478,6 +479,17 @@ btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null \
 
 : > "$WORK/merged"; : > "$WORK/conflicts"
 
+# 0) apt's own configuration has to land before the replay below, or a package the user installed
+#    from a repository they added is not findable while dst still has the old sources, and gets
+#    reported as "install by hand" although its source is right here in src. Keyrings included,
+#    since a source without its key is no better. Step 2 re-merges these as a no-op.
+grep -E '^(etc/apt/|usr/share/keyrings/)' "$WORK/changed" > "$WORK/changed.apt" || :
+grep -vE '^(etc/apt/|usr/share/keyrings/)' "$WORK/changed" > "$WORK/changed.rest" || :
+if [ -s "$WORK/changed.apt" ]; then
+    echo "merging apt configuration first ($(cnt "$WORK/changed.apt") file(s))..."
+    while IFS= read -r f; do [ -n "$f" ] && merge_one "$f"; done < "$WORK/changed.apt"
+fi
+
 # 1) replay package intent FIRST (lays down package files + default conffiles), so the user's
 #    config edits in step 2 merge on top of them. Needs a working apt source / network.
 if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ]; }; then
@@ -506,15 +518,15 @@ if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ];
     for _m in dev/pts dev sys proc; do umount "$TOP/$dst/$_m" 2>/dev/null || true; done
 fi
 
-# 2) 3-way merge the user's changed files onto dst
-_total=$(wc -l < "$WORK/changed" 2>/dev/null | tr -d ' '); [ -n "$_total" ] || _total=0
+# 2) 3-way merge the rest of the user's changed files onto dst
+_total=$(cnt "$WORK/changed.rest")
 echo "merging your files onto $dst ($_total, via $merger)..."
 _n=0
 while IFS= read -r f; do
     [ -n "$f" ] || continue
     _n=$((_n+1)); printf '\r  merging %d/%d' "$_n" "$_total" >&2
     merge_one "$f"
-done < "$WORK/changed"
+done < "$WORK/changed.rest"
 [ "$_n" -gt 0 ] && printf '\r  merged %d/%d files \n' "$_n" "$_total" >&2
 
 # 3) apply the user's deletions, deepest-first (files before their dir) so empty dirs can rmdir
