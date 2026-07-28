@@ -178,7 +178,7 @@ esac
 is_reserved_subvol "$src" && die "src is a reserved subvolume"
 is_reserved_subvol "$dst" && die "dst is a reserved subvolume"
 
-booted=$(current_subvol)
+booted=""; top_is_booted_fs && booted=$(current_subvol)
 if [ "$apply" = 1 ] && [ "$dst" = "$booted" ] && [ "$force" != 1 ]; then
     die "won't modify '$dst': it is the profile you are booted into.
 Boot into another profile and run this again, or pass --force to override."

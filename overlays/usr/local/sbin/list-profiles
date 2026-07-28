@@ -39,10 +39,15 @@ TOP_TMPFILES="$map $rows"
 mount_top
 build_uuid_map "$TOP" "$map"
 
-cur=$(btrfs subvolume show / 2>/dev/null) || cur=
-cur_id=$(get "$cur" "Subvolume ID")
-cur_path=$(printf '%s\n' "$cur" | head -n1)
-[ -n "$cur_path" ] && echo "Currently booted profile: $cur_path (id ${cur_id:-?})"
+cur=""; cur_id=""; cur_path=""
+if top_is_booted_fs; then
+    cur=$(btrfs subvolume show / 2>/dev/null) || cur=
+    cur_id=$(get "$cur" "Subvolume ID")
+    cur_path=$(printf '%s\n' "$cur" | head -n1)
+    [ -n "$cur_path" ] && echo "Currently booted profile: $cur_path (id ${cur_id:-?})"
+else
+    echo "Listing $ROOTDEV, which is not the filesystem you booted from"
+fi
 echo
 
 emit() {  # $1=display name  $2=fs path
