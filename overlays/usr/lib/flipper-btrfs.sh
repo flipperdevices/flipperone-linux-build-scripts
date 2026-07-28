@@ -104,10 +104,22 @@ mount_top() {
     [ -b "$ROOTDEV" ] || die "Not a block device: $ROOTDEV"
     TOP=$(mktemp -d)
     trap 'top_cleanup' EXIT
+    # dash runs the EXIT trap on exit, not on a signal, so a plain kill would leave $TOP mounted;
+    # route the usual signals through exit so the cleanup happens once, in one place
+    trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
 top_cleanup() {
-    [ -n "${TOP:-}" ] && { umount "$TOP" 2>/dev/null || true; rmdir "$TOP" 2>/dev/null || true; }
+    if [ -n "${TOP:-}" ]; then
+        for _i in 1 2 3 4 5; do
+            umount "$TOP" 2>/dev/null && break
+            # the callers run under set -e, where a failing detach would abort the trap and
+            # abandon the mount
+            [ "$_i" = 5 ] && umount -l "$TOP" 2>/dev/null || true
+            sleep 1
+        done
+        rmdir "$TOP" 2>/dev/null || true
+    fi
     [ -n "${TOP_TMPFILES:-}" ] && rm -f $TOP_TMPFILES
     return 0
 }
