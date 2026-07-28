@@ -54,7 +54,7 @@ while :; do
         -v|--verbose)      verbose=1; shift ;;
         --show-noise)      show_noise=1; shift ;;
         --do-not-resolve)  no_resolve=1; shift ;;
-        -d|--device)       shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1; shift ;;
+        -d|--device)       shift; need_device_arg "$#"; ROOTDEV=$1; shift ;;
         --device=*)        ROOTDEV=${1#*=}; shift ;;
         -h|--help)       usage; exit 0 ;;
         -?*)             echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;

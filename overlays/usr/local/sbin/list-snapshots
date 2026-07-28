@@ -21,7 +21,7 @@ EOF
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1 ;;
         --device=*)  ROOTDEV=${1#*=} ;;
         -h|--help)   usage; exit 0 ;;
         *)           echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1 ;;
