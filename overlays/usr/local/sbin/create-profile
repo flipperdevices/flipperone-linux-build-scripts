@@ -64,9 +64,11 @@ src="$TOP/$src_rel"
 
 # dest -> exact top-level name (default: booted root)
 case "$dest" in
-    current|booted|"") root_is_btrfs || die "No booted profile to default <@dest> to; pass an explicit <@dest> (e.g. @Desktop-2)"
-                       rel=$(current_subvol)
-                       [ -n "$rel" ] || die "Cannot determine booted subvolume" ;;
+    # 'current' means the profile we booted from, which does not exist on another filesystem.
+    # Resolving it there would take its NAME and replace whatever happens to be called that on the
+    # target, moving the user's profile aside.
+    current|booted|"") rel=$(target_running_subvol)
+                       [ -n "$rel" ] || die "No booted profile on $ROOTDEV to default <@dest> to; pass an explicit <@dest> (e.g. @Desktop-2)" ;;
     *)                 rel=$dest; validate_profile_name "$rel" ;;
 esac
 is_reserved_subvol "$rel" && die "Refusing to write reserved subvolume: $rel"

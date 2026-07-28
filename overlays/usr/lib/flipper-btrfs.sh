@@ -25,14 +25,14 @@ root_is_btrfs() { [ "$(findmnt -no FSTYPE / 2>/dev/null)" = btrfs ]; }
 # The subvolume mounted at / (e.g. @Desktop), empty if there is none. findmnt cannot answer inside a
 # chroot, so fall back to asking btrfs. flipper-bls.sh keeps its own copy: kernel-install hooks
 # source that file without this one.
-current_subvol() {
+booted_subvol() {
     _cs=$(findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,')
     [ -n "$_cs" ] || _cs=$(btrfs subvolume show / 2>/dev/null | sed -n '1{s,^/*,,;s,[[:space:]]*$,,;p}')
     printf '%s' "$_cs"
 }
 
-# btrfs FS UUID of the mounted root, empty if unknown. Same reasoning as current_subvol.
-current_fsuuid() {
+# btrfs FS UUID of the mounted root, empty if unknown. Same reasoning as booted_subvol.
+booted_fsuuid() {
     _fu=$(findmnt -nro UUID / 2>/dev/null)
     [ -n "$_fu" ] || _fu=$(btrfs filesystem show / 2>/dev/null | sed -n 's/.*[[:space:]]uuid:[[:space:]]*//p' | head -1)
     printf '%s' "$_fu"
@@ -43,6 +43,12 @@ current_fsuuid() {
 # its own out, its -y means something more specific and its help column is wider.
 HELP_YES="  -y,--yes    assume yes to prompts (non-interactive)"
 HELP_DEVICE="  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)"
+
+# UUID of the filesystem being operated on, empty if blkid cannot say. Never falls back to the
+# booted root's: under -d that is a different filesystem, so a fallback would hand every caller the
+# wrong UUID exactly when it cannot check. Callers that want the booted root when this is empty say
+# so themselves (flipper-bls.sh does, for the cmdline root=UUID).
+target_fsuuid() { blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null; }
 
 # Non-interactive switch for confirm(): set to 1 by -y/--yes, or via the environment
 # (ASSUME_YES=1 <tool> ...) so the tools can run unattended from scripts.
@@ -151,6 +157,10 @@ mount_top() {
     TOP=$(mktemp -d /run/flipper-btrfs.mnt.XXXXXX 2>/dev/null || mktemp -d)
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
+
+# Best-effort was not good enough: on a signal the children (btrfs send/receive, zstd) are still
+# dying, so the first umount can lose the race with EBUSY and the top-level mount leaks for the rest
+# of the uptime. Retry briefly, then detach lazily so it goes away once the last reference does.
 top_cleanup() {
     # the holder line outlives the flock the kernel drops for us, so blank it: no waiter should read
     # a pid gone for days. Subshell: a failed '>' on the special builtin ':' exits the shell outright,
@@ -185,7 +195,26 @@ resolve_rel() {
 get() { printf '%s\n' "$1" | awk -v k="$2" -F':[[:space:]]+' 'index($0,k){print $2; exit}'; }
 
 subvol_id() { get "$(btrfs subvolume show "$1" 2>/dev/null)" "Subvolume ID"; }
-booted_id() { subvol_id /; }
+
+# True only when the filesystem being operated on is PROVEN to be another one than we booted from.
+# Unprovable counts as the same: a probe that cannot answer must not disarm the refusals below.
+target_fs_differs() {  # needs ROOTDEV
+    root_is_btrfs || return 0
+    _bu=$(booted_fsuuid); _tu=$(target_fsuuid)
+    [ -n "$_bu" ] && [ -n "$_tu" ] && [ "$_bu" != "$_tu" ]
+}
+
+# The profile running from the filesystem being operated on, empty when nothing runs from it: ids
+# and names repeat across filesystems, so a match there would be coincidence.
+target_running_id()     { target_fs_differs && return 0; subvol_id / ; }
+target_running_subvol() { target_fs_differs && return 0; booted_subvol ; }
+
+# True if subvolume id $1 is the running profile's $2 (from target_running_id). An empty running id
+# never matches: it means another filesystem, where '=' alone would pair it with any lookup that also
+# came back empty, such as a path that is not a subvolume at all.
+is_running_id() {  # $1 = candidate id  $2 = target_running_id
+    [ -n "$2" ] && [ "$1" = "$2" ]
+}
 
 # True if the subvolume at $1 is read-only.
 is_ro() {
