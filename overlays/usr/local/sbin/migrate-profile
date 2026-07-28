@@ -84,7 +84,8 @@ ask_tty() {
 # --- interactive resolution of leftover sidecars ---------------------------------------------
 resolve_mode() {
     _p=$1
-    case "$_p" in current|booted|"") root_is_btrfs || die "no booted profile to default to; name the profile explicitly"; _p=$(current_subvol) ;; esac
+    case "$_p" in current|booted|"") _p=$(target_running_subvol)
+        [ -n "$_p" ] || die "no booted profile on $ROOTDEV to default to; name the profile explicitly" ;; esac
     case "$_p" in *..*|/*|*/*) die "Invalid profile: $_p" ;; esac
     [ -d "$TOP/$_p" ] || die "No such profile: $_p"
     _root="$TOP/$_p"; _dstname=$_p; _srcname=${2:-}
@@ -169,7 +170,9 @@ esac
 
 [ -d "$TOP/$src" ] || die "No such profile: $src"
 case "$dst" in
-    current|booted|"") root_is_btrfs || die "no booted profile to default <@dst> to; pass an explicit <@dst>"; dst=$(current_subvol); [ -n "$dst" ] || die "cannot determine booted profile" ;;
+    # the booted profile's NAME on another filesystem is whatever happens to be called that there
+    current|booted|"") dst=$(target_running_subvol)
+                       [ -n "$dst" ] || die "no booted profile on $ROOTDEV to default <@dst> to; pass an explicit <@dst>" ;;
     *)                 case "$dst" in *..*|/*|*/*) die "Invalid dst: $dst (top-level name)" ;; esac ;;
 esac
 [ -d "$TOP/$dst" ] || die "No such profile: $dst"
@@ -177,8 +180,8 @@ esac
 is_reserved_subvol "$src" && die "src is a reserved subvolume"
 is_reserved_subvol "$dst" && die "dst is a reserved subvolume"
 
-booted=$(current_subvol)
-if [ "$apply" = 1 ] && [ "$dst" = "$booted" ] && [ "$force" != 1 ]; then
+cur_subvol=$(target_running_subvol)
+if [ "$apply" = 1 ] && [ "$dst" = "$cur_subvol" ] && [ "$force" != 1 ]; then
     die "won't modify '$dst': it is the profile you are booted into.
 Boot into another profile and run this again, or pass --force to override."
 fi

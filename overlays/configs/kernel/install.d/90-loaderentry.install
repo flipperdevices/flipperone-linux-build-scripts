@@ -40,7 +40,7 @@ set_dtb_dirs
 # content (version + rootflags=subvol=), so it never touches another profile's entries and
 # survives any purge/cleanup path. kernel-install itself removes this root's staged dir.
 if [ "$COMMAND" = "remove" ]; then
-    remove_entries "$(current_subvol)" "$KERNEL_VERSION"
+    remove_entries "$(booted_subvol)" "$KERNEL_VERSION"
     # kernel-install removed this version's staged dir; reap the now-empty per-token parent
     # ($BOOT_ROOT/$ENTRY_TOKEN) too. rmdir (not rm -rf) only succeeds if truly empty, so it
     # never touches a token dir that still has another version staged.
@@ -78,7 +78,7 @@ discover_devicetreedir
 
 # Write this root's entry. apt/dpkg only ever touch the booted root, so emit ONLY its entry: match
 # the booted root to a profile line for its title/overlays, else treat it as a clone (title = name).
-CUR_SUBVOL="$(current_subvol)"
+CUR_SUBVOL="$(booted_subvol)"
 [ -n "$CUR_SUBVOL" ] || die "cannot determine current root subvol (findmnt)"
 
 # kernel + initrd from this root's own /usr/lib/modules/<ver>/, else /boot (resolve_kernel_paths)

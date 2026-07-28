@@ -41,7 +41,7 @@ if [ -n "$tag" ]; then
 fi
 # name after /'s source subvol, e.g. @Minimal_2026-06-29_19-52-31 (leaf only: booting a
 # snapshot must not nest the new name under @snapshots/@snapshots/)
-src=$(current_subvol); src=${src##*/}
+src=$(booted_subvol); src=${src##*/}
 [ -n "$src" ] || die "Cannot determine the source subvolume of /"
 name="${src}_$(stamp)${tag:+_$tag}"
 

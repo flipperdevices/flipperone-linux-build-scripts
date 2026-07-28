@@ -47,7 +47,7 @@ rows=$(mktemp)
 list=$(mktemp)
 TOP_TMPFILES="$rows $list"
 mount_top
-cur_id=$(booted_id)
+cur_id=$(target_running_id)
 
 echo "== filesystem =="
 btrfs filesystem usage -T "$TOP"
@@ -65,7 +65,7 @@ row() {  # $1=display name  $2=fs path  -> append a TSV row
         ref_h="-"
     fi
     id=$(subvol_id "$2")
-    mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
+    mark=""; is_running_id "$id" "$cur_id" && mark="<- booted"
     printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$(human "$exc")" "$ref_h" "$(human "$tot")" >> "$rows"
 }
 
