@@ -15,7 +15,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: receive-snapshot [-d|--device DEV] <file|->
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   Receive a send-snapshot stream (a _stock base -> @stock-snapshots, else @snapshots). Put it onto a root
   with create-profile. Incremental streams need their parent to exist here first.
 EOF

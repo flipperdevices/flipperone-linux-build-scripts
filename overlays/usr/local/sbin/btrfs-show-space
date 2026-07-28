@@ -21,7 +21,7 @@ usage() {
 Usage: btrfs-show-space [-q|--quick] [-d|--device DEV]
   Btrfs usage plus per-root-subvolume space (UNIQUE / REFERENCED / TOTAL).
   -q,--quick  skip the compsize REFERENCED column (one less extent-walk per subvol)
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
 EOF
 }
 

@@ -21,7 +21,7 @@ Usage: btrfs-maintenance [-d|--device DEV] <check|fix|dedup|balance|all>
   dedup     offline dedup via duperemove across all writable subvolumes
   balance   light filtered balance to reclaim partly-empty chunks
   all       check + dedup + balance
-  -d,--device  operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
 EOF
 }
 

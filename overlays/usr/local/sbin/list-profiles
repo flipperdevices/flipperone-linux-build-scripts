@@ -14,7 +14,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: list-profiles [-d|--device DEV]
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   List bootable profiles at the btrfs top level: profile roots and @<profile>_old_*
   leftovers. For _stock golden bases and restore points, see list-snapshots.
 EOF

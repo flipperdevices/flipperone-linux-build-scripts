@@ -14,8 +14,8 @@ set -eu
 usage() {
     cat <<EOF
 Usage: delete-snapshot [-y|--yes] [-d|--device DEV] <@snapshots/@name | @stock-snapshots/@X_stock | @X_stock>
-  -y,--yes    assume yes to prompts (non-interactive)
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_YES
+$HELP_DEVICE
   Delete a restore-point snapshot under @snapshots or a _stock golden base under
   @stock-snapshots (see list-snapshots). For profiles or _old leftovers use delete-profile.
 EOF
