@@ -226,6 +226,9 @@ awk -v snap="$snapname" '
 function strip(p,  s){ s="./" snap "/"; if (index(p,s)==1) return substr(p, length(s)+1); return "" }
 # Denylist: migrate everything the user changed EXCEPT known-useless paths. 1 = noise, 0 = migrate.
 function is_noise(p) {
+    # our own leftovers: an unresolved sidecar would otherwise count as a user change and be
+    # carried into the next migration, and .migrate-bak is the resolv.conf we move aside for apt
+    if (p ~ /\.migrate-(conflict|theirs|bak)$/) return 1
     if (p ~ /^(proc|sys|dev|run|tmp|mnt|media|home|boot)(\/|$)/) return 1
     if (p ~ /^flipperone-testing(\/|$)/) return 1
     if (p ~ /^var\/(cache|tmp|log)(\/|$)/) return 1
