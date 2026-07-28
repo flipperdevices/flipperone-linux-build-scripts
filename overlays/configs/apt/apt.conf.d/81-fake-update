@@ -1,0 +1,3 @@
+// Shipped only by the fake-update test build, to give migrate-profile's apt-configuration
+// merge a new-base drop-in alongside the one added on the source profile.
+APT::Get::Show-Versions "true";

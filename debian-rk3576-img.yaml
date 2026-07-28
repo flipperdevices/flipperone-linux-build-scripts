@@ -264,7 +264,6 @@ actions:
       - breeze-gtk-theme
       - kde-config-gtk-style
       - kde-config-screenlocker
-      - kde-spectacle
       - kde-standard
       - konsole
       - kscreen
@@ -275,6 +274,7 @@ actions:
       - sddm
       - sddm-theme-breeze
       - systemsettings
+      - tree
   - action: run
     description: Prune orphaned packages and apt cache
     chroot: true
@@ -291,6 +291,15 @@ actions:
     description: Make the KDE desktop the default session on @Desktop
     chroot: true
     command: systemctl set-default graphical.target
+  # fake-update test build only: a service account and a binary asset that exist ONLY in this
+  # build's @Desktop_stock, so migrating an older profile onto it must keep both.
+  - action: run
+    description: Add the fake-update service account and binary asset
+    chroot: true
+    command: |
+      set -eu
+      useradd --system --no-create-home --shell /usr/sbin/nologin fakeupd
+      printf 'FAKE\000UPDATE\377\000asset\n' > /etc/flipper-fake-update.dat
   - action: run
     description: Pin @Desktop's kernel entry-token (NN from flipper-profiles)
     chroot: true
