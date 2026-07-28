@@ -510,7 +510,7 @@ fi
 # ================= APPLY =================
 confirm "Apply the above to '$dst'? A '$dst' snapshot is taken first."
 
-ts=$(date +%Y-%m-%d_%H-%M-%S)
+ts=$(stamp)
 snap="@snapshots/@${dst#@}_${ts}_before_migrate"
 if btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null; then
     echo "snapshot: $snap"

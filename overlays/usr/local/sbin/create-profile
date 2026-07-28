@@ -96,7 +96,7 @@ fi
 if [ "$existed" = 1 ]; then
     # the stamp is per-second, so a second replace within the same second would land on an
     # existing _old_<ts> and mv would nest the profile INSIDE it; take the next free name
-    ts=$(date +%Y-%m-%d_%H-%M-%S)
+    ts=$(stamp)
     aside="${tgt}_old_$ts"
     n=1
     while [ -e "$aside" ]; do aside="${tgt}_old_${ts}_$n"; n=$((n + 1)); done
