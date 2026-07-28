@@ -47,7 +47,7 @@ rows=$(mktemp)
 list=$(mktemp)
 TOP_TMPFILES="$rows $list"
 mount_top
-cur_id=$(booted_id)
+cur_id=""; top_is_booted_fs && cur_id=$(booted_id)
 
 echo "== filesystem =="
 btrfs filesystem usage -T "$TOP"

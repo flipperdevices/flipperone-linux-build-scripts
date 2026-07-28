@@ -47,7 +47,7 @@ esac
 case "${arg##*/}" in *_stock) die "Top-level profiles only; for a golden base use: delete-snapshot $arg" ;; esac
 
 mount_top
-cur_id=$(booted_id)
+cur_id=""; top_is_booted_fs && cur_id=$(booted_id)
 [ -e "$TOP/$arg" ] || die "No such profile: $arg (see list-profiles)"
 rel=$arg
 is_reserved_subvol "$rel" && die "Refusing to delete reserved subvolume: $rel"

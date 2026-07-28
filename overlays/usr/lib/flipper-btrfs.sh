@@ -151,6 +151,18 @@ mount_top() {
     TOP=$(mktemp -d /run/flipper-btrfs.mnt.XXXXXX 2>/dev/null || mktemp -d)
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
+# True if the filesystem mount_top opened is the one we booted from, so the booted profile and its
+# subvolume ids mean something here. Under -d/--device (recovery) the two filesystems are unrelated
+# and their ids collide by accident, which would mark or refuse the wrong subvolume. Needs ROOTDEV.
+top_is_booted_fs() {
+    root_is_btrfs || return 1
+    _tu=$(blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null)
+    [ -n "$_tu" ] && [ "$_tu" = "$(current_fsuuid)" ]
+}
+
+# Best-effort was not good enough: on a signal the children (btrfs send/receive, zstd) are still
+# dying, so the first umount can lose the race with EBUSY and the top-level mount leaks for the rest
+# of the uptime. Retry briefly, then detach lazily so it goes away once the last reference does.
 top_cleanup() {
     # the holder line outlives the flock the kernel drops for us, so blank it: no waiter should read
     # a pid gone for days. Subshell: a failed '>' on the special builtin ':' exits the shell outright,
