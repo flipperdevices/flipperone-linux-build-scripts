@@ -548,8 +548,11 @@ confirm "Apply the above to '$dst'? A '$dst' snapshot is taken first."
 
 ts=$(stamp)
 snap="@snapshots/@${dst#@}_${ts}_before_migrate"
-btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null \
-    && echo "snapshot: $snap" || die "could not snapshot $dst; aborting before any change"
+if btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null; then
+    echo "snapshot: $snap"
+else
+    die "could not snapshot $dst; aborting before any change"
+fi
 
 : > "$WORK/merged"; : > "$WORK/conflicts"
 
