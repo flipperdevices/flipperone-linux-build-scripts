@@ -132,6 +132,19 @@ is_ro() {
     esac
 }
 
+# The timestamp every generated name uses (snapshots, aside copies, ro sends). One helper so
+# the names stay mutually parseable: list-profiles keys KIND=old off this exact shape.
+stamp() { date +%Y-%m-%d_%H-%M-%S; }
+
+# Top-relative path of the subvolume with this uuid, empty if none. $1 = top mount, $2 = uuid.
+path_of_uuid() {
+    case "$2" in ''|'-') return ;; esac
+    btrfs subvolume list -u "$1" 2>/dev/null | awk -v u="$2" '
+        { p=""; uu=""
+          for (i=1;i<=NF;i++) { if($i=="uuid")uu=$(i+1); else if($i=="path"){p=$(i+1);for(j=i+2;j<=NF;j++)p=p" "$j} }
+          if (uu==u){print p; exit} }'
+}
+
 human() { numfmt --to=iec-i --suffix=B --format='%.1f' "${1:-0}" 2>/dev/null || printf '%s' "${1:-0}"; }
 
 # uuid -> "id <tab> path" for every subvolume, so parents resolve by UUID. $1 = top, $2 = out file.
