@@ -13,7 +13,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: rename-profile [-d|--device DEV] <@old> <@new>
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   Rename a bootable profile at the btrfs top level (see list-profiles) and reissue
   its boot entry. Both are top-level names. Cannot rename the booted profile.
 EOF
@@ -22,7 +22,7 @@ EOF
 while [ $# -gt 0 ]; do
     case "$1" in
         -y|--yes)    ASSUME_YES=1 ;;
-        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1 ;;
         --device=*)  ROOTDEV=${1#*=} ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift; break ;;

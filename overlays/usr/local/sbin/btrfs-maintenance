@@ -21,14 +21,14 @@ Usage: btrfs-maintenance [-d|--device DEV] <check|fix|dedup|balance|all>
   dedup     offline dedup via duperemove across all writable subvolumes
   balance   light filtered balance to reclaim partly-empty chunks
   all       check + dedup + balance
-  -d,--device  operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
 EOF
 }
 
 do_scrub=0; scrub_ro=; dedup=0; balance=0; lock=1; cmd=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1 ;;
+        -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1 ;;
         --device=*)  ROOTDEV=${1#*=} ;;
         -y|--yes)    ASSUME_YES=1 ;;
         -h|--help)   usage; exit 0 ;;

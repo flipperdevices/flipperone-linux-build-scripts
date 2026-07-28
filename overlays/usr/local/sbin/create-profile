@@ -27,8 +27,8 @@ usage() {
     cat <<EOF
 Usage: create-profile [-m|--move] [-y|--yes] [-d|--device DEV] <@source> [<@dest>|current]
   -m,--move   move <@source> into <@dest> (consume source, preserve parent_uuid)
-  -y,--yes    assume yes to prompts (non-interactive)
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_YES
+$HELP_DEVICE
   <@source>   full path or bare name: @snapshots/<name>, @<profile>_<stamp>, @<profile>_stock
   <@dest>     profile to write (default: booted profile; or current|booted)
 EOF
@@ -39,7 +39,7 @@ while :; do
     case "${1:-}" in
         -m|--move)   move=1; shift ;;
         -y|--yes)    ASSUME_YES=1; shift ;;
-        -d|--device) shift; [ $# -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; ROOTDEV=$1; shift ;;
+        -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1; shift ;;
         --device=*)  ROOTDEV=${1#*=}; shift ;;
         -h|--help)   usage; exit 0 ;;
         -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;

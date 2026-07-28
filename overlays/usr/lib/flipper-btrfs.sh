@@ -14,6 +14,10 @@ die() { echo "Error: $*" >&2; exit 1; }
 need_root()  { [ "$(id -u)" -eq 0 ] || die "Must run as root (use sudo)"; }
 need_btrfs() { command -v btrfs >/dev/null 2>&1 || die "Btrfs-progs not installed"; }
 need_cmd()   { command -v "$1" >/dev/null 2>&1 || die "Command not installed: $1${2:+ ($2)}"; }
+# Guard for the -d/--device value: fail (with the tool's usage) if the flag was the last token.
+# Call with the arg count remaining AFTER shifting the flag off:
+#   -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1 ;;
+need_device_arg() { [ "$1" -ge 1 ] || { echo "Error: --device needs an argument" >&2; usage >&2; exit 1; }; }
 
 # True if / is a btrfs mount (a normally booted system, not a RAM recovery root).
 root_is_btrfs() { [ "$(findmnt -no FSTYPE / 2>/dev/null)" = btrfs ]; }
