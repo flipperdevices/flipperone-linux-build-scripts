@@ -99,14 +99,16 @@ set_lock() {
 # ROOTDEV may be preset (by -d/--device) to run against a filesystem that is not the
 # booted root, e.g. from a RAM recovery boot where / is not the btrfs filesystem.
 mount_top() {
-    [ -n "${ROOTDEV:-}" ] || ROOTDEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
-    [ -n "$ROOTDEV" ] || die "Cannot determine root device (use -d/--device)"
-    [ -b "$ROOTDEV" ] || die "Not a block device: $ROOTDEV"
-    TOP=$(mktemp -d)
+    # Arm cleanup FIRST: callers set TOP_TMPFILES before calling us, so a die on the checks below
+    # (a bad -d argument, no btrfs root) must still take their temp files with it.
     trap 'top_cleanup' EXIT
     # dash runs the EXIT trap on exit, not on a signal, so a plain kill would leave $TOP mounted;
     # route the usual signals through exit so the cleanup happens once, in one place
     trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
+    [ -n "${ROOTDEV:-}" ] || ROOTDEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
+    [ -n "$ROOTDEV" ] || die "Cannot determine root device (use -d/--device)"
+    [ -b "$ROOTDEV" ] || die "Not a block device: $ROOTDEV"
+    TOP=$(mktemp -d)
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
 top_cleanup() {
