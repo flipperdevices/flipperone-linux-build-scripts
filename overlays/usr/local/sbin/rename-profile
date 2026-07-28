@@ -13,7 +13,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: rename-profile [-d|--device DEV] <@old> <@new>
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   Rename a bootable profile at the btrfs top level (see list-profiles) and reissue
   its boot entry. Both are top-level names. Cannot rename the booted profile.
 EOF

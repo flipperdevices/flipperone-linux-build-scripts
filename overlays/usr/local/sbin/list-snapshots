@@ -13,7 +13,7 @@ set -eu
 usage() {
     cat <<EOF
 Usage: list-snapshots [-d|--device DEV]
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   List restore-point snapshots under @snapshots and _stock golden bases under
   @stock-snapshots. For bootable profiles, see list-profiles.
 EOF

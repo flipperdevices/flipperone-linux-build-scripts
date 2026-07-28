@@ -27,7 +27,7 @@ usage() {
 Usage: send-snapshot [-p PARENT | -i] [-d|--device DEV] <@snapshot> <file|dir|->
   -p PARENT   incremental: send only changes since PARENT (ro, must exist on receiver)
   -i          incremental vs the source's _stock parent (else a full send)
-  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)
+$HELP_DEVICE
   <@snapshot> full path or bare name, e.g. @snapshots/<name> (rw source auto-snapshotted ro)
   <file|dir>  output file, a directory (writes <leaf>_pack.zst), or - for stdout
 EOF
