@@ -7,8 +7,8 @@
 # and data.
 #
 # <@src>'s factory base (the _stock it was built from) is read from /etc/profile_origin
-# (origin_stock_name); if that stock is present and its build (os-release BUILD_GIT) matches
-# <@src>'s, it is the merge ancestor. The delta ancestor -> src is computed with `btrfs send
+# (origin_stock_name), whose name carries the build id, so it names the exact base. If that stock
+# is present it is the merge ancestor. The delta ancestor -> src is computed with `btrfs send
 # --no-data` (adds/mods/deletes/renames). Packages are replayed by intent (apt); files are 3-way
 # merged (base=ancestor, ours=dst, theirs=src; syntax-aware via mergiraf when installed, else git
 # merge-file): non-overlapping changes auto-merge into dst, a real
@@ -68,6 +68,7 @@ need_root
 need_btrfs
 
 WORK=$(mktemp -d)
+ACCOUNTDB_AWK=/usr/lib/flipper-accountdb.awk
 SRCSNAP=""
 mig_cleanup() {
     [ -n "$SRCSNAP" ] && btrfs subvolume delete "$SRCSNAP" >/dev/null 2>&1 || true
@@ -186,30 +187,23 @@ if [ "$apply" = 1 ] && [ "$dst" = "$cur_subvol" ] && [ "$force" != 1 ]; then
 Boot into another profile and run this again, or pass --force to override."
 fi
 
-# --- resolve the merge ancestor: src's factory base, present and same build ---
-build_of() { sed -n 's/^BUILD_GIT=//p' "$TOP/$1/etc/os-release" 2>/dev/null | tr -d '"'; }
-
+# --- resolve the merge ancestor: the _stock src was built from, by name ---
+# The stock name carries the build id, so the name alone pins the exact base. btrfs send -p
+# below refuses a parent that is not a real ancestor, so there is nothing further to verify.
 marker="$TOP/$src/etc/profile_origin"
 [ -f "$marker" ] || die "$src has no /etc/profile_origin marker; cannot determine its base"
 base=$(sed -n 's/^origin_stock_name=//p' "$marker")
 [ -n "$base" ] || die "$src marker has no origin_stock_name"
-src_build=$(build_of "$src")
 
 # the marker records the stock by bare name; it now lives under @stock-snapshots (resolve_rel)
 base_rel=$(resolve_rel "$base")
 [ -n "$base_rel" ] || die "You must have the '$base' _stock image on disk to migrate $src.
 migrate compares $src against the _stock it was built from to work out what you changed, but
-'$base' (build ${src_build:-unknown}) is not on this device. Receive that _stock and retry:
+'$base' is not on this device. Receive that _stock and retry:
   receive-snapshot <path-to-${base#@}_pack.zst>"
-base_build=$(build_of "$base_rel")
-[ "$base_build" = "$src_build" ] || die "You must have the exact '$base' _stock $src was built from on disk.
-The '$base' on disk is a different build than $src:
-  on disk:    build ${base_build:-?}
-  $src needs: build ${src_build:-?}
-Receive the matching _stock and retry:  receive-snapshot <path-to-${base#@}_pack.zst>"
 
 echo "migrate: $src -> $dst"
-echo "  ancestor: $base (build ${src_build:-unknown})"
+echo "  ancestor: $base"
 echo "  merge engine: $merger"
 [ "$apply" = 1 ] && echo "  mode: APPLY" || echo "  mode: dry run"
 
@@ -316,83 +310,92 @@ mergiraf_lang() {
     esac
 }
 
-# Account databases (passwd/shadow/group/gshadow + backups) are keyed by the first field, not by
-# line order, so a text merge conflicts on every epoch bump and could duplicate entries. Merge them
-# per entry instead: an account the user did not touch follows the new base (apt replay is the
-# authority for service accounts), an account the user added or changed rides along from src, and
-# group/gshadow memberships are set-merged. Deterministic, never conflicts.
-cat > "$WORK/accountdb.awk" <<'AWK'
-BEGIN { FS=":"; nlf=split(LF,_l,","); for(i=1;i<=nlf;i++) islist[_l[i]+0]=1; fidx=0 }
-FNR==1 { fidx++ }
-{
-    if ($0=="") next
-    k=$1
-    if      (fidx==1) { Bl[k]=$0; hB[k]=1 }
-    else if (fidx==2) { Ol[k]=$0; hO[k]=1; if(!(k in os)){ os[k]=1; oord[++no]=k } }
-    else              { Tl[k]=$0; hT[k]=1; if(!(k in ts)){ ts[k]=1; tord[++nt]=k } }
-}
-END {
-    for (i=1;i<=no;i++) put(oord[i])
-    for (i=1;i<=nt;i++) if (!(tord[i] in os)) put(tord[i])
-}
-function put(k,   line) { line=decide(k); if (line!="") print line }
-function decide(k,   ib,io,it) {
-    ib=(k in hB); io=(k in hO); it=(k in hT)
-    if (!io && !it) return ""
-    if ( io && !it) { if (ib && Ol[k]==Bl[k]) return ""; return Ol[k] }
-    if (!io &&  it) { if (ib && Tl[k]==Bl[k]) return ""; return Tl[k] }
-    if (LF!="") return mergerec(k, ib)
-    if (Ol[k]==Tl[k]) return Ol[k]
-    if (!ib)          return Ol[k]
-    if (Tl[k]==Bl[k]) return Ol[k]
-    if (Ol[k]==Bl[k]) return Tl[k]
-    return Tl[k]
-}
-function mergerec(k, ib,   nb,no2,nt2,fb,fo,ft,fi,res) {
-    nb  = ib ? split(Bl[k], fb, ":") : 0
-    no2 =      split(Ol[k], fo, ":")
-    nt2 =      split(Tl[k], ft, ":")
-    for (fi=1; fi<=no2; fi++)
-        rf[fi] = (fi in islist) ? merge_members(fi, ib, fb, fo, ft, nb, no2, nt2) : fo[fi]
-    res=rf[1]; for(fi=2;fi<=no2;fi++) res=res ":" rf[fi]
-    delete rf
-    return res
-}
-function merge_members(fi, ib, fb, fo, ft, nb, no2, nt2,   i,m,res) {
-    delete inB; delete inO; delete inT; delete ordm; delete ordseen; nord=0
-    if (ib && nb >=fi) mark(fb[fi], inB)
-    if (      no2>=fi) mark(fo[fi], inO)
-    if (      nt2>=fi) mark(ft[fi], inT)
-    if (      no2>=fi) order(fo[fi])
-    if (      nt2>=fi) order(ft[fi])
-    if (ib && nb >=fi) order(fb[fi])
-    res=""
-    for (i=1;i<=nord;i++) {
-        m=ordm[i]
-        if ((m in inB) && !(m in inO)) continue
-        if ((m in inB) && !(m in inT)) continue
-        res = (res=="") ? m : res "," m
-    }
-    return res
-}
-function mark(s, arr,   n,a,i) { n=split(s,a,","); for(i=1;i<=n;i++) if(a[i]!="") arr[a[i]]=1 }
-function order(s,   n,a,i)     { n=split(s,a,","); for(i=1;i<=n;i++) if(a[i]!="" && !(a[i] in ordseen)){ ordseen[a[i]]=1; ordm[++nord]=a[i] } }
-AWK
+
 
 merge_accountdb() {  # $1 = etc/<db>: per-entry 3-way merge into dst (deterministic, no sidecar)
     _f=$1; _S="$TOP/$src/$_f"; _O="$TOP/$dst/$_f"; _B="$TOP/$base_rel/$_f"
     _mb="$EMPTY"; [ -f "$_B" ] && _mb="$_B"
+    # _lf: fields holding comma-separated member lists, set-merged instead of taken whole.
+    # _nf: how many colon-separated fields a record has, so a truncated result is rejected below.
     case "${_f##*/}" in
-        group|group-)     _lf=4 ;;
-        gshadow|gshadow-) _lf=3,4 ;;
-        *)                _lf="" ;;
+        group|group-)     _lf=4;   _nf=4 ;;
+        gshadow|gshadow-) _lf=3,4; _nf=4 ;;
+        shadow|shadow-)   _lf="";  _nf=9 ;;
+        *)                _lf="";  _nf=7 ;;
     esac
-    if [ -f "$_O" ] && awk -v LF="$_lf" -f "$WORK/accountdb.awk" "$_mb" "$_O" "$_S" > "$WORK/adb" 2>/dev/null; then
-        cat "$WORK/adb" > "$_O"; sync_meta "$_S" "$_O" "$_B"
-    else
+    if [ ! -f "$_O" ]; then
         rsync -aHAX "$_S" "$_O"          # dst lacks the db -> take the user's copy verbatim
+        echo x >> "$WORK/merged"
+        return 0
     fi
-    echo x >> "$WORK/merged"
+    # These files decide whether the profile can be logged into, so the merged result has to
+    # look like an account database before it replaces one: every db here has a root entry, and
+    # a duplicate key is the corruption a text merge would have produced.
+    if [ ! -r "$ACCOUNTDB_AWK" ]; then
+        _why="$ACCOUNTDB_AWK not installed"
+    elif ! awk -v LF="$_lf" -f "$ACCOUNTDB_AWK" "$_mb" "$_O" "$_S" > "$WORK/adb" 2>/dev/null; then
+        _why="merge failed"
+    elif [ ! -s "$WORK/adb" ]; then
+        _why="empty result"
+    elif ! grep -q '^root:' "$WORK/adb"; then
+        _why="no root entry"
+    elif [ -n "$(cut -d: -f1 "$WORK/adb" | sort | uniq -d | head -n1)" ]; then
+        _why="duplicate entries"
+    else
+        _why=""
+    fi
+    if [ -n "$_why" ]; then
+        rsync -aHAX "$_S" "$_O.migrate-theirs"
+        printf '%s (account merge rejected: %s; %s kept)\n' "$_f" "$_why" "$dst" >> "$WORK/conflicts"
+        return 0
+    fi
+    # Staged, not installed: a record malformed in ANY database disqualifies that account in all of
+    # them, which is only known once every database has been merged.
+    cp "$WORK/adb" "$WORK/adb.${_f##*/}"
+    awk -F: -v n="$_nf" 'NF != n { print $1 }' "$WORK/adb" >> "$WORK/adbbad"
+    printf '%s|%s|%s|%s|%s\n' "$_f" "$_S" "$_O" "$_B" "$_nf" >> "$WORK/adbstaged"
+}
+
+# Install the staged databases, minus any account malformed in one of them. Where dst already had
+# that account, its own record stays rather than going with it.
+finalize_accountdbs() {
+    [ -f "$WORK/adbstaged" ] || return 0
+    _bad=$(sort -u "$WORK/adbbad" 2>/dev/null | tr '\n' ' ')
+    while IFS='|' read -r _f _S _O _B _nf; do
+        _st="$WORK/adb.${_f##*/}"
+        for _k in $_bad; do
+            grep -v "^$_k:" "$_st" > "$_st.keep" || true
+            mv "$_st.keep" "$_st"
+            grep "^$_k:" "$_O" >> "$_st" || true
+        done
+        if awk -F: -v n="$_nf" 'NF != n { exit 1 }' "$_st" && grep -q '^root:' "$_st"; then
+            cat "$_st" > "$_O"; sync_meta "$_S" "$_O" "$_B"
+            echo x >> "$WORK/merged"
+        else
+            rsync -aHAX "$_S" "$_O.migrate-theirs"
+            printf '%s (account merge rejected: still malformed after dropping bad records; %s kept)\n' "$_f" "$dst" >> "$WORK/conflicts"
+        fi
+    done < "$WORK/adbstaged"
+    if [ -n "$_bad" ]; then
+        echo "Warning: these accounts did not migrate, a record of theirs is malformed in one of the" >&2
+        echo "         account databases, and half an account cannot log in: $_bad" >&2
+        printf 'accounts dropped as malformed: %s\n' "$_bad" >> "$WORK/conflicts"
+    fi
+    return 0
+}
+
+# Report accounts present in a database but missing from its shadow companion, either way round.
+# Names only: the entries themselves are merged per file above, this checks the sets line up.
+check_db_pair() {  # $1 = passwd/group, $2 = its shadow/gshadow companion
+    [ -f "$TOP/$dst/$1" ] && [ -f "$TOP/$dst/$2" ] || return 0
+    cut -d: -f1 "$TOP/$dst/$1" | sort -u > "$WORK/k1"
+    cut -d: -f1 "$TOP/$dst/$2" | sort -u > "$WORK/k2"
+    _d=$(comm -3 "$WORK/k1" "$WORK/k2" | tr -d '\t' | tr '\n' ' ')
+    # At any verbosity: the summary counts merged files, which would never hint that an account is
+    # missing its companion entry.
+    [ -n "$_d" ] && echo "Warning: $1 and $2 disagree on: $_d (those accounts cannot authenticate until you fix them)" >&2
+    [ -n "$_d" ] && printf '%s and %s disagree on: %s\n' "$1" "$2" "$_d" >> "$WORK/conflicts"
+    return 0
 }
 
 # Merge one changed file onto dst. Clean auto-merges are written to dst; a conflict leaves dst's
@@ -417,11 +420,11 @@ merge_one() {
         if [ "$merger" = mergiraf ]; then
             _lang=$(mergiraf_lang "$_f" "$_S")
             mergiraf merge "$_mb" "$_O" "$_S" -o "$WORK/m" -p "$_f" --allow-parse-errors ${_lang:+-L "$_lang"} \
-                -s "factory base (${src_build:-unknown})" -x "new base ($dst)" -y "your changes ($src)" 2>/dev/null
+                -s "factory base ($base)" -x "new base ($dst)" -y "your changes ($src)" 2>/dev/null
             _rc=$?
         else
             git merge-file -p --diff3 \
-                -L "new base ($dst)" -L "factory base (${src_build:-unknown})" -L "your changes ($src)" \
+                -L "new base ($dst)" -L "factory base ($base)" -L "your changes ($src)" \
                 "$_O" "$_mb" "$_S" > "$WORK/m" 2>/dev/null
             _rc=$?
         fi
@@ -510,8 +513,8 @@ btrfs subvolume snapshot -r "$TOP/$dst" "$TOP/$snap" >/dev/null \
 
 : > "$WORK/merged"; : > "$WORK/conflicts"
 
-# 1) replay package intent FIRST (lays down package files + default conffiles), so the user's
-#    config edits in step 2 merge on top of them. Needs a working apt source / network.
+# Replay package intent FIRST (lays down package files + default conffiles), so the user's
+#    config edits merge on top of them afterwards. Needs a working apt source / network.
 if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ]; }; then
     echo "replaying packages with apt (needs network; this can take a few minutes)..."
     for _m in proc sys dev dev/pts; do mount --bind "/$_m" "$TOP/$dst/$_m" 2>/dev/null || true; done
@@ -538,7 +541,7 @@ if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ];
     for _m in dev/pts dev sys proc; do umount "$TOP/$dst/$_m" 2>/dev/null || true; done
 fi
 
-# 2) 3-way merge the user's changed files onto dst
+# 3-way merge the user's changed files onto dst
 _total=$(wc -l < "$WORK/changed" 2>/dev/null | tr -d ' '); [ -n "$_total" ] || _total=0
 echo "merging your files onto $dst ($_total, via $merger)..."
 _n=0
@@ -549,11 +552,22 @@ while IFS= read -r f; do
 done < "$WORK/changed"
 [ "$_n" -gt 0 ] && printf '\r  merged %d/%d files \n' "$_n" "$_total" >&2
 
-# 3) apply the user's deletions, deepest-first (files before their dir) so empty dirs can rmdir
+# Apply the user's deletions, deepest-first (files before their dir) so empty dirs can rmdir
 if [ -s "$WORK/deleted" ]; then
     echo "applying your deletions..."
     sort -r "$WORK/deleted" > "$WORK/deleted.rev"
     while IFS= read -r f; do [ -n "$f" ] && delete_one "$f"; done < "$WORK/deleted.rev"
+fi
+
+# The databases are merged one at a time, so beyond the malformed accounts finalize_accountdbs
+# drops from all of them, nothing guarantees they still agree: a passwd entry with no shadow entry
+# is an account that cannot authenticate, and group drifting from gshadow is what grpck exists to
+# complain about.
+if grep -qE '^etc/(passwd|shadow|group|gshadow)-?$' "$WORK/changed" 2>/dev/null; then
+    finalize_accountdbs
+    echo "checking the account databases agree..."
+    check_db_pair etc/passwd etc/shadow
+    check_db_pair etc/group etc/gshadow
 fi
 
 _nmerged=$(cnt "$WORK/merged"); _nconf=$(cnt "$WORK/conflicts")
