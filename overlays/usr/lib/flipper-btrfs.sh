@@ -266,12 +266,10 @@ align_table() {
 }
 
 # Stamp a _stock's factory-origin marker (/etc/profile_origin) so migrate-profile can find a
-# profile's base after the btrfs parent chain is broken by deletions. Records the stock's own
-# name and its build id (BUILD_GIT from os-release). Profiles snapshotted from the stock inherit
-# the file; matching later is by name + BUILD_GIT, not by uuid (uuid is cleared by snapshots).
-# $1 = the stock's mounted dir, $2 = the stock's name (e.g. @Desktop_stock).
+# profile's base after the btrfs parent chain is broken by deletions. Profiles snapshotted from
+# the stock inherit the file; matching later is by name, not by uuid (a snapshot clears that).
+# The name carries the build id (@Desktop_744_stock), so it identifies the exact base on its own.
+# $1 = the stock's mounted dir, $2 = the stock's name (e.g. @Desktop_744_stock).
 stamp_stock_origin() {
-    _bg=$( . "$1/etc/os-release" >/dev/null 2>&1; printf '%s' "${BUILD_GIT:-}" ) || _bg=
-    [ -n "$_bg" ] || _bg=-
-    printf 'origin_stock_name=%s\norigin_base_build=%s\n' "$2" "$_bg" > "$1/etc/profile_origin"
+    printf 'origin_stock_name=%s\n' "$2" > "$1/etc/profile_origin"
 }
