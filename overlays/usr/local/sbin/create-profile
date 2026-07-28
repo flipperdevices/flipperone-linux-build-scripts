@@ -65,7 +65,7 @@ src="$TOP/$src_rel"
 # dest -> exact top-level name (default: booted root)
 case "$dest" in
     current|booted|"") root_is_btrfs || die "No booted profile to default <@dest> to; pass an explicit <@dest> (e.g. @Desktop-2)"
-                       rel=$(findmnt -no FSROOT / | sed 's,^/,,')
+                       rel=$(current_subvol)
                        [ -n "$rel" ] || die "Cannot determine booted subvolume" ;;
     *)                 rel=$dest; validate_profile_name "$rel" ;;
 esac
@@ -126,7 +126,7 @@ rm -f "$tgt/var/lib/dbus/machine-id" 2>/dev/null || true
 # entry uses; swap every occurrence for the live one.
 fst="$tgt/etc/fstab"
 if [ -f "$fst" ]; then
-    cur=$(findmnt -no UUID / 2>/dev/null)
+    cur=$(current_fsuuid)
     old=$(awk '$2=="/"{for(i=1;i<=NF;i++) if($i ~ /^UUID=/){sub(/^UUID=/,"",$i); print $i; exit}}' "$fst")
     [ -n "$cur" ] && [ -n "$old" ] && [ "$cur" != "$old" ] && { sed -i "s/$old/$cur/g" "$fst"; echo "fstab: rewrote fs UUID $old -> $cur"; }
 fi
