@@ -73,14 +73,20 @@ is_reserved_subvol "$rel" && die "Refusing to write reserved subvolume: $rel"
 [ "$rel" = "$src_rel" ] && die "Dest and source are the same subvolume"
 
 existed=0; [ -e "$TOP/$rel" ] && existed=1
+# Replacing the profile we are booted from is allowed on purpose (it is how a profile is reset to
+# a _stock), but the running system keeps using the copy moved aside until a reboot, so say so
+# before doing it and warn again afterwards.
+replacing_booted=0
+[ "$existed" = 1 ] && root_is_btrfs && [ "$(subvol_id "$TOP/$rel")" = "$(booted_id)" ] && replacing_booted=1
 if [ "$move" = 1 ]; then
     how="by MOVING '$src_name' into it (source consumed, parent preserved)"
 else
     how="with a writable copy of '$src_name'"
 fi
 if [ "$existed" = 1 ]; then
-    confirm "$(printf "Replace existing profile '%s' %s on %s?\nThe current '%s' is kept as %s_old_<ts>." \
-        "$rel" "$how" "$ROOTDEV" "$rel" "$rel")"
+    confirm "$(printf "Replace existing profile '%s' %s on %s?\nThe current '%s' is kept as %s_old_<ts>.%s" \
+        "$rel" "$how" "$ROOTDEV" "$rel" "$rel" \
+        "$([ "$replacing_booted" = 1 ] && printf "\nThis is the profile you are booted from: the running system stays on the copy moved aside until you reboot.")")"
 else
     confirm "Create bootable profile '$rel' $how on $ROOTDEV?"
 fi
@@ -145,7 +151,14 @@ fi
 if [ "$move" = 1 ]; then verb="moved"; else verb="created"; fi
 if [ "$existed" = 1 ]; then
     echo "Profile '$rel' $verb from '$src_name' (writable); previous kept as ${aside##*/}"
-    echo "Reboot into '$rel' to use it; remove the old copy later with:"
+    if [ "$replacing_booted" = 1 ]; then
+        echo "WARNING: REBOOT REQUIRED. '$rel' is the profile you are booted from, so the running" >&2
+        echo "         system is still the copy moved aside as ${aside##*/}; anything written" >&2
+        echo "         now lands there, not in the new '$rel'." >&2
+        echo "After rebooting, remove the old copy with:"
+    else
+        echo "Reboot into '$rel' to use it; remove the old copy later with:"
+    fi
     echo "  sudo delete-profile ${aside##*/}"
 else
     echo "Profile '$rel' $verb from '$src_name' (writable, boot entry added)"
