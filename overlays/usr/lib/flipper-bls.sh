@@ -28,8 +28,15 @@ has_config() { [ -f "$KCONFIG" ] && grep -q "^CONFIG_$1=[ym]" "$KCONFIG"; }
 # Last rootflags=subvol= value in a cmdline/options string (empty if none).
 subvol_of() { printf '%s' "$1" | tr ' ' '\n' | sed -n 's/^rootflags=subvol=//p' | tail -n1; }
 
-# BLS sort-key from os-release (IMAGE_ID, else ID); empty if no os-release.
-os_sort_key() { [ -r /etc/os-release ] && ( . /etc/os-release; printf '%s' "${IMAGE_ID:-$ID}" ) || :; }
+# BLS sort-key from os-release (IMAGE_ID, else ID); empty if the root has no os-release.
+# $1 = mounted root to describe (default /). Reads the TARGET's os-release and nothing else: under
+# -d the running root is a different image entirely, and in a recovery boot its ID is the recovery
+# system's, so borrowing it would put the wrong name on the entry rather than no name at all.
+os_sort_key() {
+    _osr="${1:-}/etc/os-release"
+    [ -r "$_osr" ] || { log "no os-release in ${1:-/}, entry gets no sort-key"; return 0; }
+    ( . "$_osr"; printf '%s' "${IMAGE_ID:-$ID}" ) || :
+}
 
 # Set DTB_DIR + DTB_DIRS (primary dir + modules fallback) for the current $KERNEL_VERSION.
 set_dtb_dirs() { DTB_DIR="/usr/lib/linux-image-$KERNEL_VERSION"; DTB_DIRS="$DTB_DIR /usr/lib/modules/$KERNEL_VERSION/dtb"; }
@@ -124,6 +131,14 @@ remove_root_entries() {  # $1 = subvol
 }
 
 # Base menu slot (900,800,700,... by flipper-profiles position) for the profile $1 belongs to.
+# Which profile list to read bands from: the target's own copy when it has one, else the running
+# root's. flipper_write_entry can be pointed at a filesystem we did not boot from, whose bands are
+# defined by its own list.
+target_profiles() {
+    if [ -f "${1:-}/etc/kernel/flipper-profiles" ]; then printf '%s' "$1/etc/kernel/flipper-profiles"
+    else printf '%s' "${PROFILES:-/etc/kernel/flipper-profiles}"; fi
+}
+
 # $1 is a btrfs-PARENT name. It anchors on an ACTUAL profile: the exact name (@Desktop) or its
 # golden base / snapshot (@Desktop_stock, @Desktop_<stamp>: profile name followed by '_'). A
 # hyphen-suffixed clone (@Desktop-2) must NOT match here, so origin_base_depth can walk THROUGH
@@ -341,7 +356,11 @@ flipper_write_entry() {
     [ -n "$KERNEL_VERSION" ] || { echo "flipper-bls: no /usr/lib/linux-image-* inside $_name" >&2; return 1; }
     resolve_kconfig "$_snap"
     set_dtb_dirs
-    SORT_KEY="$(os_sort_key)"
+    SORT_KEY="$(os_sort_key "$_snap")"
+    # The band comes from the profile list, which lives INSIDE a profile, not in the /etc of
+    # whatever is running. Under -d the running root may have no list at all (recovery), and an
+    # empty band silently drops the sort prefix from the entry filename.
+    PROFILES="${PROFILES:-$(target_profiles "$_snap")}"
     ENTRY_TOKEN="$(make_token "$(clone_slot "$_snap" "$_origin")" "$_name")"
     mkdir -p "$ENTRIES" || { echo "flipper-bls: cannot create $ENTRIES" >&2; return 1; }
     compute_base_opts
