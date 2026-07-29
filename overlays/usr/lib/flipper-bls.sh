@@ -243,7 +243,8 @@ compute_base_opts() {
     BASE_OPTS="$(trim "$BASE_OPTS")"
     # rewrite the shipped cmdline's build-time root=UUID to the fs we install onto, so a _stock
     # received onto a device with a different btrfs UUID still boots.
-    _fsuuid="$(booted_fsuuid)"
+    # the filesystem the entry will boot from, which under -d is not the one we are running
+    _fsuuid="${TARGET_FSUUID:-$(booted_fsuuid)}"
     [ -n "$_fsuuid" ] && BASE_OPTS="$(printf '%s' " $BASE_OPTS " | sed "s/ root=UUID=[^ ]*/ root=UUID=$_fsuuid/")"
     BASE_OPTS="$(trim "$BASE_OPTS")"
     # Pin systemd.machine_id= only when entries are named after the machine-id (no-op otherwise).
