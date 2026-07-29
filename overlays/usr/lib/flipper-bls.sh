@@ -350,7 +350,12 @@ flipper_write_entry() {
     _name="$1"; _snap="$2"; _origin="${3:-}"
     { [ -n "$_name" ] && [ -d "$_snap" ]; } || { echo "flipper-bls: usage: flipper_write_entry <name> <mounted-path>" >&2; return 1; }
     ENTRIES="${ENTRIES:-/boot/loader/entries}"
-    CONF_ROOT="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}"
+    # The base cmdline (root=UUID and policy) belongs to the root being written, not to whatever
+    # is running. kernel-install still wins when it sets its own conf root. Without this, an entry
+    # written from a recovery boot came out with no root= at all, and so could not boot.
+    if [ -n "${KERNEL_INSTALL_CONF_ROOT:-}" ]; then CONF_ROOT="$KERNEL_INSTALL_CONF_ROOT"
+    elif [ -f "$_snap/etc/kernel/cmdline" ]; then CONF_ROOT="$_snap/etc/kernel"
+    else CONF_ROOT=/etc/kernel; fi
     MACHINE_ID=""; DEVICETREE=""; DEVICETREE_ENTRY=""
     # version from the target's OWN tree, so modules + dtbs are self-consistent
     KERNEL_VERSION="$(ls -1d "$_snap"/usr/lib/linux-image-* 2>/dev/null | sed 's,.*/linux-image-,,' | sort -V | tail -n1)"
