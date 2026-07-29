@@ -86,10 +86,17 @@ set_lock() {
     exec 9<>"$LOCK_FILE" || die "Cannot open lock $LOCK_FILE"   # <> = don't truncate the holder line
     if ! flock -w 0 9 2>/dev/null; then
         _h=$(cat "$LOCK_FILE" 2>/dev/null); [ -n "$_h" ] || _h="PID unknown"
+        # the line is written by whoever holds it; if that process is gone the line is stale
+        # leftovers from a crash, so do not present it as the reason we are waiting
+        _hp=${_h#PID }; _hp=${_hp%% *}
+        case "$_hp" in
+            [0-9]*) kill -0 "$_hp" 2>/dev/null || _h="$_h, which is no longer running; the line is stale" ;;
+        esac
         echo "Another flipper-btrfs operation is in progress ($_h); waiting for it to finish..." >&2
         flock 9 || die "Cannot acquire lock $LOCK_FILE"
     fi
     printf 'PID %s (%s)\n' "$$" "${0##*/}" >"$LOCK_FILE" || true
+    LOCK_HELD=1
 }
 
 # Mount the btrfs top level (subvolid=5) at a temp dir and arrange teardown on EXIT.
@@ -122,6 +129,9 @@ top_is_booted_fs() {
 # dying, so the first umount can lose the race with EBUSY and the top-level mount leaks for the rest
 # of the uptime. Retry briefly, then detach lazily so it goes away once the last reference does.
 top_cleanup() {
+    # our holder line outlives the flock, which the kernel drops for us; blank it so the next
+    # waiter never reads a pid that has been gone for days
+    [ "${LOCK_HELD:-0}" = 1 ] && : > "$LOCK_FILE" 2>/dev/null
     if [ -n "${TOP:-}" ]; then
         for _i in 1 2 3 4 5; do
             umount "$TOP" 2>/dev/null && break
