@@ -126,7 +126,7 @@ rm -f "$tgt/var/lib/dbus/machine-id" 2>/dev/null || true
 # entry uses; swap every occurrence for the live one.
 fst="$tgt/etc/fstab"
 if [ -f "$fst" ]; then
-    cur=$(current_fsuuid)
+    cur=$(top_fsuuid)
     old=$(awk '$2=="/"{for(i=1;i<=NF;i++) if($i ~ /^UUID=/){sub(/^UUID=/,"",$i); print $i; exit}}' "$fst")
     [ -n "$cur" ] && [ -n "$old" ] && [ "$cur" != "$old" ] && { sed -i "s/$old/$cur/g" "$fst"; echo "fstab: rewrote fs UUID $old -> $cur"; }
 fi
@@ -137,8 +137,10 @@ fi
 lib=/usr/lib/flipper-bls.sh
 if [ -r "$lib" ]; then
     (
-      # entries live on the filesystem we are operating on, not on the running root under -d
+      # entries live on the filesystem we are operating on, not on the running root under -d,
+      # and its UUID is what the cmdline must name
       ENTRIES="$TOP/boot/loader/entries"
+      TARGET_FSUUID="$(top_fsuuid)"
       . "$lib"; flipper_write_entry "$rel" "$tgt" "$src_rel" ) \
         || echo "Warning: Boot entry not created for $rel" >&2
 else

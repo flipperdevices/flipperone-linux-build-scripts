@@ -60,8 +60,10 @@ echo "Renamed profile '$old' -> '$new'"
 lib=/usr/lib/flipper-bls.sh
 if [ -r "$lib" ]; then
     (
-      # entries live on the filesystem we are operating on, not on the running root under -d
+      # entries live on the filesystem we are operating on, not on the running root under -d,
+      # and its UUID is what the cmdline must name
       ENTRIES="$TOP/boot/loader/entries"
+      TARGET_FSUUID="$(top_fsuuid)"
       . "$lib"; remove_root_entries "$old"; flipper_write_entry "$new" "$TOP/$new" ) \
         || echo "Warning: Boot entry not updated for $new" >&2
 else

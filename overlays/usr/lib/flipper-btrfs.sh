@@ -44,6 +44,15 @@ current_fsuuid() {
 HELP_YES="  -y,--yes    assume yes to prompts (non-interactive)"
 HELP_DEVICE="  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)"
 
+# UUID of the filesystem mount_top opened, which is the one being operated on. current_fsuuid()
+# answers for the BOOTED root instead, which is a different filesystem under -d and nothing at all
+# in a recovery boot, where every consumer then silently skipped its work.
+top_fsuuid() {
+    _tfu=$(blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null)
+    [ -n "$_tfu" ] || _tfu=$(current_fsuuid)
+    printf '%s' "$_tfu"
+}
+
 # Non-interactive switch for confirm(): set to 1 by -y/--yes, or via the environment
 # (ASSUME_YES=1 <tool> ...) so the tools can run unattended from scripts.
 ASSUME_YES=${ASSUME_YES:-0}

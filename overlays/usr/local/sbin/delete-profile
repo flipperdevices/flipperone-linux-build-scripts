@@ -69,8 +69,10 @@ echo "Deleted '$rel'"
 lib=/usr/lib/flipper-bls.sh
 if [ -r "$lib" ]; then
     (
-      # entries live on the filesystem we are operating on, not on the running root under -d
+      # entries live on the filesystem we are operating on, not on the running root under -d,
+      # and its UUID is what the cmdline must name
       ENTRIES="$TOP/boot/loader/entries"
+      TARGET_FSUUID="$(top_fsuuid)"
       . "$lib"; remove_root_entries "$rel" ) \
         || echo "Warning: Entries/staging not fully removed for $rel" >&2
 else
