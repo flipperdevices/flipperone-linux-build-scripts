@@ -24,7 +24,8 @@ while [ $# -gt 0 ]; do
         -d|--device) shift; need_device_arg "$#"; ROOTDEV=$1 ;;
         --device=*)  ROOTDEV=${1#*=} ;;
         -h|--help)   usage; exit 0 ;;
-        *)           echo "Error: unexpected argument: $1" >&2; usage >&2; exit 1 ;;
+        -?*)         echo "Error: unknown option: $1" >&2; usage >&2; exit 1 ;;
+        *)           echo "Error: unexpected argument: $1 (this tool takes no arguments)" >&2; usage >&2; exit 1 ;;
     esac
     shift
 done
