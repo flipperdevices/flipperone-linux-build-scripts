@@ -68,7 +68,11 @@ echo "Deleted '$rel'"
 # drop this profile's BLS entries + /boot/<token>/ staging
 lib=/usr/lib/flipper-bls.sh
 if [ -r "$lib" ]; then
-    ( . "$lib"; remove_root_entries "$rel" ) || echo "Warning: Entries/staging not fully removed for $rel" >&2
+    (
+      # entries live on the filesystem we are operating on, not on the running root under -d
+      ENTRIES="$TOP/boot/loader/entries"
+      . "$lib"; remove_root_entries "$rel" ) \
+        || echo "Warning: Entries/staging not fully removed for $rel" >&2
 else
     echo "Warning: $lib not found; boot entry/staging not removed for $rel" >&2
 fi

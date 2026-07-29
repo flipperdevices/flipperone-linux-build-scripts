@@ -59,7 +59,10 @@ echo "Renamed profile '$old' -> '$new'"
 # drop old name's BLS entry + staging, reissue for <@new>; parent chain intact -> right band
 lib=/usr/lib/flipper-bls.sh
 if [ -r "$lib" ]; then
-    ( . "$lib"; remove_root_entries "$old"; flipper_write_entry "$new" "$TOP/$new" ) \
+    (
+      # entries live on the filesystem we are operating on, not on the running root under -d
+      ENTRIES="$TOP/boot/loader/entries"
+      . "$lib"; remove_root_entries "$old"; flipper_write_entry "$new" "$TOP/$new" ) \
         || echo "Warning: Boot entry not updated for $new" >&2
 else
     echo "Warning: $lib not found; boot entry not updated for $new" >&2
