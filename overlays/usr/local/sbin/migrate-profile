@@ -401,7 +401,7 @@ check_db_pair() {  # $1 = passwd/group, $2 = its shadow/gshadow companion
     cut -d: -f1 "$TOP/$dst/$1" | sort -u > "$WORK/k1"
     cut -d: -f1 "$TOP/$dst/$2" | sort -u > "$WORK/k2"
     _d=$(comm -3 "$WORK/k1" "$WORK/k2" | tr -d '\t' | tr '\n' ' ')
-    [ -n "$_d" ] && printf '%s and %s disagree on: %s\n' "$1" "$2" "$_d" >> "$WORK/conflicts"
+    [ -n "$_d" ] && printf '%s and %s disagree on: %s\n' "$1" "$2" "$_d" >> "$WORK/notices"
     return 0
 }
 
@@ -458,11 +458,11 @@ delete_one() {
     _f=$1; _O="$TOP/$dst/$_f"; _B="$TOP/$base_rel/$_f"
     { [ -e "$_O" ] || [ -L "$_O" ]; } || return 0
     if [ -d "$_O" ] && [ ! -L "$_O" ]; then
-        rmdir "$_O" 2>/dev/null || printf '%s/ (you deleted this dir; new base still has files in it -> kept)\n' "$_f" >> "$WORK/conflicts"
+        rmdir "$_O" 2>/dev/null || printf '%s/ (you deleted this dir; new base still has files in it -> kept)\n' "$_f" >> "$WORK/notices"
         return 0
     fi
     if [ -f "$_O" ] && [ ! -L "$_O" ] && [ -f "$_B" ] && ! cmp -s "$_O" "$_B"; then
-        printf '%s (you deleted it; new base changed it -> kept new version)\n' "$_f" >> "$WORK/conflicts"
+        printf '%s (you deleted it; new base changed it -> kept new version)\n' "$_f" >> "$WORK/notices"
         return 0
     fi
     rm -f "$_O"
@@ -537,7 +537,7 @@ else
     die "could not snapshot $dst; aborting before any change"
 fi
 
-: > "$WORK/merged"; : > "$WORK/conflicts"
+: > "$WORK/merged"; : > "$WORK/conflicts"; : > "$WORK/notices"
 
 # 0) apt configuration must land before the replay, or a package from a repository the user added is
 #    not findable while dst still has the old sources. Keyrings too, since a source without its key
@@ -633,7 +633,7 @@ if grep -qE '^etc/(passwd|shadow|group|gshadow)-?$' "$WORK/changed" 2>/dev/null;
     check_db_pair etc/group etc/gshadow
 fi
 
-_nmerged=$(cnt "$WORK/merged"); _nconf=$(cnt "$WORK/conflicts")
+_nmerged=$(cnt "$WORK/merged"); _nconf=$(cnt "$WORK/conflicts"); _nnote=$(cnt "$WORK/notices")
 echo
 echo "== migration summary: $src -> $dst =="
 printf '  packages:  +%s added   -%s removed\n' "$_na" "$_nr"
@@ -643,7 +643,11 @@ if [ "$_nconf" -gt 0 ]; then
 else
     echo "  everything merged cleanly; nothing to decide"
 fi
+# Settled by policy, so --resolve has nothing to offer for these: counted apart from the
+# decisions, or the summary would promise sidecars that do not exist.
+[ "$_nnote" -gt 0 ] && printf '  %s file(s) settled for you (no sidecar, nothing to resolve)\n' "$_nnote"
 [ "$verbose" = 1 ] && [ -s "$WORK/conflicts" ] && { echo; echo "-- files needing a decision --"; sed 's,^,  ,' "$WORK/conflicts"; }
+[ "$verbose" = 1 ] && [ -s "$WORK/notices" ]   && { echo; echo "-- settled for you --";        sed 's,^,  ,' "$WORK/notices"; }
 
 if [ -s "$WORK/conflicts" ]; then
     if [ "$no_resolve" = 1 ] || [ "$ASSUME_YES" = 1 ]; then
