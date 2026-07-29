@@ -17,8 +17,9 @@
 # text: user-added or user-changed accounts and group memberships are carried while service
 # accounts follow the new base. Everything the user changed is migrated EXCEPT a denylist of noise: package
 # files (replayed via apt instead), caches, regenerated runtime state, and generated/per-device
-# identity files (machine-id, ld.so.cache, and the like). SSH host keys ARE carried, so the
-# migrated profile keeps the device's ssh identity (no host-key-changed warnings).
+# identity files (machine-id, ld.so.cache, and the like). SSH host keys are carried explicitly,
+# by policy rather than by delta, so the migrated profile keeps the device's ssh identity even
+# though the build bakes the same keys into every image (no host-key-changed warnings).
 #
 # Default is a DRY RUN. -a/--apply performs it (snapshots <@dst> to @snapshots/<dst>_<ts>_before_
 # migrate first) and then, if any conflicts remain, drops straight into interactive resolution
@@ -476,6 +477,21 @@ while IFS= read -r f; do
     else echo "$f" >> "$WORK/overlap"; fi
 done < "$WORK/changed"
 
+# The ssh host keys ARE the device's identity, so they follow the device rather than the base.
+# They cannot ride along with the file merge: the keys are baked into the image, so src's copy
+# equals the ancestor's, the delta never mentions them, and dst would keep the keys of whatever
+# build it came from. Every migration would then change the device's ssh identity and greet the
+# user with a host-key warning. Carry them by policy, not by delta. Prints the src files dst does
+# not already have, so the preview and the apply always agree on the count.
+ssh_identity_files() {
+    [ -d "$TOP/$src/etc/ssh" ] || return 0
+    for _k in "$TOP/$src"/etc/ssh/ssh_host_*; do
+        [ -f "$_k" ] || continue
+        cmp -s "$_k" "$TOP/$dst/etc/ssh/${_k##*/}" && continue
+        printf '%s\n' "$_k"
+    done
+}
+
 # --- report ---
 cnt() { _c=$(wc -l < "$1" 2>/dev/null | tr -d ' '); printf '%s' "${_c:-0}"; }
 _na=$(printf '%s' "$added_pkgs" | wc -w | tr -d ' ')
@@ -486,6 +502,8 @@ echo
 echo "== migration preview: $src -> $dst =="
 printf '  packages:  +%s added   -%s removed\n' "$_na" "$_nr"
 printf '  files:     %s carried   %s changed by both sides   %s deleted   %s skipped as noise\n' "$_nc" "$_no" "$_nd" "$_noise"
+_nid=$(ssh_identity_files | wc -l | tr -d ' ')
+[ "${_nid:-0}" -gt 0 ] && printf '  identity:  %s ssh host key file(s), carried so %s keeps this device identity\n' "$_nid" "$dst"
 echo
 echo "  Carried, deleted and account databases apply automatically. The $_no changed-by-both"
 echo "  file(s) are 3-way merged on apply; only those that cannot merge cleanly will ask you to"
@@ -597,7 +615,16 @@ if [ -s "$WORK/deleted" ]; then
     while IFS= read -r f; do [ -n "$f" ] && delete_one "$f"; done < "$WORK/deleted.rev"
 fi
 
-# 4) merge_accountdb handles each database on its own, so nothing above guarantees they still
+# 4) Carry the ssh host keys, listed by ssh_identity_files above.
+_idn=0; _idfail=0
+for _k in $(ssh_identity_files); do
+    if rsync -aHAX "$_k" "$TOP/$dst/etc/ssh/${_k##*/}"; then _idn=$((_idn+1))
+    else _idfail=$((_idfail+1)); echo "Warning: could not carry ${_k##*/}" >&2; fi
+done
+[ "$_idn" -gt 0 ] && echo "carried $_idn ssh host key file(s), so '$dst' keeps this device's identity"
+[ "$_idfail" -gt 0 ] && echo "WARNING: $_idfail ssh host key file(s) could not be carried; '$dst' will present a different ssh identity and clients will report a changed host key" >&2
+
+# 5) merge_accountdb handles each database on its own, so nothing above guarantees they still
 # agree with each other: a passwd entry with no shadow entry is an account that cannot
 # authenticate, and group drifting from gshadow is what grpck exists to complain about.
 if grep -qE '^etc/(passwd|shadow|group|gshadow)-?$' "$WORK/changed" 2>/dev/null; then
