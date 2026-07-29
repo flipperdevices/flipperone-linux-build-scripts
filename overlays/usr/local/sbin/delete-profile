@@ -66,9 +66,4 @@ btrfs subvolume delete "$TOP/$rel" >/dev/null
 echo "Deleted '$rel'"
 
 # drop this profile's BLS entries + /boot/<token>/ staging
-lib=/usr/lib/flipper-bls.sh
-if [ -r "$lib" ]; then
-    ( . "$lib"; remove_root_entries "$rel" ) || echo "Warning: Entries/staging not fully removed for $rel" >&2
-else
-    echo "Warning: $lib not found; boot entry/staging not removed for $rel" >&2
-fi
+with_bls "entries/staging not fully removed for $rel" remove_root_entries "$rel"
