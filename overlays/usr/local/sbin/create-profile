@@ -104,12 +104,12 @@ if [ "$existed" = 1 ]; then
 fi
 if [ "$move" = 1 ]; then
     if ! mv "$src" "$tgt"; then
-        [ -n "$aside" ] && mv "$aside" "$tgt"
+        [ -n "$aside" ] && mv "$aside" "$tgt" || true
         die "Move failed; ${aside:+previous $rel restored, }nothing changed"
     fi
 else
     if ! btrfs subvolume snapshot "$src" "$tgt" >/dev/null; then
-        [ -n "$aside" ] && mv "$aside" "$tgt"
+        [ -n "$aside" ] && mv "$aside" "$tgt" || true
         die "Snapshot failed; ${aside:+previous $rel restored, }nothing changed"
     fi
 fi
