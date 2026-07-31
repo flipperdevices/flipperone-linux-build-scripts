@@ -3,7 +3,8 @@
 # (@Desktop, @Minimal, ...) and @<profile>_old_* leftovers from create-profile. KIND tags each
 # (profile/old); PARENT is what it was snapshotted from (via Parent UUID). Names are top-level
 # paths (what create-profile/rename-profile/delete-profile take). The booted profile is marked
-# <- booted. For _stock golden bases and restore points, see list-snapshots.
+# <- booted. LAST USED is when the profile last RAN: 'now' for the running one, 'never' if never.
+# For _stock golden bases and restore points, see list-snapshots.
 # Works via a subvolid=5 (top-level) mount.
 #
 # Example:
@@ -48,10 +49,30 @@ else
 fi
 echo
 
+# Newest of systemd's random-seed (written at every boot and clean shutdown) and timesyncd's clock
+# (written while the profile runs). Both are inherited from whatever the profile was made from, so
+# only a stamp newer than the profile's own creation counts; anything older reads 'never'.
+last_used() {  # $1 = fs path  $2 = creation epoch -> "YYYY-MM-DD HH:MM:SS" | never
+    _lu=""
+    for _w in var/lib/systemd/random-seed var/lib/systemd/timesync/clock; do
+        [ -f "$1/$_w" ] || continue
+        _t=$(stat -c '%Y %y' "$1/$_w" 2>/dev/null) || continue
+        [ -n "${2:-}" ] && [ "${_t%% *}" -le "$2" ] && continue
+        case "$_lu" in
+            "") _lu=$_t ;;
+            *)  [ "${_t%% *}" -gt "${_lu%% *}" ] && _lu=$_t ;;
+        esac
+    done
+    case "$_lu" in
+        "") printf 'never' ;;
+        *)  printf '%s' "$(printf '%s' "${_lu#* }" | cut -c1-19)" ;;
+    esac
+}
+
 emit() {  # $1=display name  $2=fs path
     info=$(btrfs subvolume show "$2" 2>/dev/null) || return 0
     id=$(get "$info" "Subvolume ID")
-    otime=$(get "$info" "Creation time"); otime=${otime% +*}
+    otime=$(get "$info" "Creation time")
     flags=$(get "$info" "Flags"); case "$flags" in *readonly*) flags=ro ;; *) flags=rw ;; esac
     parent=$(parent_of "$map" "$(get "$info" "Parent UUID")")
     case "$1" in
@@ -61,10 +82,17 @@ emit() {  # $1=display name  $2=fs path
         *)       kind=profile ;;
     esac
     mark=""; [ "$id" = "$cur_id" ] && mark="<- booted"
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$kind" "${id:-?}" "${otime:-?}" "$flags" "$parent" >> "$rows"
+    # convert while the "+0000" btrfs prints is still there: date -d without a zone assumes the
+    # reader's, which shifts the epoch whenever that differs from the zone the profile was made in
+    oepoch=$(date -d "$otime" +%s 2>/dev/null || echo "")
+    otime=${otime% +*}   # the column shows the time without the zone
+    # the profile we are running from writes its state at boot and then only now and then, so a
+    # timestamp here would read as stale for the one profile that is definitely in use
+    if [ -n "$mark" ]; then lu=now; else lu=$(last_used "$2" "$oepoch"); fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$mark" "$kind" "${id:-?}" "${otime:-?}" "$lu" "$flags" "$parent" >> "$rows"
 }
 
-printf 'NAME\t\tKIND\tID\tCREATED\tRO\tPARENT\n' > "$rows"
+printf 'NAME\t\tKIND\tID\tCREATED\tLAST USED\tRO\tPARENT\n' > "$rows"
 # top-level profile roots + @_old_* leftovers; skip shared/reserved subvols (@snapshots,
 # @stock-snapshots, ...) so stocks (now nested under @stock-snapshots) are not listed here
 for d in "$TOP"/@*; do
