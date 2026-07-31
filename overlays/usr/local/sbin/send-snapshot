@@ -140,10 +140,15 @@ echo "Sending $srel${parentpath:+ (incremental from $prel)}${dest:+ -> $dest}" >
 # no pipefail: run under set +e and check both ends (send via $send_stat, and compress);
 # discard partial output on any failure so a bad send never looks like a complete backup
 set +e
+# 9>&- : children inherit the lock descriptor, and the flock lives on the open file description, so
+# a child that outlives us keeps the lock held with no owner. A killed send used to leave zstd, pv
+# or a waiting flock holding it, and every writer tool would block until the next reboot.
+{
 if   [ "$have_pv" = 1 ] && [ "$sz" -gt 0 ]; then do_send | pv -pterb -s "$sz" | emit
 elif [ "$have_pv" = 1 ];                    then do_send | pv -btr | emit
 else                                              do_send | emit
 fi
+} 9>&-
 emit_rc=$?
 set -e
 send_rc=$(cat "$send_stat" 2>/dev/null || echo 1)
