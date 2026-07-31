@@ -65,6 +65,10 @@ src="$TOP/$src_rel"
 # dest -> exact top-level name (default: booted root)
 case "$dest" in
     current|booted|"") root_is_btrfs || die "No booted profile to default <@dest> to; pass an explicit <@dest> (e.g. @Desktop-2)"
+                       # 'current' means the profile we booted from, which does not exist on another
+                       # filesystem. Resolving it there would take its NAME and replace whatever
+                       # happens to be called that on the target, moving the user's profile aside.
+                       top_is_booted_fs || die "No booted profile to default <@dest> to on $ROOTDEV, which is not the filesystem you booted from; pass an explicit <@dest> (e.g. @Desktop-2)"
                        rel=$(current_subvol)
                        [ -n "$rel" ] || die "Cannot determine booted subvolume" ;;
     *)                 rel=$dest; validate_profile_name "$rel" ;;
