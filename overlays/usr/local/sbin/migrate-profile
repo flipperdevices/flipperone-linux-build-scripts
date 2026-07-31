@@ -208,6 +208,7 @@ migrate compares $src against the _stock it was built from to work out what you 
   receive-snapshot <path-to-${base#@}_pack.zst>"
 
 echo "migrate: $src -> $dst"
+[ -n "$cur_subvol" ] || echo "  filesystem: $ROOTDEV, which is not the one you booted from"
 echo "  ancestor: $base"
 echo "  merge engine: $merger"
 [ "$apply" = 1 ] && echo "  mode: APPLY" || echo "  mode: dry run"
