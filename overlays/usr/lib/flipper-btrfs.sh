@@ -123,8 +123,9 @@ mount_top() {
 }
 top_cleanup() {
     # the holder line outlives the flock the kernel drops for us, so blank it: no waiter should read
-    # a pid gone for days
-    [ "${LOCK_HELD:-0}" = 1 ] && : > "$LOCK_FILE" 2>/dev/null
+    # a pid gone for days. Subshell: a failed '>' on the special builtin ':' exits the shell outright,
+    # too early for '|| true' to catch, and the unmount below still has to run
+    [ "${LOCK_HELD:-0}" = 1 ] && ( : > "$LOCK_FILE" ) 2>/dev/null || true
     if [ -n "${TOP:-}" ]; then
         for _i in 1 2 3 4 5; do
             umount "$TOP" 2>/dev/null && break
@@ -135,7 +136,7 @@ top_cleanup() {
         done
         rmdir "$TOP" 2>/dev/null || true
     fi
-    [ -n "${TOP_TMPFILES:-}" ] && rm -f $TOP_TMPFILES
+    [ -n "${TOP_TMPFILES:-}" ] && rm -f $TOP_TMPFILES || true
     return 0
 }
 

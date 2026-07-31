@@ -98,7 +98,7 @@ remove_entries() {  # $1 = subvol  $2 = version
         [ "$(awk '$1=="version"{print $2; exit}' "$_c")" = "$2" ] || continue
         _es="$(awk '$1=="options"{for(i=2;i<=NF;i++) if($i ~ /^rootflags=subvol=/) s=$i}
                     END{sub(/^rootflags=subvol=/,"",s); print s}' "$_c")"
-        [ "$_es" = "$1" ] && rm -f "$_c"
+        [ "$_es" = "$1" ] && rm -f "$_c" || true
     done
     return 0   # a non-matching last entry must not fail the loop under set -e
 }
