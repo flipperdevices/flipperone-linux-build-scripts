@@ -115,7 +115,10 @@ mount_top() {
     [ -n "${ROOTDEV:-}" ] || ROOTDEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
     [ -n "$ROOTDEV" ] || die "Cannot determine root device (use -d/--device)"
     [ -b "$ROOTDEV" ] || die "Not a block device: $ROOTDEV"
-    TOP=$(mktemp -d)
+    # NOT under /tmp: `rm -rf /tmp/tmp.*` while a tool holds its mount recurses through the whole
+    # filesystem, and rmdir removes an empty subvolume, so it deletes profiles, @home and boot.
+    # /run is tmpfs, root-only, and nobody sweeps it by glob.
+    TOP=$(mktemp -d /run/flipper-btrfs.mnt.XXXXXX 2>/dev/null || mktemp -d)
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
 top_cleanup() {
