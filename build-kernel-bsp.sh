@@ -55,6 +55,10 @@ if [ ! x"$KEEP_SRC" = x"yes" ]; then
 	mv "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/luckfox-omni3576.dts "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/rk3576-luckfox-omni3576.dts
 	echo 'dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-luckfox-omni3576.dtb' >> "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/Makefile
 
+	for i in "$LINUX_DIR"/arch/arm64/boot/dts/rockchip/*3576*.dts*; do
+		sed -i 's/hdptxphy_hdmi/hdptxphy/' "$i"
+	done
+
 	for f in "$PATCHES_DIR"/*.patch; do
 		[ -f "$f" ] || continue
 		echo "Applying patch: $f"
