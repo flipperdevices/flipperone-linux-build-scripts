@@ -1,0 +1,16 @@
+diff --git a/scripts/package/builddeb b/scripts/package/builddeb
+index 67cd420dcf89..ea2476d3a456 100755
+--- a/scripts/package/builddeb
++++ b/scripts/package/builddeb
+@@ -149,6 +149,11 @@ else
+ fi
+ cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/$installed_image_path"
+ 
++mkdir -p "$tmpdir/lib/modules/${KERNELRELEASE}"
++cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
++cp System.map "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
++cp $KCONFIG_CONFIG "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
++
+ if is_enabled CONFIG_OF_EARLY_FLATTREE; then
+ 	# Only some architectures with OF support have this target
+ 	if [ -d "${srctree}/arch/$SRCARCH/boot/dts" ]; then
