@@ -95,6 +95,31 @@ TMPDIRS=""
 cleanup() { [ -n "$TMPDIRS" ] && rm -rf $TMPDIRS; }
 trap cleanup EXIT
 
+cat_or_uncompress() {
+	src=$1
+	dst=$2
+	case $(file -b --mime-type -- "$src") in
+		application/gzip|application/x-gzip) gzip  -cd  -- "$src" ;;
+		application/x-xz)                    xz    -cd  -- "$src" ;;
+		application/zstd)                    zstd  -cdq -- "$src" ;;
+		application/x-lz4)                   lz4   -cd  -- "$src" ;;
+		application/x-bzip2)                 bzip2 -cd  -- "$src" ;;
+		application/x-lzma)                  lzma  -cd  -- "$src" ;;
+		*)                                   cat        -- "$src" ;;
+	esac > "$dst"
+}
+
+if [ -f "$INSTALLER_KERNEL" ]; then
+	INSTALLER_IMAGE=$(mktemp)
+	TMPDIRS="$TMPDIRS $INSTALLER_IMAGE"
+	cat_or_uncompress "$INSTALLER_KERNEL" "$INSTALLER_IMAGE"
+fi
+if [ -f "$BOOTMENU_KERNEL" ]; then
+	BOOTMENU_IMAGE=$(mktemp)
+	TMPDIRS="$TMPDIRS $BOOTMENU_IMAGE"
+	cat_or_uncompress "$BOOTMENU_KERNEL" "$BOOTMENU_IMAGE"
+fi
+
 build_board() {
 	local i="$1"
 	local out="$2"	# out-of-tree temp build dir
@@ -102,14 +127,44 @@ build_board() {
 	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
 		CROSS_COMPILE="$CROSS_COMPILE" \
 		"$i"-rk3576_defconfig rockchip-ramboot.config || return 1
+
 	"$UBOOT_DIR"/scripts/kconfig/merge_config.sh -m -O "$out" "$out/.config" "$CONFIGS" || return 1
-	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-		CROSS_COMPILE="$CROSS_COMPILE" \
-		BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" || return 1
+
+	if [ -f "$INSTALLER_IMAGE" -o -f "$BOOTMENU_IMAGE" ]; then
+		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+	                CROSS_COMPILE="$CROSS_COMPILE" \
+			rockchip-falcon.config || return 1
+	else
+		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+			CROSS_COMPILE="$CROSS_COMPILE" \
+			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" || return 1
+	fi
+
+	if [ -f "$INSTALLER_IMAGE" ]; then
+		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+			CROSS_COMPILE="$CROSS_COMPILE" \
+			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" \
+			LINUX_KERNEL="$INSTALLER_IMAGE" LINUX_INITRD="$INSTALLER_INITRD" || return 1
+			mv "$out"/u-boot-rockchip-falcon.itb "$out"/installer-falcon.itb
+			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/installer-falcon-usb472.bin
+	fi
+
+	if [ -f "$BOOTMENU_IMAGE" ]; then
+		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+			CROSS_COMPILE="$CROSS_COMPILE" \
+			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" \
+			LINUX_KERNEL="$BOOTMENU_IMAGE" LINUX_INITRD="$BOOTMENU_INITRD" || return 1
+			mv "$out"/u-boot-rockchip-falcon.itb "$out"/bootmenu-falcon.itb
+			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/bootmenu-falcon-usb472.bin
+	fi
 
 	rm -rf "$UBOOT_OUT/$i"
 	mkdir -p "$UBOOT_OUT/$i"
-	cp "$out"/u-boot-rockchip*.bin "$UBOOT_OUT/$i"/
+
+	find "$out" -maxdepth 1 \
+		\( -name 'u-boot-rockchip*.bin' -o -name 'idbloader.img' -o -name '*-falcon.itb' -o -name '*-falcon-usb472.bin' \) \
+		-exec cp -t "$UBOOT_OUT/$i"/ {} +
+
 	cp "$RKBIN_DIR"/rk3576_*loader_*.bin "$UBOOT_OUT/$i"/
 }
 
