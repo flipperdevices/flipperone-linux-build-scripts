@@ -2,10 +2,11 @@
 Description=Report imminent reboot to the Flipper One MCU
 DefaultDependencies=no
 Before=shutdown.target
+ConditionPathExistsGlob=/sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'echo reboot-request > /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate'
+ExecStart=/bin/sh -c 'for f in /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate; do echo reboot-request > "$f"; done'
 
 [Install]
 WantedBy=reboot.target

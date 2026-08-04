@@ -1,11 +1,12 @@
 [Unit]
 Description=Report boot completion to the Flipper One MCU
 After=multi-user.target
+ConditionPathExistsGlob=/sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c 'echo online > /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate'
+ExecStart=/bin/sh -c 'for f in /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate; do echo online > "$f"; done'
 
 [Install]
 WantedBy=multi-user.target
