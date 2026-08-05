@@ -147,6 +147,7 @@ build_board() {
 			LINUX_KERNEL="$INSTALLER_IMAGE" LINUX_INITRD="$INSTALLER_INITRD" || return 1
 			mv "$out"/u-boot-rockchip-falcon.itb "$out"/installer-falcon.itb
 			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/installer-falcon-usb472.bin
+			mv "$out"/u-boot-rockchip-loader-falcon.bin "$out"/installer-falcon-loader.bin
 	fi
 
 	if [ -f "$BOOTMENU_IMAGE" ]; then
@@ -156,6 +157,7 @@ build_board() {
 			LINUX_KERNEL="$BOOTMENU_IMAGE" LINUX_INITRD="$BOOTMENU_INITRD" || return 1
 			mv "$out"/u-boot-rockchip-falcon.itb "$out"/bootmenu-falcon.itb
 			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/bootmenu-falcon-usb472.bin
+			mv "$out"/u-boot-rockchip-loader-falcon.bin "$out"/bootmenu-falcon-loader.bin
 	fi
 
 	rm -rf "$UBOOT_OUT/$i"
