@@ -62,16 +62,60 @@ if [ -n "${ROOTDEV:-}" ] || ! root_is_btrfs; then mount_top; MNT=$TOP; fi
 do_dedup() {
     need_cmd duperemove
     [ -n "${TOP:-}" ] || mount_top
-    HASHFILE=$TOP/@var-cache/.duperemove_hashes.db
+    # @var-cache is where the hashfile belongs, so it survives between runs and is not itself
+    # deduped. It is only there on filesystems our image built, and -d/--device exists precisely
+    # for the others, where duperemove would otherwise fail with an opaque "Error opening db".
+    if [ -d "$TOP/@var-cache" ]; then
+        HASHFILE=$TOP/@var-cache/.duperemove_hashes.db
+    else
+        HASHFILE=$(mktemp -u)
+        TOP_TMPFILES="${TOP_TMPFILES:-} $HASHFILE"
+        echo "No @var-cache on this filesystem; keeping duperemove's hash db in $HASHFILE for this run only" >&2
+    fi
     _excl=""
     for _p in $(btrfs subvolume list -r "$TOP" | awk '{print $NF}'); do
         _excl="$_excl --exclude=$TOP/$_p"
     done
-    duperemove -dhr --hashfile="$HASHFILE" --exclude="$HASHFILE*" $_excl "$TOP" || die "Duperemove failed (rc=$?)"
+    # duperemove exits 22 with "No dedupe candidates found" when there is nothing to do, which is
+    # not a failure. Keep the output live and read the status separately, since a pipeline reports
+    # only the last command's.
+    _dlog=$(mktemp); _drc=$(mktemp)
+    TOP_TMPFILES="${TOP_TMPFILES:-} $_dlog $_drc"
+    { duperemove -dhr --hashfile="$HASHFILE" --exclude="$HASHFILE*" $_excl "$TOP" 2>&1 || echo $? > "$_drc"; } | tee "$_dlog"
+    _rc=0
+    if [ -s "$_drc" ]; then _rc=$(cat "$_drc"); fi
+    if [ "$_rc" != 0 ]; then
+        if [ "$_rc" = 22 ] && grep -q 'No dedupe candidates found' "$_dlog"; then
+            echo "Nothing to dedup here: duperemove found no candidates, so no space was reclaimed"
+        else
+            die "Duperemove failed (rc=$_rc)"
+        fi
+    fi
 }
 
 [ "$lock" = 1 ]     && set_lock
-[ "$do_scrub" = 1 ] && btrfs scrub start -B $scrub_ro "$MNT"
+# A scrub that reports errors ended the run here with nothing said, so 'all' silently did no dedup
+# and no balance. Stopping is right, since both rewrite extents and that is not what a filesystem
+# with unfixed errors needs, but it has to be stated.
+if [ "$do_scrub" = 1 ] && ! btrfs scrub start -B $scrub_ro "$MNT"; then
+    if [ "$dedup" = 1 ] || [ "$balance" = 1 ]; then
+        die "Scrub failed or reported errors, so dedup and balance were not run: both rewrite extents, which a filesystem with unfixed errors does not need. Try 'btrfs-maintenance fix', then run this again"
+    fi
+    die "Scrub failed or reported errors on $MNT"
+fi
 [ "$dedup" = 1 ]    && do_dedup
-[ "$balance" = 1 ]  && btrfs balance start -dusage=20 -musage=10 "$MNT"
+if [ "$balance" = 1 ]; then
+    # A balance needs somewhere to move chunks to. On a nearly full filesystem btrfs reports
+    # ENOSPC through the kernel log and leaves the caller with "try dmesg | tail", so say it here.
+    if ! _berr=$(btrfs balance start -dusage=20 -musage=10 "$MNT" 2>&1); then
+        printf '%s\n' "$_berr" >&2
+        case "$_berr" in
+            *"No space left"*|*ENOSPC*|*enospc*) die "Balance needs free space to move chunks into, and this filesystem has too little; free some and retry" ;;
+        esac
+        if dmesg 2>/dev/null | tail -40 | grep -qi 'enospc errors during balance'; then
+            die "Balance hit ENOSPC (kernel log): too little free space to move chunks; free some and retry"
+        fi
+        die "Balance failed"
+    fi
+fi
 exit 0
