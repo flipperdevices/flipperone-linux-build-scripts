@@ -283,6 +283,40 @@ manual_set() {  # $1 = subvol rel -> sorted list of manually-installed packages
     else : > "$WORK/auto"; fi
     comm -23 "$WORK/inst" "$WORK/auto"
 }
+
+# The version src has installed, so a recovered .deb can be matched against it. $1 = package.
+installed_ver() {
+    awk -v p="$1" 'BEGIN{RS="";FS="\n"} { n=""; v="";
+        for(i=1;i<=NF;i++){ if($i ~ /^Package: /) n=substr($i,10); else if($i ~ /^Version: /) v=substr($i,10) }
+        if(n==p){ print v; exit } }' "$TOP/$src/var/lib/dpkg/status" 2>/dev/null
+}
+
+# A hand-installed package is in no repository, but its .deb often still exists: src's apt cache, or
+# wherever the user put it. @home and @root are shared, so a .deb there is reachable from dst. No
+# depth limit, since one below a cutoff would be reported as missing.
+collect_debs() {
+    : > "$WORK/debs"
+    for _dir in "$TOP/$src/var/cache/apt/archives" "$TOP/@root" "$TOP/@home"; do
+        # find exits non-zero if anything under these roots is unreadable or vanishes mid-walk,
+        # which would end the migration here rather than just yielding fewer candidates
+        if [ -d "$_dir" ]; then find "$_dir" -type f -name '*.deb' >> "$WORK/debs" 2>/dev/null || true; fi
+    done
+    return 0
+}
+
+# Print a .deb whose control says it really is this package, preferring the version src had.
+# $1 = package, $2 = wanted version, $3 = dpkg architecture.
+find_deb() {
+    _fallback=""
+    while IFS= read -r _cand; do
+        [ "$(dpkg-deb -f "$_cand" Package 2>/dev/null)" = "$1" ] || continue
+        case "$(dpkg-deb -f "$_cand" Architecture 2>/dev/null)" in "$3"|all) ;; *) continue ;; esac
+        [ "$(dpkg-deb -f "$_cand" Version 2>/dev/null)" = "$2" ] && { printf '%s' "$_cand"; return 0; }
+        [ -n "$_fallback" ] || _fallback=$_cand
+    done < "$WORK/debs"
+    [ -n "$_fallback" ] || return 1
+    printf '%s' "$_fallback"
+}
 manual_set "$base_rel" > "$WORK/pkg.base"
 manual_set "$src"  > "$WORK/pkg.src"
 added_pkgs=$(comm -13 "$WORK/pkg.base" "$WORK/pkg.src" | tr '\n' ' ')
@@ -548,7 +582,28 @@ if [ -n "$added_pkgs" ] || { [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ];
             if chroot "$TOP/$dst" apt-get install -y --dry-run "$_p" >/dev/null 2>&1; then _ok="$_ok $_p"; else _miss="$_miss $_p"; fi
         done
         [ -n "$_ok" ] && { echo "  installing:$_ok"; chroot "$TOP/$dst" apt-get install -y $_ok || echo "WARN: apt install failed; packages not installed:$_ok" >&2; }
-        [ -n "$_miss" ] && echo "NOTE: could not reinstall (not in a repo; install by hand):$_miss" >&2
+        if [ -n "$_miss" ]; then
+            # nothing in a repo provides these, so look for the .deb itself before giving up
+            echo "  looking for a local .deb for:$_miss"
+            collect_debs
+            # the target's architecture, not ours: under -d they need not be the same
+            _debarch=$(chroot "$TOP/$dst" dpkg --print-architecture 2>/dev/null || echo all)
+            _recovered=""; _stillmiss=""
+            for _p in $_miss; do
+                _debfile=$(find_deb "$_p" "$(installed_ver "$_p")" "$_debarch") || _debfile=""
+                if [ -z "$_debfile" ]; then _stillmiss="$_stillmiss $_p"; continue; fi
+                mkdir -p "$TOP/$dst/var/cache/apt/archives"
+                cp -f "$_debfile" "$TOP/$dst/var/cache/apt/archives/" 2>/dev/null || true
+                if chroot "$TOP/$dst" apt-get install -y "/var/cache/apt/archives/${_debfile##*/}" >/dev/null 2>&1; then
+                    _recovered="$_recovered $_p($(dpkg-deb -f "$_debfile" Version 2>/dev/null))"
+                else
+                    _stillmiss="$_stillmiss $_p"
+                    echo "WARN: found ${_debfile#"$TOP"/} for $_p but installing it failed (dependencies?)" >&2
+                fi
+            done
+            [ -n "$_recovered" ] && echo "  installed from a local .deb:$_recovered"
+            [ -n "$_stillmiss" ] && echo "NOTE: could not reinstall (not in a repo, no .deb found; install by hand):$_stillmiss" >&2
+        fi
     fi
     [ "$purge_removed" = 1 ] && [ -n "$removed_pkgs" ] && { echo "  purging removed:$removed_pkgs"; chroot "$TOP/$dst" apt-get purge -y $removed_pkgs || true; }
     rm -f "$_rc"; [ -n "$_rcbak" ] && mv "$_rcbak" "$_rc"   # restore dst's original resolv.conf
