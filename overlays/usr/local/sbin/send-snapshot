@@ -61,7 +61,9 @@ fi
 
 send_stat=$(mktemp)
 TOP_TMPFILES="$send_stat"
-set_lock
+# No lock yet: a send only reads. Only the ro snapshot of a read-write source mutates, and it takes
+# the lock just for that. Holding it across the stream blocks every writer for the whole send, and
+# deadlocks a local 'send-snapshot - | receive-snapshot -'.
 mount_top
 
 parent_path_of() {  # $1 = fs path -> top-relative path of its parent subvol (empty if none)
@@ -90,9 +92,11 @@ case "${srel##*/}" in
             # btrfs send needs a ro source; snapshot the rw one ro into @snapshots (kept as a
             # restore point) and send that. Each send captures current state, so re-sends never collide.
             [ -d "$TOP/@snapshots" ] || die "@snapshots not found at top level (needed for a ro snapshot)"
+            set_lock
             rosnap="@snapshots/${src_name##*/}_$(stamp)"
             [ -e "$TOP/$rosnap" ] && die "Snapshot already exists: $rosnap"
             btrfs subvolume snapshot -r "$srcpath" "$TOP/$rosnap" >/dev/null || die "Failed to make a ro snapshot of $src_name"
+            release_lock
             echo "Source is read-write; made ro snapshot $rosnap (kept) and sending it" >&2
             srel=$rosnap; srcpath="$TOP/$rosnap"
         fi ;;
