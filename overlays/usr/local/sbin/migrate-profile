@@ -68,13 +68,13 @@ done
 need_root
 need_btrfs
 
-WORK=$(mktemp -d)
 ACCOUNTDB_AWK=/usr/lib/flipper-accountdb.awk
 SRCSNAP=""
 mig_cleanup() {
     [ -n "$SRCSNAP" ] && btrfs subvolume delete "$SRCSNAP" >/dev/null 2>&1 || true
     top_cleanup
-    rm -rf "$WORK"
+    if [ -n "${WORK:-}" ]; then rm -rf "$WORK" || true; fi
+    return 0
 }
 
 ask_tty() {
@@ -154,6 +154,10 @@ resolve_mode() {
 
 mount_top
 trap mig_cleanup EXIT
+# Created only once mig_cleanup owns the EXIT trap. mount_top installs its own trap and would
+# clobber ours, so anything made before this line is leaked when mount_top itself dies, which is
+# what a recovery boot does on every invocation that forgets -d.
+WORK=$(mktemp -d)
 
 if [ "$resolve" = 1 ]; then resolve_mode "$1"; exit 0; fi
 
