@@ -84,6 +84,18 @@ validate_profile_name() {
 # file so a blocked waiter can say who it is waiting on. Read-only tools do not take it, and it
 # does NOT guard against concurrent native `btrfs` commands, which honor no lock.
 LOCK_FILE=/run/flipper-btrfs.lock
+
+# True if we are the OPPOSITE end of a pipe from that pid (our stdout is its stdin, or the reverse).
+# Sharing the same end does not count: siblings from one shell inherit the same stdin. /proc names a
+# pipe as pipe:[<inode>], so the inode is the identity.
+pipe_shared_with() {  # $1 = pid
+    _out=$(readlink "/proc/$$/fd/1" 2>/dev/null || true)
+    _in=$(readlink "/proc/$$/fd/0" 2>/dev/null || true)
+    case "$_out" in pipe:*) [ "$_out" = "$(readlink "/proc/$1/fd/0" 2>/dev/null || true)" ] && return 0 ;; esac
+    case "$_in" in pipe:*) [ "$_in" = "$(readlink "/proc/$1/fd/1" 2>/dev/null || true)" ] && return 0 ;; esac
+    return 1
+}
+
 set_lock() {
     exec 9<>"$LOCK_FILE" || die "Cannot open lock $LOCK_FILE"   # <> = don't truncate the holder line
     if ! flock -w 0 9 2>/dev/null; then
@@ -94,11 +106,29 @@ set_lock() {
         case "$_hp" in
             [0-9]*) kill -0 "$_hp" 2>/dev/null || _h="$_h, which is no longer running; the line is stale" ;;
         esac
+        # A holder on the other end of our pipe can never release: it is blocked reading what we
+        # have not written. Waiting is then a deadlock, so say so. A holder that merely shares our
+        # process group (a sibling job from one script) is not that case and must be waited for.
+        case "$_hp" in
+            [0-9]*) if kill -0 "$_hp" 2>/dev/null && pipe_shared_with "$_hp"; then
+                        die "$_h holds the lock and is on the other end of our pipe, so waiting would deadlock. Piping one of our tools into another on the same machine cannot work: write the stream to a file and read it back, or run one side on another host"
+                    fi ;;
+        esac
         echo "Another flipper-btrfs operation is in progress ($_h); waiting for it to finish..." >&2
         flock 9 || die "Cannot acquire lock $LOCK_FILE"
     fi
     printf 'PID %s (%s)\n' "$$" "${0##*/}" >"$LOCK_FILE" || true
     LOCK_HELD=1
+}
+
+# Drop the lock before a long read-only phase, so a writer does not queue behind work that no
+# longer mutates anything. The kernel releases the flock when the last descriptor closes, and
+# children inherit fd 9, so this only takes effect for what we start afterwards.
+release_lock() {
+    [ "${LOCK_HELD:-0}" = 1 ] || return 0
+    ( : > "$LOCK_FILE" ) 2>/dev/null || true
+    exec 9>&-
+    LOCK_HELD=0
 }
 
 # Mount the btrfs top level (subvolid=5) at a temp dir and arrange teardown on EXIT.
