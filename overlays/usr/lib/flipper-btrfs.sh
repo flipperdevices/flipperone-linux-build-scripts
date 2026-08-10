@@ -25,14 +25,14 @@ root_is_btrfs() { [ "$(findmnt -no FSTYPE / 2>/dev/null)" = btrfs ]; }
 # The subvolume mounted at / (e.g. @Desktop), empty if there is none. findmnt cannot answer inside a
 # chroot, so fall back to asking btrfs. flipper-bls.sh keeps its own copy: kernel-install hooks
 # source that file without this one.
-current_subvol() {
+booted_subvol() {
     _cs=$(findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,')
     [ -n "$_cs" ] || _cs=$(btrfs subvolume show / 2>/dev/null | sed -n '1{s,^/*,,;s,[[:space:]]*$,,;p}')
     printf '%s' "$_cs"
 }
 
-# btrfs FS UUID of the mounted root, empty if unknown. Same reasoning as current_subvol.
-current_fsuuid() {
+# btrfs FS UUID of the mounted root, empty if unknown. Same reasoning as booted_subvol.
+booted_fsuuid() {
     _fu=$(findmnt -nro UUID / 2>/dev/null)
     [ -n "$_fu" ] || _fu=$(btrfs filesystem show / 2>/dev/null | sed -n 's/.*[[:space:]]uuid:[[:space:]]*//p' | head -1)
     printf '%s' "$_fu"
@@ -201,9 +201,9 @@ subvol_id() { get "$(btrfs subvolume show "$1" 2>/dev/null)" "Subvolume ID"; }
 # proof empties it: a probe that cannot answer must not disarm the refusals that read this.
 top_booted() {  # needs ROOTDEV
     root_is_btrfs || return 0
-    _bu=$(current_fsuuid); _tu=$(top_fsuuid)
+    _bu=$(booted_fsuuid); _tu=$(top_fsuuid)
     [ -n "$_bu" ] && [ -n "$_tu" ] && [ "$_bu" != "$_tu" ] && return 0
-    case "$1" in id) subvol_id / ;; subvol) current_subvol ;; esac
+    case "$1" in id) subvol_id / ;; subvol) booted_subvol ;; esac
 }
 
 # True if the subvolume at $1 is read-only.
