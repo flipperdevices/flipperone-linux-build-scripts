@@ -53,6 +53,11 @@ if [ "$src" != "-" ]; then
     case "$name" in ?*_stock) target="$TOP/@stock-snapshots" ;; esac
 fi
 [ -d "$target" ] || die "${target##*/} not found at top level"
+# btrfs receive refuses to replace an existing subvolume, and it says so only once the stream has
+# been transferred. Where the name was read up front, answer it here instead.
+if [ -n "${name:-}" ] && [ -e "$target/$name" ]; then
+    die "Already present: ${target##*/}/$name (btrfs receive cannot replace it); delete-snapshot ${target##*/}/$name first"
+fi
 
 before=$(btrfs subvolume list -o "$target" 2>/dev/null | wc -l)
 
@@ -66,6 +71,23 @@ else                                               zstd -dc               | btrf
 fi
 rc=$?
 set -e
-[ "$rc" = 0 ] || die "Receive failed (rc=$rc); check the stream and that any parent snapshot exists here"
+if [ "$rc" != 0 ]; then
+    # btrfs turns the subvolume read-only only once the whole stream is in, so a failure leaves a
+    # writable partial behind. Left there, it is what the retry collides with.
+    if [ -n "${name:-}" ] && [ -e "$target/$name" ]; then
+        # ours only while it is still writable: btrfs sets ro on success, and our lock cannot stop
+        # a hand-run btrfs command from taking the name while we streamed
+        if is_ro "$target/$name"; then
+            echo "Warning: ${target##*/}/$name is read-only, so it is not our partial; left alone" >&2
+        elif btrfs subvolume delete "$target/$name" >/dev/null 2>&1; then
+            echo "Removed the incomplete ${target##*/}/$name" >&2
+        else
+            echo "Warning: could not remove the incomplete ${target##*/}/$name; delete it before retrying" >&2
+        fi
+    elif [ "$(btrfs subvolume list -o "$target" 2>/dev/null | wc -l)" != "$before" ]; then
+        echo "Warning: an incomplete subvolume may be left in ${target##*/}/; delete it before retrying" >&2
+    fi
+    die "Receive failed (rc=$rc); check the stream and that any parent snapshot exists here"
+fi
 
 echo "Received into ${target##*/}/ (now $(btrfs subvolume list -o "$target" 2>/dev/null | wc -l) entries, was $before)"
