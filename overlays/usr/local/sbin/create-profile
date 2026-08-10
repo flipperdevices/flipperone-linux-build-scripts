@@ -144,21 +144,9 @@ if [ -f "$fst" ]; then
     [ -n "$cur" ] && [ -n "$old" ] && [ "$cur" != "$old" ] && { sed -i "s/$old/$cur/g" "$fst"; echo "fstab: rewrote fs UUID $old -> $cur"; }
 fi
 
-# BLS entry + /etc/kernel/entry-token via flipper-bls.sh, in a subshell so its die can't abort
-# us. Pass the SOURCE as origin hint so the root lands in that profile's band if parent_uuid is
-# left dangling.
-lib=/usr/lib/flipper-bls.sh
-if [ -r "$lib" ]; then
-    (
-      # entries live on the filesystem we are operating on, not on the running root under -d,
-      # and its UUID is what the cmdline must name
-      ENTRIES="$TOP/boot/loader/entries"
-      TARGET_FSUUID="$(top_fsuuid)"
-      . "$lib"; flipper_write_entry "$rel" "$tgt" "$src_rel" ) \
-        || echo "Warning: Boot entry not created for $rel" >&2
-else
-    echo "Warning: $lib not found; no boot entry created for $rel" >&2
-fi
+# BLS entry + /etc/kernel/entry-token. Pass the SOURCE as origin hint so the root lands in that
+# profile's band if parent_uuid is left dangling.
+with_bls "boot entry not created for $rel" flipper_write_entry "$rel" "$tgt" "$src_rel"
 
 if [ "$move" = 1 ]; then verb="moved"; else verb="created"; fi
 if [ "$existed" = 1 ]; then
