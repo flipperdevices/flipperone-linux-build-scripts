@@ -263,6 +263,21 @@ align_table() {
     }' "$1"
 }
 
+# Run a flipper-bls.sh function against the filesystem being operated on: its entries directory and
+# its UUID for the cmdline, not the running root's under -d. Subshell so the library's die cannot
+# abort us; a failure warns and returns, as the boot entry is never the point of the operation.
+with_bls() {  # $1 = what fails, for the warning; rest = function and arguments. Needs TOP
+    _what=$1; shift
+    _lib=/usr/lib/flipper-bls.sh
+    if [ -r "$_lib" ]; then
+        ( ENTRIES="$TOP/boot/loader/entries"; TARGET_FSUUID="$(top_fsuuid)"; . "$_lib"; "$@" ) \
+            || echo "Warning: $_what" >&2
+    else
+        echo "Warning: $_lib not found; $_what" >&2
+    fi
+    return 0
+}
+
 # Stamp a _stock's factory-origin marker (/etc/profile_origin) so migrate-profile can find a
 # profile's base after the btrfs parent chain is broken by deletions. Profiles snapshotted from
 # the stock inherit the file; matching later is by name, not by uuid (a snapshot clears that).
