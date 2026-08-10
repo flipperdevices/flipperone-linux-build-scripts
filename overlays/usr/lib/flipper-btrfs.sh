@@ -44,14 +44,11 @@ current_fsuuid() {
 HELP_YES="  -y,--yes    assume yes to prompts (non-interactive)"
 HELP_DEVICE="  -d,--device operate on btrfs filesystem DEV instead of the booted root (e.g. recovery)"
 
-# UUID of the filesystem mount_top opened, which is the one being operated on. current_fsuuid()
-# answers for the BOOTED root instead, which is a different filesystem under -d and nothing at all
-# in a recovery boot, where every consumer then silently skipped its work.
-top_fsuuid() {
-    _tfu=$(blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null)
-    [ -n "$_tfu" ] || _tfu=$(current_fsuuid)
-    printf '%s' "$_tfu"
-}
+# UUID of the filesystem being operated on, empty if blkid cannot say. Never falls back to the
+# booted root's: under -d that is a different filesystem, so a fallback would hand every caller the
+# wrong UUID exactly when it cannot check. Callers that want the booted root when this is empty say
+# so themselves (flipper-bls.sh does, for the cmdline root=UUID).
+top_fsuuid() { blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null; }
 
 # Non-interactive switch for confirm(): set to 1 by -y/--yes, or via the environment
 # (ASSUME_YES=1 <tool> ...) so the tools can run unattended from scripts.
@@ -160,14 +157,6 @@ mount_top() {
     TOP=$(mktemp -d /run/flipper-btrfs.mnt.XXXXXX 2>/dev/null || mktemp -d)
     _err=$(mount -o subvolid=5 "$ROOTDEV" "$TOP" 2>&1) || die "Mount failed: $_err"
 }
-# True if the filesystem mount_top opened is the one we booted from, so the booted profile and its
-# subvolume ids mean something here. Under -d/--device (recovery) the two filesystems are unrelated
-# and their ids collide by accident, which would mark or refuse the wrong subvolume. Needs ROOTDEV.
-top_is_booted_fs() {
-    root_is_btrfs || return 1
-    _tu=$(blkid -o value -s UUID "${ROOTDEV:-}" 2>/dev/null)
-    [ -n "$_tu" ] && [ "$_tu" = "$(current_fsuuid)" ]
-}
 
 # Best-effort was not good enough: on a signal the children (btrfs send/receive, zstd) are still
 # dying, so the first umount can lose the race with EBUSY and the top-level mount leaks for the rest
@@ -206,7 +195,16 @@ resolve_rel() {
 get() { printf '%s\n' "$1" | awk -v k="$2" -F':[[:space:]]+' 'index($0,k){print $2; exit}'; }
 
 subvol_id() { get "$(btrfs subvolume show "$1" 2>/dev/null)" "Subvolume ID"; }
-booted_id() { subvol_id /; }
+
+# The booted profile as it applies to the filesystem being operated on ($1 = id|subvol), empty when
+# that is provably another one, where ids and names repeat and a match would be coincidence. Only
+# proof empties it: a probe that cannot answer must not disarm the refusals that read this.
+top_booted() {  # needs ROOTDEV
+    root_is_btrfs || return 0
+    _bu=$(current_fsuuid); _tu=$(top_fsuuid)
+    [ -n "$_bu" ] && [ -n "$_tu" ] && [ "$_bu" != "$_tu" ] && return 0
+    case "$1" in id) subvol_id / ;; subvol) current_subvol ;; esac
+}
 
 # True if the subvolume at $1 is read-only.
 is_ro() {

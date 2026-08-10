@@ -41,12 +41,9 @@ TOP_TMPFILES="$map $rows"
 mount_top
 build_uuid_map "$TOP" "$map"
 
-cur=""; cur_id=""; cur_path=""
-if top_is_booted_fs; then
-    cur=$(btrfs subvolume show / 2>/dev/null) || cur=
-    cur_id=$(get "$cur" "Subvolume ID")
-    cur_path=$(printf '%s\n' "$cur" | head -n1)
-    [ -n "$cur_path" ] && echo "Currently booted profile: $cur_path (id ${cur_id:-?})"
+cur_id=$(top_booted id); cur_subvol=$(top_booted subvol)
+if [ -n "$cur_id" ]; then
+    echo "Currently booted profile: ${cur_subvol:-?} (id $cur_id)"
 else
     echo "Listing $ROOTDEV, which is not the filesystem you booted from"
 fi
@@ -84,7 +81,7 @@ emit() {  # $1=display name  $2=fs path
         *_old_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*|*.old_*) kind=old ;;
         *)       kind=profile ;;
     esac
-    mark=""; [ -n "$cur_id" ] && [ "$id" = "$cur_id" ] && mark="<- booted"
+    mark=""; [ "$id" = "$cur_id" ] && mark="<- booted"
     # convert while the "+0000" btrfs prints is still there: date -d without a zone assumes the
     # reader's, which shifts the epoch whenever that differs from the zone the profile was made in
     oepoch=$(date -d "$otime" +%s 2>/dev/null || echo "")

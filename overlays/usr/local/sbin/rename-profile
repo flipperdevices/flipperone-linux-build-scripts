@@ -43,13 +43,13 @@ is_reserved_subvol "$new" && die "Refusing to use reserved name: $new"
 
 set_lock
 mount_top
-cur_id=""; top_is_booted_fs && cur_id=$(booted_id)
+cur_id=$(top_booted id)
 [ -e "$TOP/$old" ] || die "No such profile: $old (see list-profiles)"
 [ -e "$TOP/$new" ] && die "Target already exists: $new"
 is_reserved_subvol "$old" && die "Refusing to rename reserved subvolume: $old"
 info=$(btrfs subvolume show "$TOP/$old" 2>/dev/null) || die "Not a profile: $old"
 old_id=$(get "$info" "Subvolume ID")
-[ -n "$cur_id" ] && [ "$old_id" = "$cur_id" ] \
+[ "$old_id" = "$cur_id" ] \
     && die "Refusing to rename the currently booted profile ($old); boot into another profile first"
 
 # top-level dir entry: mv keeps UUID + btrfs parent
