@@ -80,20 +80,18 @@ fdt_prefix() {  # $1 = options string -> "/<rootflags-subvol>" (or $FDT_SUBVOL_P
     return 0
 }
 
-# btrfs subvol of the current root (e.g. @Desktop); empty if not one. findmnt answers on a booted
-# system; in a chroot it can't, so fall back to the mount-agnostic btrfs subvolume show.
-current_subvol() {
+# Copies of flipper-btrfs.sh's booted_subvol/booted_fsuuid, kept byte-identical: kernel-install
+# sources this file without that one, so it needs its own. Keep the bodies in sync with it.
+booted_subvol() {
     _cs=$(findmnt -nro FSROOT / 2>/dev/null | sed 's,^/,,')
     [ -n "$_cs" ] || _cs=$(btrfs subvolume show / 2>/dev/null | sed -n '1{s,^/*,,;s,[[:space:]]*$,,;p}')
-    printf '%s\n' "$_cs"
+    printf '%s' "$_cs"
 }
 
-# btrfs FS UUID of the current root; empty if unknown. findmnt on a booted system, btrfs filesystem
-# show as the chroot-safe fallback (like current_subvol).
-current_fsuuid() {
+booted_fsuuid() {
     _fu=$(findmnt -nro UUID / 2>/dev/null)
     [ -n "$_fu" ] || _fu=$(btrfs filesystem show / 2>/dev/null | sed -n 's/.*[[:space:]]uuid:[[:space:]]*//p' | head -1)
-    printf '%s\n' "$_fu"
+    printf '%s' "$_fu"
 }
 
 # Remove loader entries whose options select SUBVOL and whose version == VERSION. Content-based
@@ -261,7 +259,7 @@ compute_base_opts() {
     # rewrite the shipped cmdline's build-time root=UUID to the fs we install onto, so a _stock
     # received onto a device with a different btrfs UUID still boots.
     # the filesystem the entry will boot from, which under -d is not the one we are running
-    _fsuuid="${TARGET_FSUUID:-$(current_fsuuid)}"
+    _fsuuid="${TARGET_FSUUID:-$(booted_fsuuid)}"
     [ -n "$_fsuuid" ] && BASE_OPTS="$(printf '%s' " $BASE_OPTS " | sed "s/ root=UUID=[^ ]*/ root=UUID=$_fsuuid/")"
     BASE_OPTS="$(trim "$BASE_OPTS")"
     # Pin systemd.machine_id= only when entries are named after the machine-id (no-op otherwise).
