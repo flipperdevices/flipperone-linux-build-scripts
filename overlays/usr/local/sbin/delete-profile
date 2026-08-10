@@ -47,13 +47,13 @@ esac
 case "${arg##*/}" in *_stock) die "Top-level profiles only; for a golden base use: delete-snapshot $arg" ;; esac
 
 mount_top
-cur_id=""; top_is_booted_fs && cur_id=$(booted_id)
+cur_id=$(top_booted id)
 [ -e "$TOP/$arg" ] || die "No such profile: $arg (see list-profiles)"
 rel=$arg
 is_reserved_subvol "$rel" && die "Refusing to delete reserved subvolume: $rel"
 info=$(btrfs subvolume show "$TOP/$rel" 2>/dev/null) || die "Not a profile: $rel"
 tgt_id=$(get "$info" "Subvolume ID")
-[ -n "$cur_id" ] && [ "$tgt_id" = "$cur_id" ] && die "Refusing to delete the currently booted profile ($rel)"
+[ "$tgt_id" = "$cur_id" ] && die "Refusing to delete the currently booted profile ($rel)"
 
 is_ro=0; case "$(get "$info" "Flags")" in *readonly*) is_ro=1 ;; esac
 
