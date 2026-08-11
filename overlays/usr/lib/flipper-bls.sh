@@ -409,12 +409,20 @@ flipper_write_entry() {
 flipper_rewrite_overlay() {
     _scope="${1:-}"
     [ "$(id -u)" -eq 0 ] || { echo "flipper-bls: must run as root (use sudo)" >&2; return 1; }
-    ENTRIES="${KERNEL_INSTALL_BOOT_ROOT:-/boot}/loader/entries"
-    CONF_ROOT="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}"
-    OVERLAY_USER_ROOT=""                        # these are the running root's own entries
-    _sv="$(booted_subvol)"
+    # Defaults describe the running root. A caller working on a mounted target sets TARGET_SUBVOL
+    # and the three roots first (add-dtbo -d does, through with_bls).
+    ENTRIES="${ENTRIES:-${KERNEL_INSTALL_BOOT_ROOT:-/boot}/loader/entries}"
+    CONF_ROOT="${CONF_ROOT:-${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}}"
+    OVERLAY_USER_ROOT="${OVERLAY_USER_ROOT:-}"
+    _sv="${TARGET_SUBVOL:-$(booted_subvol)}"
     [ -n "$_sv" ] || { echo "flipper-bls: cannot determine the booted subvol" >&2; return 1; }
-    _run="$(uname -r)"
+    if [ -n "${TARGET_SUBVOL:-}" ]; then
+        # no running kernel over there, so the default scope is the newest it has, the one it boots
+        _run="$(ls -1d "$OVERLAY_USER_ROOT"/usr/lib/linux-image-* 2>/dev/null | sed 's,.*/linux-image-,,' | sort -V | tail -n1)"
+        [ -n "$_run" ] || { echo "flipper-bls: no kernel found in $_sv" >&2; return 1; }
+    else
+        _run="$(uname -r)"
+    fi
 
     _dtbos=""
     _pf="${FLIPPER_PROFILES:-$CONF_ROOT/flipper-profiles}"
