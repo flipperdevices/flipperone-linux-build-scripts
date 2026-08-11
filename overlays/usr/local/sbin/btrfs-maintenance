@@ -56,9 +56,9 @@ if [ -n "${ROOTDEV:-}" ] || ! root_is_btrfs; then mount_top; MNT=$TOP; fi
 
 # Dedup across every profile/snapshot: duperemove must run on the btrfs TOP LEVEL (subvolid=5),
 # where all subvolumes appear as subdirectories. Run on / and it only sees the booted root.
-# Read-only subvols already share their extents and cannot be a dedup target, so exclude every
-# one (btrfs subvolume list -r): this skips a pointless scan and the per-extent EROFS errors it
-# would otherwise raise on each RO file.
+# Read-only subvolumes are included: they hold the copies worth collapsing (a stock from another
+# build, a received base) and a ro subvol is a valid dedup destination as long as the file is
+# opened read-only.
 do_dedup() {
     need_cmd duperemove
     [ -n "${TOP:-}" ] || mount_top
@@ -72,25 +72,8 @@ do_dedup() {
         TOP_TMPFILES="${TOP_TMPFILES:-} $HASHFILE"
         echo "No @var-cache on this filesystem; keeping duperemove's hash db in $HASHFILE for this run only" >&2
     fi
-    _excl=""
-    for _p in $(btrfs subvolume list -r "$TOP" | awk '{print $NF}'); do
-        _excl="$_excl --exclude=$TOP/$_p"
-    done
-    # duperemove exits 22 with "No dedupe candidates found" when there is nothing to do, which is
-    # not a failure. Keep the output live and read the status separately, since a pipeline reports
-    # only the last command's.
-    _dlog=$(mktemp); _drc=$(mktemp)
-    TOP_TMPFILES="${TOP_TMPFILES:-} $_dlog $_drc"
-    { duperemove -dhr --hashfile="$HASHFILE" --exclude="$HASHFILE*" $_excl "$TOP" 2>&1 || echo $? > "$_drc"; } | tee "$_dlog"
-    _rc=0
-    if [ -s "$_drc" ]; then _rc=$(cat "$_drc"); fi
-    if [ "$_rc" != 0 ]; then
-        if [ "$_rc" = 22 ] && grep -q 'No dedupe candidates found' "$_dlog"; then
-            echo "Nothing to dedup here: duperemove found no candidates, so no space was reclaimed"
-        else
-            die "Duperemove failed (rc=$_rc)"
-        fi
-    fi
+    # -q: duperemove repaints a per-thread progress table, thousands of lines for a scan this size.
+    duperemove -dhrq --hashfile="$HASHFILE" --exclude="$HASHFILE*" "$TOP" || die "Duperemove failed (rc=$?)"
 }
 
 [ "$lock" = 1 ]     && set_lock
