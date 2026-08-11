@@ -164,7 +164,7 @@ build_board() {
 	mkdir -p "$UBOOT_OUT/$i"
 
 	find "$out" -maxdepth 1 \
-		\( -name 'u-boot-rockchip*.bin' -o -name 'idbloader.img' -o -name '*-falcon.itb' -o -name '*-falcon-usb472.bin' \) \
+		\( -name 'u-boot-rockchip*.bin' -o -name 'idbloader.img' -o -name '*-falcon.itb' -o -name '*-falcon-*.bin' \) \
 		-exec cp -t "$UBOOT_OUT/$i"/ {} +
 
 	cp "$RKBIN_DIR"/rk3576_*loader_*.bin "$UBOOT_OUT/$i"/
