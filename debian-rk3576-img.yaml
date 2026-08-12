@@ -193,11 +193,11 @@ actions:
 
   - action: run
     description: Stamp @Minimal_stock's factory-origin marker
-    chroot: false
+    chroot: true
     command: |
       set -eu
-      . "$IMAGEMNTDIR/usr/lib/flipper-btrfs.sh"
-      stamp_stock_origin "$IMAGEMNTDIR" @Minimal_{{ $buildid }}_stock
+      . /usr/lib/flipper-btrfs.sh
+      stamp_stock_origin / @Minimal_{{ $buildid }}_stock
 
   # ===========================================================================
   # Stock (RO) bases + per-profile bootable roots.
@@ -249,8 +249,13 @@ actions:
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
       btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@Desktop_{{ $buildid }}_stock"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@Desktop_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
-      . "$IMAGEMNTDIR/usr/lib/flipper-btrfs.sh"
-      stamp_stock_origin "$IMAGEMNTDIR" @Desktop_{{ $buildid }}_stock
+  - action: run
+    description: Stamp @Desktop_stock's factory-origin marker
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-btrfs.sh
+      stamp_stock_origin / @Desktop_{{ $buildid }}_stock
   - action: apt
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
@@ -314,8 +319,13 @@ actions:
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
       btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@TV-Media-Box_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
-      . "$IMAGEMNTDIR/usr/lib/flipper-btrfs.sh"
-      stamp_stock_origin "$IMAGEMNTDIR" @TV-Media-Box_{{ $buildid }}_stock
+  - action: run
+    description: Stamp @TV-Media-Box_stock's factory-origin marker
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-btrfs.sh
+      stamp_stock_origin / @TV-Media-Box_{{ $buildid }}_stock
   - action: apt
     description: TV media box packages
     recommends: false
@@ -362,8 +372,13 @@ actions:
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
       btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@Router_{{ $buildid }}_stock"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@Router_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
-      . "$IMAGEMNTDIR/usr/lib/flipper-btrfs.sh"
-      stamp_stock_origin "$IMAGEMNTDIR" @Router_{{ $buildid }}_stock
+  - action: run
+    description: Stamp @Router_stock's factory-origin marker
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-btrfs.sh
+      stamp_stock_origin / @Router_{{ $buildid }}_stock
   # @Router needs no packages beyond Minimal (NetworkManager + dnsmasq-base + wpa_supplicant
   # are common); it just adds the AP/WAN connections + ip-forwarding via the overlay. Its
   # default session stays multi-user (inherited); NM autoconnect brings the router up.
@@ -405,8 +420,13 @@ actions:
       ROOTPART="$(findmnt -fn --nofsroot -o SOURCE --target "$TOP")"
       btrfs subvolume snapshot "$TOP/@stock-snapshots/@Minimal_{{ $buildid }}_stock" "$TOP/@stock-snapshots/@No-Graphics_{{ $buildid }}_stock"
       mount -t btrfs -o "{{ $btrfsopts }},subvol=@stock-snapshots/@No-Graphics_{{ $buildid }}_stock" "$ROOTPART" "$IMAGEMNTDIR"
-      . "$IMAGEMNTDIR/usr/lib/flipper-btrfs.sh"
-      stamp_stock_origin "$IMAGEMNTDIR" @No-Graphics_{{ $buildid }}_stock
+  - action: run
+    description: Stamp @No-Graphics_stock's factory-origin marker
+    chroot: true
+    command: |
+      set -eu
+      . /usr/lib/flipper-btrfs.sh
+      stamp_stock_origin / @No-Graphics_{{ $buildid }}_stock
   - action: run
     description: Pin @No-Graphics's kernel entry-token (NN from flipper-profiles)
     chroot: true
