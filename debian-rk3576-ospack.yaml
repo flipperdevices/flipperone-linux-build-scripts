@@ -2,6 +2,7 @@
 {{ $variant := or .variant "minbase" }}
 {{ $gitinfo := or .gitinfo "unknown" }}
 {{ $testsdir := or .testsdir "prebuilt/tests" }}
+{{ $btrfstoolsdir := or .btrfstoolsdir "prebuilt/btrfs-tools" }}
 
 architecture: arm64
 
@@ -220,9 +221,19 @@ actions:
     destination: /usr/local
 
   - action: overlay
-    description: Overlay our usr/lib helpers
-    source: overlays/usr/lib
+    description: Overlay the btrfs profile and snapshot tools
+    source: {{ $btrfstoolsdir }}/scripts
+    destination: /usr/local/sbin
+
+  - action: overlay
+    description: Overlay the btrfs shared helpers
+    source: {{ $btrfstoolsdir }}/libs
     destination: /usr/lib
+
+  - action: overlay
+    description: Overlay the btrfs kernel-install plugins
+    source: {{ $btrfstoolsdir }}/hooks
+    destination: /etc/kernel/install.d
 
   - action: overlay
     description: Overlay our usr/share files
