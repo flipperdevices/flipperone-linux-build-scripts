@@ -255,10 +255,12 @@ actions:
     command: |
       echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
 
+  # Ship no per-device identity: the missing machine-id makes systemd treat the first boot of
+  # every root as a first boot, which is what sshd-keygen.service waits for to run ssh-keygen -A.
   - action: run
-    description: Remove /etc/machine-id and default /etc/motd
+    description: Remove /etc/machine-id, default /etc/motd and the ssh host keys
     chroot: true
-    command: rm -f /etc/machine-id /etc/motd
+    command: rm -f /etc/machine-id /etc/motd /etc/ssh/ssh_host_*
 
   - action: run
     description: Switch to upstream signed regulatory.db
