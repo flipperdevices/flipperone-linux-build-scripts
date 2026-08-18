@@ -66,6 +66,7 @@ actions:
       - iw
       - iwd
       - jq
+      - kexec-tools
       - kmscube
       - less
       - libcanberra-pulse
