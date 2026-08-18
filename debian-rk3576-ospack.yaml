@@ -65,6 +65,7 @@ actions:
       - iputils-ping
       - iw
       - iwd
+      - jq
       - kmscube
       - less
       - libcanberra-pulse
@@ -116,6 +117,7 @@ actions:
       - systemd-sysv
       - systemd-timesyncd
       - tcpdump
+      - tinycbor-utils
       - traceroute
       - udev
       - umtp-responder
