@@ -35,19 +35,6 @@ profile=$(findmnt -nro FSROOT / 2>/dev/null)
 profile=${profile#/}
 [ -n "$profile" ] && [ "$profile" != "/" ] || profile=unknown
 
-# Generate SSH welcome banner
-cat <<EOF >/etc/ssh/welcome_banner
-=================== Welcome to FlipperOne ===================
-Git:          $build_git
-Board:        $board
-CPU Serial:   $serial
-Memory:       $total_mem
-Build ID:     $build_id
-Profile:      $profile
-Default credentials: user / user
-=============================================================
-EOF
-
 # Generate Avahi mDNS service for LAN discovery via _flipper._tcp
 mkdir -p /etc/avahi/services
 cat <<EOF >/etc/avahi/services/flipper.service
@@ -68,3 +55,17 @@ sed -i "s/WIFISSIDSERIAL/${serial}/" /etc/NetworkManager/system-connections/wifi
 nmcli connection reload 2>/dev/null || true
 
 systemd-machine-id-setup
+
+# The SSH welcome banner, written last on purpose: the unit keys its retry off this file, so it
+# must not appear until everything above it is done.
+cat <<EOF >/etc/ssh/welcome_banner
+=================== Welcome to FlipperOne ===================
+Git:          $build_git
+Board:        $board
+CPU Serial:   $serial
+Memory:       $total_mem
+Build ID:     $build_id
+Profile:      $profile
+Default credentials: user / user
+=============================================================
+EOF

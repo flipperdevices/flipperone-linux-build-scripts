@@ -4,7 +4,12 @@ DefaultDependencies=no
 After=systemd-hostnamed.service dbus.service
 Before=systemd-machine-id-commit.service first-boot-complete.target network.target
 ConditionPathIsReadWrite=/etc
-ConditionFirstBoot=yes
+# ConditionFirstBoot is spent once PID1 writes /etc/machine-id, so an interrupted first boot
+# would never set the hostname, banner, avahi service or SSID again. The banner is written
+# last, so its absence means an unfinished run; a clone triggers on first boot instead, which
+# is what refreshes the profile name in its banner.
+ConditionFirstBoot=|yes
+ConditionPathExists=|!/etc/ssh/welcome_banner
 Wants=first-boot-complete.target
 
 [Service]
