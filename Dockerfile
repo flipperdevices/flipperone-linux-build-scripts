@@ -1,4 +1,4 @@
-FROM debian:trixie
+FROM debian:trixie@sha256:d07d1b51c39f51188e60be9b64e6bf769fa94e187f092bc32b91305cfa34ba5a
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,9 +9,6 @@ ENV LINUX_OUT=/artifacts/linux
 
 # Add arm64 architecture for cross-compilation
 RUN dpkg --add-architecture arm64 && apt-get update
-
-# Upgrade base system
-RUN apt-get upgrade -y
 
 # Prerequisites
 RUN apt-get install -y \
@@ -52,7 +49,9 @@ RUN apt-get install -y \
     libostree-dev \
     fakemachine
 
-RUN go install -v github.com/go-debos/debos/cmd/debos@latest
+# ponytail: pinned to v1.1.7 — upstream is transitioning subvolume creation support
+# (go-debos/debos#736/62cb992). Re-pin once the transition settles.
+RUN go install -v github.com/go-debos/debos/cmd/debos@v1.1.7
 
 RUN install -m 755 ~/go/bin/debos /usr/local/bin
 
@@ -70,5 +69,11 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* ~/.cargo ~/go
 WORKDIR /flipperone-linux-build-scripts
 RUN git clone --depth=1 https://github.com/flipperdevices/flipperone-linux-build-scripts .
 
-# Entry point
-ENTRYPOINT ./build-uboot.sh && ./build-kernel-mainline.sh && ./build-kernel-bsp.sh && ./build-images.sh
+# Entry point — exec-form ENTRYPOINT with entrypoint.sh replaces the old
+# shell-form `ENTRYPOINT ./build-*.sh && ./build-*.sh && ...` inline chain.
+# COPY is required because Docker build context is the repo root; the script
+# gets injected into the WORKDIR alongside the cloned sources.
+COPY entrypoint.sh /flipperone-linux-build-scripts/entrypoint.sh
+RUN chmod +x /flipperone-linux-build-scripts/entrypoint.sh
+ENTRYPOINT ["/bin/bash", "/flipperone-linux-build-scripts/entrypoint.sh"]
+CMD ["all"]
