@@ -333,6 +333,14 @@ actions:
       - cage
       - kodi
       - kodi-eventclients-kodi-send
+      - kodi-imagedecoder-heif
+      - kodi-inputstream-adaptive
+      - kodi-inputstream-ffmpegdirect
+      - kodi-peripheral-joystick
+      - kodi-pvr-iptvsimple
+      - kodi-repository-kodi
+      - kodi-vfs-libarchive
+      - kodi-vfs-sftp
   - action: run
     description: Prune orphaned packages and apt cache
     chroot: true
