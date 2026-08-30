@@ -1,0 +1,10 @@
+# Rocket must be built in, not a module: as a module it probes after the
+# late_initcall that disables unused regulators, vdd_npu_s0 is cut, and
+# /dev/accel/accel0 never appears. DRM follows it in because rocket selects
+# DRM_SCHED and DRM_GEM_SHMEM_HELPER.
+CONFIG_DRM=y
+CONFIG_DRM_SCHED=y
+CONFIG_DRM_GEM_SHMEM_HELPER=y
+CONFIG_DRM_ACCEL=y
+CONFIG_DRM_ACCEL_ROCKET=y
+CONFIG_ROCKCHIP_IOMMU=y
