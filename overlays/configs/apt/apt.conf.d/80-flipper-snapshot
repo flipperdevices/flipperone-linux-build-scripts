@@ -1,5 +1,0 @@
-// Creates a read-only snapshot of the booted profile before apt changes packages, tagged
-// apt-<action>. Runs only when apt is about to call dpkg; $PPID is the apt process, so its cmdline
-// gives the subcommand. The case is the allowlist we protect. Skips build-time chroot apt; never
-// aborts apt. Single line: apt.conf strings cannot span multiple lines.
-DPkg::Pre-Invoke { "[ -d /run/systemd/system ] && [ -x /usr/local/sbin/create-snapshot ] || exit 0; V=$(xargs -0 -n1 </proc/$PPID/cmdline 2>/dev/null | awk 'NR==1{next} s{s=0;next} /^-[octap]$/{s=1;next} /^-/{next} {print;exit}'); case $V in ''|install|reinstall|remove|purge|autoremove|upgrade|full-upgrade|dist-upgrade|build-dep|satisfy|dselect-upgrade) create-snapshot apt-$V || true ;; esac"; };
