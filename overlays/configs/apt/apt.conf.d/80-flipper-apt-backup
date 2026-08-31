@@ -1,0 +1,7 @@
+// Offers a bootable backup of the booted profile before apt changes packages: apt-backup-profile
+// asks whether to make one, under what name, and hands the work to create-profile. It runs only
+// when apt is about to call dpkg, so queries and `apt update` never see it, and it decides on its
+// own when there is nobody to ask (build-time chroot apt, no terminal, apt -y).
+// A non-zero exit is deliberate and aborts apt before dpkg: the backup failed and the user chose
+// not to go ahead without it. Single line: apt.conf strings cannot span multiple lines.
+DPkg::Pre-Invoke { "[ -x /usr/local/sbin/apt-backup-profile ] || exit 0; /usr/local/sbin/apt-backup-profile"; };
