@@ -1,3 +1,7 @@
+# No [Install] on purpose: flipctl owns the panel, and this browser is started only when
+# flipctl's Testing row hands it over. A unit with an [Install] section is enabled by the
+# preset pass systemd makes on a profile's first boot, which is how the prototype came back
+# on its own and took the panel from what the image actually boots.
 [Unit]
 Description=Cog browser on dedicated seat1
 After=systemd-logind.service fake-flipctl-node-server.service
@@ -51,6 +55,3 @@ ExecStart=/usr/bin/cog -P drm -O renderer=gles http://localhost:8899
 
 Restart=on-failure
 RestartSec=2
-
-[Install]
-WantedBy=multi-user.target

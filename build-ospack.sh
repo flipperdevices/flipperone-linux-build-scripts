@@ -9,6 +9,10 @@
 : "${BTRFS_TOOLS_OUT:=prebuilt/btrfs-tools}"
 : "${BTRFS_TOOLS_GIT:=https://github.com/flipperdevices/flipperos-btrfs-tools.git}"
 : "${BTRFS_TOOLS_BRANCH:=dev}"
+: "${FLIPCTL_DIR:=src/flipctl}"
+: "${FLIPCTL_OUT:=prebuilt/flipctl}"
+: "${FLIPCTL_GIT:=https://github.com/flipperdevices/flipctl-slint.git}"
+: "${FLIPCTL_BRANCH:=dev}"
 
 set -e
 
@@ -19,7 +23,7 @@ set -e
 [ -n "${GIT_INFO}" ] || GIT_INFO="${GIT_BRANCH}@${GIT_HASH}: ${GIT_MSG}"
 GIT_INFO=$(echo "$GIT_INFO" | tr -dc '[:alnum:][:space:]')
 
-stage_repo() { # $1 = checkout  $2 = url  $3 = branch  $4 = staging dir
+fetch_repo() { # $1 = checkout  $2 = url  $3 = branch
         case "${KEEP_SRC}" in
                 update)
                         if [ -d "$1" ]; then
@@ -34,6 +38,10 @@ stage_repo() { # $1 = checkout  $2 = url  $3 = branch  $4 = staging dir
         esac
 
         [ -d "$1" ] || git clone --depth 1 -b "$3" "$2" "$1"
+}
+
+stage_repo() { # $1 = checkout  $2 = url  $3 = branch  $4 = staging dir
+        fetch_repo "$1" "$2" "$3"
 
         rm -rf "$4"
         mkdir -p "$4"
@@ -44,6 +52,11 @@ mkdir -p "$IMG_OUT"
 
 stage_repo "${TESTS_DIR}" "${TESTS_GIT}" "${TESTS_BRANCH}" "${TESTS_OUT}"
 stage_repo "${BTRFS_TOOLS_DIR}" "${BTRFS_TOOLS_GIT}" "${BTRFS_TOOLS_BRANCH}" "${BTRFS_TOOLS_OUT}"
+
+# flipctl is compiled rather than copied: fetch only, and build-flipctl.sh writes the
+# install tree the ospack overlays.
+fetch_repo "${FLIPCTL_DIR}" "${FLIPCTL_GIT}" "${FLIPCTL_BRANCH}"
+./build-flipctl.sh "${FLIPCTL_DIR}" "${FLIPCTL_OUT}"
 
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
         # Have virtualization support, can use fakemachine (default, fast, safe)
@@ -58,4 +71,4 @@ else
         DEBOS="sudo debos --disable-fakemachine"
 fi
 
-$DEBOS --artifactdir="$IMG_OUT" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" -t btrfstoolsdir:"${BTRFS_TOOLS_OUT}" debian-rk3576-ospack.yaml
+$DEBOS --artifactdir="$IMG_OUT" -t gitinfo:"$GIT_INFO" -t testsdir:"${TESTS_OUT}" -t btrfstoolsdir:"${BTRFS_TOOLS_OUT}" -t flipctldir:"${FLIPCTL_OUT}" debian-rk3576-ospack.yaml

@@ -46,18 +46,26 @@ RUN apt-get install -y \
     pipx \
     pigz \
     zstd \
-    cargo \
     golang \
     libglib2.0-dev \
     libostree-dev \
     fakemachine
 
+# Rust for zeekstd below and for flipctl during the ospack build, from backports rather
+# than trixie: slint 1.17.1 wants rustc 1.92 and trixie has 1.85. libstd-rust-dev:arm64
+# is the standard library for the target, which is what lets build-flipctl.sh cross-build
+# on an amd64 builder.
+RUN echo 'deb http://deb.debian.org/debian trixie-backports main' \
+        > /etc/apt/sources.list.d/backports.list \
+    && apt-get update \
+    && apt-get install -y -t trixie-backports \
+        cargo rustc libstd-rust-dev libstd-rust-dev:arm64
+
 RUN go install -v github.com/go-debos/debos/cmd/debos@latest
 
 RUN install -m 755 ~/go/bin/debos /usr/local/bin
 
-# v0.4.5-cli+ needs Rust 1.91 (Path::with_added_extension); see https://github.com/rorosen/zeekstd/tags
-RUN cargo install --git https://github.com/rorosen/zeekstd.git --tag v0.4.4-cli zeekstd_cli
+RUN cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 
 RUN install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
