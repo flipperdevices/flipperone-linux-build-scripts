@@ -3,6 +3,7 @@
 {{ $gitinfo := or .gitinfo "unknown" }}
 {{ $testsdir := or .testsdir "prebuilt/tests" }}
 {{ $btrfstoolsdir := or .btrfstoolsdir "prebuilt/btrfs-tools" }}
+{{ $flipctldir := or .flipctldir "prebuilt/flipctl" }}
 
 architecture: arm64
 
@@ -111,6 +112,7 @@ actions:
       - strace
       - stress-ng
       - sudo
+      - sway
       - sysstat
       - systemd
       - systemd-repart
@@ -250,6 +252,11 @@ actions:
     description: Overlay the btrfs kernel-install plugins
     source: {{ $btrfstoolsdir }}/hooks
     destination: /etc/kernel/install.d
+
+  - action: overlay
+    description: Overlay flipctl, its apps and its remote-view assets
+    source: {{ $flipctldir }}
+    destination: /usr
 
   - action: overlay
     description: Overlay our usr/share files

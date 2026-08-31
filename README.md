@@ -35,6 +35,7 @@ Build scripts (run them in order):
 | `build-images.sh` | Assembles complete GPT disk images for all boards you've built bootloaders for; calls `build-rootfs-img.sh` to build the root filesystem if it doesn't exist yet |
 | `build-rootfs-img.sh` | Runs debos on `debian-rk3576-img.yaml` to install the kernel into a partitioned image, then zeekstd-compresses it |
 | `build-ospack.sh` | Runs mmdebstrap via debos (`debian-rk3576-ospack.yaml`) to build the Debian root filesystem tarball |
+| `build-flipctl.sh` | Builds flipctl (the panel UI) from `flipctl-slint` for arm64, natively or cross, and stages `/usr/bin/flipctl` plus its apps and assets for the ospack; called by `build-ospack.sh` |
 
 Other directories:
 
@@ -121,16 +122,24 @@ sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex \
 For assembling disk images — debos, bmaptool, and zeekstd all need to be installed from source:
 
 ```bash
-sudo apt install golang pipx pigz cargo parted fdisk btrfs-progs mmdebstrap \
+sudo apt install golang pipx pigz parted fdisk btrfs-progs mmdebstrap \
     systemd-resolved systemd-container qemu-user-binfmt \
     libglib2.0-dev libostree-dev fakemachine
+
+# Rust, for zeekstd below and for flipctl during the ospack build. From backports:
+# flipctl needs rustc 1.92 (slint) and trixie has 1.85. libstd-rust-dev:arm64 is the
+# standard library for the target, needed to cross-build flipctl on an amd64 host.
+echo 'deb http://deb.debian.org/debian trixie-backports main' \
+    | sudo tee /etc/apt/sources.list.d/backports.list
+sudo apt update
+sudo apt install -t trixie-backports cargo rustc libstd-rust-dev libstd-rust-dev:arm64
 
 # debos
 go install -v github.com/go-debos/debos/cmd/debos@latest
 sudo install -m 755 ~/go/bin/debos /usr/local/bin
 
-# zeekstd (requires Rust; v0.4.5+ needs Rust 1.91 — stick to v0.4.4-cli for now)
-cargo install --git https://github.com/rorosen/zeekstd.git --tag v0.4.4-cli zeekstd_cli
+# zeekstd
+cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
 sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/
 
 # bmaptool (Flipper fork)
