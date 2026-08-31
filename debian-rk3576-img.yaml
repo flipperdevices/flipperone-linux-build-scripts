@@ -3,7 +3,10 @@
 {{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
 # cmdline: shared facts + policy only. The BLS generator adds the per-entry rootflags=subvol=
 # and the serial consoles (console=ttyS0/ttyS4/fbcon or ttyFIQ0, per kernel config).
-{{ $cmdline    := or .cmdline    "audit=0 console=tty1" }}
+# driver_async_probe: the two gmacs and gpio-leds each block the probe thread ahead of the UFS
+# host (~570ms and ~600ms), so releasing them moves root discovery, and every milestone after
+# it, ~1.15s earlier. Measured: only these two help; typec, audio and dw-dp gain nothing.
+{{ $cmdline    := or .cmdline    "audit=0 console=tty1 driver_async_probe=rk_gmac-dwmac,leds-gpio" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
 # btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
 # detected as non-rotational).
