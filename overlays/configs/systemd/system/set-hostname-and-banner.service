@@ -1,16 +1,22 @@
 [Unit]
 Description=Set dynamic hostname and SSH banner based on board and OS
 DefaultDependencies=no
+# DefaultDependencies=no also means nothing conflicts this unit with shutdown, so a
+# soft-reboot never stops it and PID1 carries its state into the root it lands in, where
+# the conditions below are never looked at again.
+Conflicts=shutdown.target
+Before=shutdown.target
 After=systemd-hostnamed.service dbus.service
 Before=systemd-machine-id-commit.service first-boot-complete.target network.target
 ConditionPathIsReadWrite=/etc
 # ConditionFirstBoot is spent once PID1 writes /etc/machine-id, so an interrupted first boot
-# would never set the hostname, banner, avahi service or SSID again. The banner is written
-# last, so its absence means an unfinished run; a clone triggers on first boot instead, which
-# is what refreshes the profile name in its banner. Empty counts as absent: a reset can leave the
-# file with its contents lost, and a banner nobody wrote is not a run that finished.
+# would never set the hostname, banner, avahi service or SSID again. The hostname is what says
+# whether a root has been named: the image ships debian-rk3576 and this unit is the only thing
+# that ever replaces it, so that name, or none at all, means the work is still to do. A clone
+# triggers on first boot instead, which is what refreshes the profile name in its banner.
 ConditionFirstBoot=|yes
-ConditionFileNotEmpty=|!/etc/ssh/welcome_banner
+ConditionHost=|debian-rk3576
+ConditionFileNotEmpty=|!/etc/hostname
 Wants=first-boot-complete.target
 
 [Service]
