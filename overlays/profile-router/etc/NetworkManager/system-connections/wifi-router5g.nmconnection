@@ -10,7 +10,7 @@ band=a
 channel=36
 channel-width=80
 mode=ap
-ssid=FlipperOne_5GHz_WIFISSIDSERIAL
+ssid=FlipperOne_5GHz_WIFISSIDNAME
 
 [wifi-security]
 key-mgmt=wpa-psk

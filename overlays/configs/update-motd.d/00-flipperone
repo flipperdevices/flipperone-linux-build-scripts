@@ -7,6 +7,10 @@ board=${board:-rk3576}
 # CPU serial from device tree, falls back to systemd machine-id for non-DT boards
 serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || cat /etc/machine-id)
 
+# Unique device name derived from the OTP CPU ID. Absolute path: pam_motd runs this
+# with a minimal PATH that may not include /usr/local/bin.
+name=$(/usr/local/bin/flipper-name.sh "$serial" 2>/dev/null || echo unknown)
+
 . /etc/os-release
 
 # Get build info
@@ -25,6 +29,7 @@ cat <<EOF
 
                     Welcome to FlipperOne
 
+   Name:         $name
    Git:          $build_git
    Board:        $board
    CPU Serial:   $serial

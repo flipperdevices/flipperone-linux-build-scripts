@@ -10,7 +10,7 @@ band=bg
 channel=6
 channel-width=40
 mode=ap
-ssid=FlipperOne_2GHz_WIFISSIDSERIAL
+ssid=FlipperOne_2GHz_WIFISSIDNAME
 
 [wifi-security]
 key-mgmt=wpa-psk

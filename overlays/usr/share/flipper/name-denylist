@@ -1,0 +1,34 @@
+# Substrings that must not appear in a generated device name (case insensitive).
+# flipper-name.sh rerolls the name when one matches.
+#
+# Generated names are consonant/vowel alternating (CVCVCVCVC), drawn from consonants
+# "bcdfghjklmnprstvwz" and vowels "aeiou". Only alternating strings are reachable,
+# so consonant clusters ("shit", "fuck") and anything with q, x or y cannot occur.
+# Entries below are the reachable ones.
+#
+# Keep entries lowercase. They match anywhere inside the 9-letter name, so short
+# entries burn name space: a 3-letter entry costs ~0.25%, a 4-letter one ~0.04%.
+# The list below blocks 1.3% of the space in total. Do not paste in a
+# general-purpose profanity list.
+#
+# Blank lines and everything after a # are ignored.
+
+anal
+anus
+culo
+fuk
+homo
+hure
+kike
+kuk
+nazi
+nig
+paki
+pene
+peni
+pipi
+puta
+pute
+rape
+suka
+vagi
