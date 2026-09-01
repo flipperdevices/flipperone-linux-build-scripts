@@ -7,9 +7,10 @@ ConditionPathIsReadWrite=/etc
 # ConditionFirstBoot is spent once PID1 writes /etc/machine-id, so an interrupted first boot
 # would never set the hostname, banner, avahi service or SSID again. The banner is written
 # last, so its absence means an unfinished run; a clone triggers on first boot instead, which
-# is what refreshes the profile name in its banner.
+# is what refreshes the profile name in its banner. Empty counts as absent: a reset can leave the
+# file with its contents lost, and a banner nobody wrote is not a run that finished.
 ConditionFirstBoot=|yes
-ConditionPathExists=|!/etc/ssh/welcome_banner
+ConditionFileNotEmpty=|!/etc/ssh/welcome_banner
 Wants=first-boot-complete.target
 
 [Service]

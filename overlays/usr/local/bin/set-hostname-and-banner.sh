@@ -56,6 +56,10 @@ nmcli connection reload 2>/dev/null || true
 
 systemd-machine-id-setup
 
+# On disk before the marker exists: a reset here leaves committed inodes with no contents, and the
+# banner appearing first would mean a hostname, machine-id or avahi service that never landed.
+sync
+
 # The SSH welcome banner, written last on purpose: the unit keys its retry off this file, so it
 # must not appear until everything above it is done.
 cat <<EOF >/etc/ssh/welcome_banner
@@ -69,3 +73,5 @@ Profile:      $profile
 Default credentials: user / user
 =============================================================
 EOF
+
+sync
