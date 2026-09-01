@@ -1,4 +1,13 @@
+# No [Install] on purpose: one gadget configuration can own the UDC, and this image boots
+# usb-ncm-msc-mtp-gadget. A unit with an [Install] section is enabled by the preset pass
+# systemd makes on a profile's first boot, and all three then started within ten
+# milliseconds of each other, with this one winning and the boot ending up with no mass
+# storage and no MTP. Start it by hand to switch to it.
 [Unit]
+# One gadget configuration can own the UDC, so starting one stops whichever is running
+# and lets its ExecStopPost tear the gadget down first. Conflicts without a matching
+# After=: four units each naming the other three would be an ordering cycle.
+Conflicts=usb-msc-gadget.service usb-ncm-msc-gadget.service usb-ncm-msc-mtp-gadget.service
 Description=USB NCM Gadget Setup
 After=sys-kernel-config.mount
 Requires=sys-kernel-config.mount
@@ -10,6 +19,3 @@ Type=oneshot
 ExecStart=/usr/local/bin/usb-ncm-gadget.sh start
 ExecStopPost=/usr/local/bin/usb-ncm-gadget.sh stop
 RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
