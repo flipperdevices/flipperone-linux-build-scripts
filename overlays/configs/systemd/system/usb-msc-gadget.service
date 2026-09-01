@@ -1,4 +1,8 @@
 [Unit]
+# One gadget configuration can own the UDC, so starting one stops whichever is running
+# and lets its ExecStopPost tear the gadget down first. Conflicts without a matching
+# After=: four units each naming the other three would be an ordering cycle.
+Conflicts=usb-ncm-gadget.service usb-ncm-msc-gadget.service usb-ncm-msc-mtp-gadget.service
 Description=USB Mass Storage Gadget (share UFS as a thumb drive, read-only)
 After=sys-kernel-config.mount
 Requires=sys-kernel-config.mount
