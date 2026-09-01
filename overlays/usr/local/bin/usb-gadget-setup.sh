@@ -34,9 +34,16 @@ DEV_ADDR="02:1A:7D:01:02:03"
 HOST_ADDR="02:1A:7D:01:02:04"
 USB_VID="0x37C1"
 MANUFACTURER="Flipper FZCO"
-# CPU serial from DT (set by U-Boot), else recomputed from OTP, else machine-id. Mass-storage
-# BOT needs >=12 uppercase hex, so strip to hex and uppercase (harmless for other functions).
-SERIAL=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || rk3576_cpu_serial.sh 2>/dev/null | tail -n1 | awk -F"\t" '{ print $2; }' || cat /etc/machine-id 2>/dev/null)
+# The serial from the device tree if the bootloader put it there, else recomputed from the OTP
+# the way U-Boot computes serial#, else the machine-id. Tested rather than read blind: the
+# redirection fails before the 2>/dev/null beside it can catch anything.
+# Mass-storage BOT wants >=12 uppercase hex, hence the strip below; harmless for the rest.
+if [ -r /sys/firmware/devicetree/base/serial-number ]; then
+    SERIAL=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number)
+else
+    SERIAL=$(/usr/local/bin/rk3576_cpu_serial.sh 2>/dev/null | awk -F'\t' '/^serial:/{print $2}')
+fi
+SERIAL=${SERIAL:-$(cat /etc/machine-id)}
 SERIAL=$(printf '%s' "$SERIAL" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')
 : "${SERIAL:=0123456789AB}"
 
