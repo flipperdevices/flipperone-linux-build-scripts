@@ -12,8 +12,15 @@ board=${board:-rk3576}
 device=$(echo "$compat" | sed 's/-rev-.*//; s/,//')
 device=${device:-rk3576}
 
-# CPU serial from device tree, falls back to systemd machine-id for non-DT boards
-serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || rk3576_cpu_serial.sh | tail -n1 | awk -F"\t" '{ print $2; }' || cat /etc/machine-id)
+# The serial from the device tree if the bootloader put it there, else recomputed from the OTP
+# the way U-Boot computes serial#, else the machine-id. Tested rather than read blind: the
+# redirection fails before the 2>/dev/null beside it can catch anything.
+if [ -r /sys/firmware/devicetree/base/serial-number ]; then
+    serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number)
+else
+    serial=$(/usr/local/bin/rk3576_cpu_serial.sh 2>/dev/null | awk -F'\t' '/^serial:/{print $2}')
+fi
+serial=${serial:-$(cat /etc/machine-id)}
 
 # First 3 bytes (6 hex chars) of serial for hostname
 serial_prefix=$(printf '%.6s' "$serial")
