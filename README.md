@@ -326,6 +326,25 @@ Drop a config fragment file in `configs/linux/` (mainline) or `configs/linux-bsp
 
 Files go in `overlays/`, mirroring the target filesystem: `overlays/configs/` → `/etc/`, `overlays/usr/` → `/usr/`, etc. Firmware blobs go in `overlays/firmware/`. For system packages, edit `debian-rk3576-ospack.yaml`.
 
+### Device name
+
+Each device gets a pronounceable name derived from the CPU ID burned into OTP, for example `Jelujelel`. `overlays/usr/local/bin/flipper-name.sh` prints it; `set-hostname-and-banner.sh` applies it at first boot. Because it is derived rather than assigned, it needs no factory programming step and survives reflashing.
+
+The name surfaces as:
+
+| Where | Value |
+|---|---|
+| Hostname (DHCP, mDNS) | `flipperone-jelujelel` |
+| `PRETTY_HOSTNAME`, and so the Bluetooth adapter name | `Flipper One Jelujelel` |
+| Avahi TXT record | `name=Jelujelel` |
+| Wi-Fi AP SSID (router profile) | `FlipperOne_2GHz_Jelujelel` |
+
+Writing a name to `/etc/flipper-name` overrides the derived one, which is how a device gets a factory-assigned name or a user-chosen one.
+
+Names are `CVCVCVCVC` over 18 consonants and 5 vowels, so 18^5 * 5^4 = 1,180,980,000 of them. Uniqueness is probabilistic, not guaranteed: across 1,000,000 devices roughly 450 share a name with another device. `overlays/usr/share/flipper/name-denylist` lists substrings that trigger a reroll.
+
+`flipper-name.sh --self-test` covers the generator, the override and the denylist.
+
 ### Adding a new board
 
 Adding a board properly means getting it upstream in Linux first, then in U-Boot. BL31 is not board-specific and doesn't need to be touched.

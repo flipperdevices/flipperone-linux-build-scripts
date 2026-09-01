@@ -15,13 +15,13 @@ device=${device:-rk3576}
 # CPU serial from device tree, falls back to systemd machine-id for non-DT boards
 serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null || rk3576_cpu_serial.sh | tail -n1 | awk -F"\t" '{ print $2; }' || cat /etc/machine-id)
 
-# Unique device name derived from the OTP CPU ID, e.g. "Poperik"
+# Unique device name derived from the OTP CPU ID, e.g. "Jelujelel"
 name=$(flipper-name.sh "$serial")
 name_lc=$(echo "$name" | tr 'A-Z' 'a-z')
 
 . /etc/os-release
 
-# e.g. "flipperone-poperik". BUILD_ID is deliberately not part of the hostname:
+# e.g. "flipperone-jelujelel". BUILD_ID is deliberately not part of the hostname:
 # this is what shows up as the DHCP hostname and in mDNS, so it has to stay stable
 # across upgrades. The build id is still in the banner, the MOTD and os-release.
 new_hostname="${device}-${name_lc}"
@@ -29,7 +29,7 @@ new_hostname="${device}-${name_lc}"
 hostnamectl set-hostname "${new_hostname}"
 
 # PRETTY_HOSTNAME in /etc/machine-info. BlueZ's hostname plugin picks this up as the
-# Bluetooth adapter name, so the device advertises "Flipper One Poperik" over BT too
+# Bluetooth adapter name, so the device advertises "Flipper One Jelujelel" over BT too
 # (see the note in /etc/bluetooth/main.conf).
 hostnamectl --pretty set-hostname "Flipper One ${name}"
 
