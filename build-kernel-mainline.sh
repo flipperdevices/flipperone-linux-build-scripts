@@ -12,6 +12,19 @@
 
 set -e
 
+# pahole generates BTF; if it's missing/too old, olddefconfig silently drops
+# CONFIG_DEBUG_INFO_BTF and CONFIG_SCHED_CLASS_EXT (sched_ext). Fail loudly instead.
+if ! command -v pahole >/dev/null 2>&1; then
+	echo "ERROR: pahole not found. Install 'dwarves' in the build environment." >&2
+	exit 1
+fi
+_pv=$(pahole --version 2>/dev/null | sed 's/^v//')
+_pmaj=${_pv%%.*}; _pmin=${_pv#*.}; _pmin=${_pmin%%.*}
+if [ "${_pmaj:-0}" -lt 1 ] || { [ "${_pmaj:-0}" -eq 1 ] && [ "${_pmin:-0}" -lt 22 ]; }; then
+	echo "ERROR: pahole $_pv is too old (need >= 1.22 for BTF)." >&2
+	exit 1
+fi
+
 if [ -d "$LINUX_DIR" ]; then
 	if [ x"$KEEP_SRC" = x"update" ]; then
 		pushd "$LINUX_DIR"
