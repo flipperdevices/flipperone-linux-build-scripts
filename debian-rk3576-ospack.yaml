@@ -253,6 +253,16 @@ actions:
     source: {{ $btrfstoolsdir }}/hooks
     destination: /etc/kernel/install.d
 
+  # flipper-bless-boot.service, which removes a boot entry's counter once the boot it came
+  # from reached boot-complete.target. Without it every boot is counted and none is ever
+  # blessed, so three boots take every entry to 'bad'. It is wired to start, and Debian's
+  # own systemd-boot-check-no-failures.service is wired to gate the target, by the symlinks
+  # in overlays/configs/systemd.
+  - action: overlay
+    description: Overlay the btrfs boot-assessment unit
+    source: {{ $btrfstoolsdir }}/systemd
+    destination: /usr/lib/systemd/system
+
   - action: overlay
     description: Overlay flipctl, its apps and its remote-view assets
     source: {{ $flipctldir }}
