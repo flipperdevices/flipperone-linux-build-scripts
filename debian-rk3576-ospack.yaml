@@ -213,6 +213,19 @@ actions:
     source: overlays/configs
     destination: /etc
 
+  # The Rust toolchain, so a flipctl framework app can be built on the device. Must follow the
+  # overlay above, which puts trixie-backports in the sources. Each name says its suite because
+  # backports is priority 100: cargo alone fails, since apt then refuses to take rustc from
+  # there. libstd-rust-1.94 and libllvm21 follow on their own, which keeps a version out of
+  # this file. 445MB installed.
+  - action: apt
+    description: Install the Rust toolchain from trixie-backports
+    recommends: false
+    packages:
+      - cargo/trixie-backports
+      - rustc/trixie-backports
+      - libstd-rust-dev/trixie-backports
+
   - action: overlay
     description: Overlay Broadcom WiFi/BT firmware files
     source: overlays/firmware
