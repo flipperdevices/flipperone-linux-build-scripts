@@ -264,9 +264,35 @@ actions:
     destination: /usr/lib/systemd/system
 
   - action: overlay
-    description: Overlay flipctl, its apps and its remote-view assets
+    description: Overlay flipctl, its apps, its remote-view assets and the app framework
     source: {{ $flipctldir }}
     destination: /usr
+
+  # An app is built in its own directory, so it has to belong to whoever flipctl runs as
+  # or cargo cannot create its target/ and stops with "Permission denied (os error 13)".
+  # Read out of the unit rather than named here, because this image has two candidates: a
+  # dedicated flipctl system user, and the `user` the unit actually asks for. Only the
+  # apps change hands; the framework under share/flipctl/crates stays root-owned, since a
+  # build reads it and never writes to it.
+  - action: run
+    description: Let the user flipctl runs as rebuild an app in place
+    chroot: true
+    command: |
+      unit=/usr/lib/systemd/system/flipctl.service
+      u=$(sed -n 's/^User=//p' "$unit" | head -n1)
+      g=$(sed -n 's/^Group=//p' "$unit" | head -n1)
+      chown -R "${u:-user}:${g:-${u:-user}}" /usr/share/flipctl/apps
+
+  # flipctl offers to rebuild an app whose binary is older than a source beside it, and the
+  # order build-flipctl.sh installs them in does not survive the copy into the image: every
+  # file lands with the time it was written here, and radio's ui/app.slint came out 4ms after
+  # its binary, which was enough to ask. Stamping the binaries last says what was meant.
+  - action: run
+    description: Make each shipped app binary newer than its sources
+    chroot: true
+    command: |
+      find /usr/share/flipctl/apps -mindepth 4 -maxdepth 4 -path '*/target/release/*' \
+        -type f -exec touch {} +
 
   - action: overlay
     description: Overlay our usr/share files

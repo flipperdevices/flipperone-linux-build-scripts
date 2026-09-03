@@ -2,8 +2,9 @@
 # build-flipctl.sh [<checkout> [<staging dir>]] - build flipctl for the image.
 #
 # Stages the tree the ospack overlays onto /usr: bin/flipctl, its apps and remote-view
-# assets under share/flipctl, and the unit the repository ships as
-# lib/systemd/system/flipctl.service. Called by build-ospack.sh once it has the checkout.
+# assets under share/flipctl, the framework an app is compiled against, and the unit the
+# repository ships as lib/systemd/system/flipctl.service. Called by build-ospack.sh once
+# it has the checkout.
 #
 # Native on an arm64 builder, cross anywhere else. Nothing here links a C library (EGL
 # and GBM are dlopened, wayland-client uses its Rust backend, slint renders in software),
@@ -11,6 +12,9 @@
 : "${FLIPCTL_DIR:=src/flipctl}"
 : "${FLIPCTL_OUT:=prebuilt/flipctl}"
 : "${FLIPCTL_FEATURES:=device,slint,remote,wayland,gpu}"
+# The apps that ship already built. Every other app ships as sources and is compiled on
+# the device the first time somebody opens it, which is what the staged crates allow.
+: "${FLIPCTL_APPS:=radio}"
 
 set -e
 
@@ -65,8 +69,44 @@ mkdir -p "$OUT/share/flipctl"
 # a checkout kept between runs (KEEP_SRC) still has them.
 tar -C "$SRC" -cf - --exclude=.venv --exclude=target --exclude=__pycache__ apps \
         | tar -C "$OUT/share/flipctl" -xf -
+# The framework an app is compiled against, and the fonts, which are the part that is easy
+# to miss: flipper-ui's ui/fonts.slint imports the three TTFs as ../../../third_party, from
+# outside crates/ entirely. An app's manifest asks for ../../crates/flipctl-app, resolved
+# against where the app sits, so this layout mirrors the repository for exactly those paths.
+# Without them a build on the device stops at cargo's first step, unable to read
+# share/flipctl/crates/flipctl-app/Cargo.toml.
+#
+# tests/ is dropped because nothing an app builds reads it; examples/ cannot be, even though
+# nothing reads those either, because flipper-ui declares three of them by name and cargo
+# refuses to parse a manifest whose declared target has no file.
+tar -C "$SRC" -cf - --exclude=target --exclude=tests \
+        crates/flipctl-app crates/flipper-ui crates/flipper-tokens \
+        third_party/flipctl-fonts \
+        | tar -C "$OUT/share/flipctl" -xf -
 mkdir -p "$OUT/share/flipctl/assets"
 cp -a "$SRC/crates/flipper-ui/assets/remote" "$OUT/share/flipctl/assets/remote"
+
+# The apps that ship built, installed after their sources are staged: flipctl offers a
+# rebuild when the binary is older than the newest source beside it, and this order makes
+# the binary the later file.
+#
+# Built rather than installed, unlike flipctl above: cargo install only ever writes
+# <root>/bin/<name>, and app.toml names the binary as ./target/release/<name>, which is
+# where the app's own build leaves it and so where flipctl looks for it, here as much as
+# on the device. Each app directory is a workspace root of its own, carrying an empty
+# [workspace] table, so the build runs there rather than at the checkout.
+for _app in $FLIPCTL_APPS; do
+        _dir=$SRC/apps/$_app
+        [ -f "$_dir/Cargo.toml" ] || { echo "build-flipctl: apps/$_app carries no crate" >&2; exit 1; }
+        # app.toml names what it runs: wayland = "./target/release/radio-app".
+        _bin=$(sed -n 's|^wayland[[:space:]]*=[[:space:]]*"\./target/release/\([^"]*\)".*|\1|p' \
+                "$_dir/app.toml" | head -n1)
+        [ -n "$_bin" ] || { echo "build-flipctl: apps/$_app names no binary to build" >&2; exit 1; }
+        (cd "$_dir" && cargo build --release "${TARGET_ARG[@]}")
+        install -D -m 755 "$_dir/target${TARGET:+/$TARGET}/release/$_bin" \
+                "$OUT/share/flipctl/apps/$_app/target/release/$_bin"
+        echo "build-flipctl: staged apps/$_app built as $_bin"
+done
 # The unit ships from the repository, not a copy in overlays/, so a deploy from a
 # checkout restarts the same unit the image boots.
 install -D -m 644 "$SRC/systemd/flipctl.service" "$OUT/lib/systemd/system/flipctl.service"
