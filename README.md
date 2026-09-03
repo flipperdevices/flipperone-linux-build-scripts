@@ -35,7 +35,7 @@ Build scripts (run them in order):
 | `build-images.sh` | Assembles complete GPT disk images for all boards you've built bootloaders for; calls `build-rootfs-img.sh` to build the root filesystem if it doesn't exist yet |
 | `build-rootfs-img.sh` | Runs debos on `debian-rk3576-img.yaml` to install the kernel into a partitioned image, then zeekstd-compresses it |
 | `build-ospack.sh` | Runs mmdebstrap via debos (`debian-rk3576-ospack.yaml`) to build the Debian root filesystem tarball |
-| `build-flipctl.sh` | Builds flipctl (the panel UI) from `flipctl-slint` for arm64, natively or cross, and stages `/usr/bin/flipctl` plus its apps and assets for the ospack; called by `build-ospack.sh` |
+| `build-flipctl.sh` | Builds flipctl (the panel UI) from `flipctl-slint` for arm64, natively or cross, and stages `/usr/bin/flipctl`, its apps and assets, and the crates an app is compiled against, for the ospack; the apps in `FLIPCTL_APPS` ship built, the rest as sources; called by `build-ospack.sh` |
 
 Other directories:
 
