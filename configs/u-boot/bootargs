@@ -1,0 +1,2 @@
+CONFIG_USE_BOOTARGS=y
+CONFIG_BOOTARGS="fbcon=map:1 console=ttyS0,1500000n8 quiet driver_async_probe=rk_gmac-dwmac,leds-gpio"
