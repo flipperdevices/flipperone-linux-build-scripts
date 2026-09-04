@@ -3,7 +3,7 @@
 {{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
 # cmdline: shared facts + policy only. The BLS generator adds the per-entry rootflags=subvol=
 # and the serial consoles (console=ttyS0/ttyS4/fbcon or ttyFIQ0, per kernel config).
-{{ $cmdline    := or .cmdline    "audit=0 console=tty1" }}
+{{ $cmdline    := or .cmdline    "console=tty1" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
 # btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
 # detected as non-rotational).
@@ -82,7 +82,7 @@ actions:
 
   # debos writes the standard root line into /etc/fstab and root=UUID into the cmdline.
   # The root subvolume is NOT baked here: /etc/kernel/cmdline carries only shared facts +
-  # policy (root=UUID, audit, console=tty1). The BLS generator supplies rootflags=subvol=
+  # policy (root=UUID, console=tty1). The BLS generator supplies rootflags=subvol=
   # per entry (from flipper-profiles at build, from findmnt at runtime). Deploy into @Minimal_stock.
   - action: filesystem-deploy
     append-kernel-cmdline: {{ $cmdline }}
