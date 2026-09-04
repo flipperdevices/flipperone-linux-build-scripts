@@ -11,7 +11,7 @@
 #   --acm                       add a USB serial (CDC-ACM) function (kernel)
 #   --storage                   add a mass_storage LUN (implied by a medium option)
 #   --mtp                       add MTP over FunctionFS (needs the umtprd daemon; serves
-#                               the paths in /etc/umtprd/umtprd.conf, /home by default)
+#                               the paths in /etc/umtprd/umtprd.conf, as $MTP_USER)
 #   --name NAME                 configfs gadget name (default: flipper)
 #   --pid HEX / --product STR   idProduct / iProduct (idVendor fixed 0x37C1, serial auto)
 #   --sda|--sdcard|--iso FILE   storage medium
@@ -27,6 +27,8 @@ MSC_FUNC=mass_storage.0
 MTP_FUNC=ffs.mtp
 FFS_INST=mtp
 FFS_DIR=/dev/ffs-mtp
+# Whose files a host transfer creates. Overridable for an image that has no such user.
+: "${MTP_USER:=user}"
 INQUIRY="Flipper Storage"
 SDA=/dev/sda
 SDCARD="${SDCARD:-/dev/mmcblk0}"
@@ -144,9 +146,26 @@ load_medium()
 # UDC is bound; the endpoints ep1/ep2 appear once it has. Storage paths come from its conf.
 mtp_up()
 {
+    # umtprd runs as the desktop user, not as root, because everything the host copies in is
+    # created by it: as root a transfer left root-owned files in that user's own home, mode 0700,
+    # which their session then could not open. umtprd has no way to drop privilege itself (its
+    # config knows storage, umask and the USB keys, and nothing about a user), so the descriptors
+    # it has to write are handed over instead: FunctionFS takes uid/gid mount options, and without
+    # them the endpoints are root:root 0600.
+    _uid="$(id -u "$MTP_USER" 2>/dev/null)"; _gid="$(id -g "$MTP_USER" 2>/dev/null)"
     mkdir -p "$FFS_DIR"
-    grep -q " $FFS_DIR functionfs " /proc/mounts || mount -t functionfs "$FFS_INST" "$FFS_DIR"
-    if ! pgrep -x umtprd >/dev/null 2>&1; then umtprd & fi
+    if [ -n "$_uid" ] && [ -n "$_gid" ]; then
+        grep -q " $FFS_DIR functionfs " /proc/mounts \
+            || mount -t functionfs -o "uid=$_uid,gid=$_gid" "$FFS_INST" "$FFS_DIR"
+        if ! pgrep -x umtprd >/dev/null 2>&1; then
+            setpriv --reuid "$_uid" --regid "$_gid" --init-groups umtprd &
+        fi
+    else
+        # No such user: serve as root rather than not at all, and say why the files will be root's.
+        echo "usb-gadget-setup: no user '$MTP_USER', umtprd runs as root and its files will be too" >&2
+        grep -q " $FFS_DIR functionfs " /proc/mounts || mount -t functionfs "$FFS_INST" "$FFS_DIR"
+        if ! pgrep -x umtprd >/dev/null 2>&1; then umtprd & fi
+    fi
     i=0
     while [ ! -e "$FFS_DIR/ep1" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
     [ -e "$FFS_DIR/ep1" ] || { echo "umtprd did not bring up FunctionFS" >&2; return 1; }
@@ -252,7 +271,7 @@ Usage: $0 {start|stop|restart|eject} [options]
   --ncm|--ecm|--eem|--rndis   add a USB Ethernet function
   --acm                       add a USB serial (CDC-ACM) function
   --storage                   add a mass_storage LUN (implied by a medium option)
-  --mtp                       add MTP over FunctionFS (needs umtprd; serves /etc/umtprd/umtprd.conf)
+  --mtp                       add MTP over FunctionFS (umtprd as $MTP_USER; serves /etc/umtprd/umtprd.conf)
   --name NAME                 configfs gadget name (default: flipper)
   --pid HEX                   idProduct (idVendor fixed 0x37C1, serial auto from CPU)
   --product STR               iProduct string
