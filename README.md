@@ -227,7 +227,7 @@ The same `KEEP_SRC` variants work here too.
 
 ### Assembling disk images
 
-Once you have bootloader outputs in `prebuilt/u-boot/` and kernel outputs in `prebuilt/linux/`, run:
+Once you have bootloader outputs in `prebuilt/u-boot/` and kernel outputs in `prebuilt/linux-mainline/` and `prebuilt/linux-bsp/`, run:
 
 ```bash
 ./build-images.sh
@@ -235,7 +235,7 @@ Once you have bootloader outputs in `prebuilt/u-boot/` and kernel outputs in `pr
 
 This produces compressed images for each board whose bootloader is present. The kernel and root filesystem are shared; only the bootloader partition differs per board. Output files: `out/debian-<sector-size>-<board>-<timestamp>.img.gz` with a matching `.bmap` file, for both 512-byte and 4096-byte sector variants. When run inside the container, images go to `out/images/` instead (the container sets `IMG_OUT=/artifacts/images`).
 
-Don't run the mainline and BSP kernel scripts in parallel against the same output directory — both write to the same `prebuilt/linux/` path and the final packaging step will fail. Run one, then the other (or set separate `LINUX_OUT` paths).
+The mainline and BSP kernel scripts now default to separate output directories (`prebuilt/linux-mainline` and `prebuilt/linux-bsp`), so they can safely be run in parallel. If you need a custom path, set `LINUX_OUT` in the environment.
 
 ### Writing the image to SD/eMMC
 

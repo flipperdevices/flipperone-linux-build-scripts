@@ -3,7 +3,7 @@
 : "${VENDOR_DTS:=vendor-dts}"
 : "${PATCHES_DIR:=patches/bsp}"
 : "${KEEP_SRC:=no}"
-: "${LINUX_OUT:=prebuilt/linux}"
+: "${LINUX_OUT:=prebuilt/linux-bsp}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 : "${CONFIGS:=configs/linux-bsp}"
 
