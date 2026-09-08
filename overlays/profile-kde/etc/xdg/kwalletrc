@@ -1,0 +1,8 @@
+[Wallet]
+Enabled=true
+First Use=false
+Use One Wallet=true
+Default Wallet=kdewallet
+Prompt on Open=false
+Close When Idle=false
+Leave Open=true

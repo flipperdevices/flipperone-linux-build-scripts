@@ -346,14 +346,18 @@ actions:
       - mesa-teflon-delegate
 
   - action: overlay
-    description: Overlay Kodi Chromium kiosk launcher
+    description: Overlay the home directory (Kodi kiosk launcher, kwallet)
     source: overlays/home/user/
     destination: /home/user/
 
   - action: run
     description: Fix ownership of overlaid home files
     chroot: true
-    command: chown -R user:user /home/user
+    command: |
+      set -eu
+      chown -R user:user /home/user
+      chmod 700 /home/user/.local/share/kwalletd
+      chmod 600 /home/user/.local/share/kwalletd/kdewallet.kwl /home/user/.local/share/kwalletd/kdewallet.salt
 
   - action: pack
     description: Save the ospack archive
