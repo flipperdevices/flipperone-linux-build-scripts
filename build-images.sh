@@ -53,7 +53,7 @@ build_board_image() {
 	rm -f "$img"
 }
 
-for s in 512 4096; do
+for s in 512; do
 	echo "Creating images for $s-byte sector size"
 	truncate -s "$IMGSIZE" "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img
 	sfdisk --sector-size $s "$TMPDIR"/debian-"$s"-nobootloader-"$BUILD_ID".img << EOF
