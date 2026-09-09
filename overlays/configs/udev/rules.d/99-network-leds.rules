@@ -1,0 +1,36 @@
+# The network LEDs follow their ports: each lights with its interface's carrier,
+# through the kernel's netdev trigger. Link only, because the trigger also blinks
+# on traffic and a busy link then spends half its time dark.
+#
+# Driven from the interface, not the LED: the wireless name comes from the
+# adapter's MAC, so %k on its own event is the only place to read it, and
+# [subsystem/sysname] is what writes another device's attribute. move as well as
+# add, since a wireless interface is renamed just after it appears.
+#
+# IMPORT loads the trigger module where it stands; RUN would be deferred past the
+# writes below. Colour before trigger, which otherwise has nothing to light.
+SUBSYSTEM=="net", ACTION=="add|move", IMPORT{builtin}="kmod load ledtrig-netdev"
+
+SUBSYSTEM=="net", ACTION=="add|move", KERNEL=="end0", \
+  ATTR{[leds/flipper-one:rgb:eth0]multi_intensity}="120 255 0", \
+  ATTR{[leds/flipper-one:rgb:eth0]trigger}="netdev", \
+  ATTR{[leds/flipper-one:rgb:eth0]device_name}="end0", \
+  ATTR{[leds/flipper-one:rgb:eth0]link}="1", \
+  ATTR{[leds/flipper-one:rgb:eth0]tx}="0", \
+  ATTR{[leds/flipper-one:rgb:eth0]rx}="0"
+
+SUBSYSTEM=="net", ACTION=="add|move", KERNEL=="end1", \
+  ATTR{[leds/flipper-one:rgb:eth1]multi_intensity}="120 255 0", \
+  ATTR{[leds/flipper-one:rgb:eth1]trigger}="netdev", \
+  ATTR{[leds/flipper-one:rgb:eth1]device_name}="end1", \
+  ATTR{[leds/flipper-one:rgb:eth1]link}="1", \
+  ATTR{[leds/flipper-one:rgb:eth1]tx}="0", \
+  ATTR{[leds/flipper-one:rgb:eth1]rx}="0"
+
+SUBSYSTEM=="net", ACTION=="add|move", ENV{DEVTYPE}=="wlan", \
+  ATTR{[leds/flipper-one:rgb:wifi]multi_intensity}="0 255 255", \
+  ATTR{[leds/flipper-one:rgb:wifi]trigger}="netdev", \
+  ATTR{[leds/flipper-one:rgb:wifi]device_name}="%k", \
+  ATTR{[leds/flipper-one:rgb:wifi]link}="1", \
+  ATTR{[leds/flipper-one:rgb:wifi]tx}="0", \
+  ATTR{[leds/flipper-one:rgb:wifi]rx}="0"
