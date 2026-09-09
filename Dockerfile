@@ -23,6 +23,8 @@ RUN apt-get install -y \
     parted \
     fdisk \
     btrfs-progs \
+    dosfstools \
+    mtools \
     python3-dev \
     python3-libfdt \
     python3-setuptools \

@@ -237,6 +237,20 @@ This produces compressed images for each board whose bootloader is present. The 
 
 Don't run the mainline and BSP kernel scripts in parallel against the same output directory — both write to the same `prebuilt/linux/` path and the final packaging step will fail. Run one, then the other (or set separate `LINUX_OUT` paths).
 
+### Assembling the installer image
+
+To boot the installer from a plain SD card instead of flashing it over USB, run:
+
+```bash
+INSTALLER_INITRD=/path/to/rootfs.cpio.gz ./build-installer-img.sh
+```
+
+`INSTALLER_INITRD` is required and is the same artifact `build-uboot.sh` bakes into `installer-falcon.itb`; there is no default, so the script stops if it isn't given. The initrd itself is built outside this repository, by [flipperos-installer-initramfs](https://github.com/flipperdevices/flipperos-installer-initramfs). The result is a ~145MiB image per board: a bootloader partition at 32KiB, and a 128MiB FAT32 partition holding `vmlinuz` and the rk3576 device trees from `prebuilt/linux/linux-mainline-files/`, the initrd as `rootfs.cpio.gz`, and a static `extlinux/extlinux.conf`. U-Boot's extlinux bootmeth finds that config on its own, and picks the board's device tree out of `/dtbs` via `$fdtfile`, so one config works everywhere.
+
+Output files: `out/installer-<board>-<timestamp>.img.gz` with a matching `.bmap` file. Write them the same way as the full images (see below). Override `INSTALLER_BOOTARGS` to change the kernel command line, and `BOOTSIZE`/`IMGSIZE` if a larger initrd needs more room.
+
+This isn't part of the container's default build chain, since the initrd comes from outside this repository.
+
 ### Writing the image to SD/eMMC
 
 #### Flashing to an SD card
