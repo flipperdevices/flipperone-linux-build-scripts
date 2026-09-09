@@ -1,0 +1,8 @@
+# kameleon walks /sys/class/leds at session start and repaints every RGB LED with
+# the desktop accent colour, which fights the network LEDs that
+# 99-network-leds.rules binds to their ports.
+#
+# The file is kded5rc, not kded6rc: kded6 kept the KF5 name for its own config,
+# so a kded6rc is read by nothing.
+[Module-kameleon]
+autoload=false
