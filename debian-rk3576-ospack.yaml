@@ -344,6 +344,7 @@ actions:
       - libavformat-extra
       - lpac
       - mesa-teflon-delegate
+      - scx-lavd
 
   - action: overlay
     description: Overlay the home directory (Kodi kiosk launcher, kwallet)
