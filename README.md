@@ -122,7 +122,7 @@ sudo apt install git build-essential crossbuild-essential-arm64 bc bison flex \
 For assembling disk images — debos, bmaptool, and zeekstd all need to be installed from source:
 
 ```bash
-sudo apt install golang pipx pigz parted fdisk btrfs-progs mmdebstrap \
+sudo apt install golang pipx pigz zstd parted fdisk btrfs-progs mmdebstrap \
     systemd-resolved systemd-container qemu-user-binfmt \
     libglib2.0-dev libostree-dev fakemachine
 
@@ -233,7 +233,7 @@ Once you have bootloader outputs in `prebuilt/u-boot/` and kernel outputs in `pr
 ./build-images.sh
 ```
 
-This produces compressed images for each board whose bootloader is present. The kernel and root filesystem are shared; only the bootloader partition differs per board. Output files: `out/debian-<sector-size>-<board>-<timestamp>.img.gz` with a matching `.bmap` file, for both 512-byte and 4096-byte sector variants. When run inside the container, images go to `out/images/` instead (the container sets `IMG_OUT=/artifacts/images`).
+This produces compressed images for each board whose bootloader is present. The kernel and root filesystem are shared; only the bootloader partition differs per board. Output files: `out/debian-<sector-size>-<board>-<timestamp>.img.zst` with a matching `.bmap` file, for both 512-byte and 4096-byte sector variants. When run inside the container, images go to `out/images/` instead (the container sets `IMG_OUT=/artifacts/images`). Set `ZSTD_LEVEL` to trade build time against image size; it defaults to 12.
 
 Don't run the mainline and BSP kernel scripts in parallel against the same output directory — both write to the same `prebuilt/linux/` path and the final packaging step will fail. Run one, then the other (or set separate `LINUX_OUT` paths).
 
@@ -262,7 +262,7 @@ If you have a built-in SD card slot, you may use that, and the card will likely 
 If you are using a USB card reader, the card will likely show up as `/dev/sdX` (where `X` is a lowercase letter). In this latter case you need to be triple careful, because any SATA or SCSI storage devices will also share the same naming scheme, and if you have important data on any other `/dev/sdX` device (such as your main system disk being called something like `/dev/sda`) you might end up inadvertently overwriting it if you pick the wrong one in the below commands, losing all your data. Please be careful.
 
 ```bash
-sudo bmaptool copy out/debian-512-<your_board>-*.img.gz /dev/sdX
+sudo bmaptool copy out/debian-512-<your_board>-*.img.zst /dev/sdX
 ```
 
 #### Flashing to eMMC using a USB cable and Maskrom
@@ -286,7 +286,7 @@ Your device is now ready for programming over the Rockusb protocol.
 # Boot the board in USB upload mode
 sudo rockusb download-boot prebuilt/u-boot/<your_board>/rk3576_loader_v*.bin
 
-sudo rockusb write-bmap out/debian-512-<your_board>-*.img.gz
+sudo rockusb write-bmap out/debian-512-<your_board>-*.img.zst
 ```
 
 Container builds place bootloaders in `out/u-boot/<board>/` and disk images in `out/images/` instead.
@@ -300,7 +300,7 @@ Switch Radxa 4D into Maskrom mode, then:
 ```bash
 rockusb list
 rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_loader_v*.bin
-rockusb write-bmap out/debian-512-rock-4d-*.img.gz
+rockusb write-bmap out/debian-512-rock-4d-*.img.zst
 rockusb reset-device
 ```
 

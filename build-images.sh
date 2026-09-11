@@ -2,6 +2,7 @@
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${IMG_OUT:=out}"
 : "${IMGSIZE:=6GiB}"
+: "${ZSTD_LEVEL:=12}"
 
 set -e
 
@@ -38,7 +39,7 @@ compress_image() {
 	echo "$i: creating a block map"
 	bmaptool create -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.bmap "$img" || return 1
 	echo "$i: compressing the final image"
-	pigz -p "$PIGZ_THREADS" -c "$img" > "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.gz || return 1
+	zstd -f -T"$ZSTD_THREADS" -"$ZSTD_LEVEL" -o "$IMG_OUT"/debian-"$s"-"$i"-"$BUILD_ID".img.zst "$img" || return 1
 }
 
 build_board_image() {
@@ -84,19 +85,19 @@ EOF
 	SPACE_JOBS=$(( AVAIL * 9 / 10 / IMG_COST ))
 
 	# Run as many jobs at once as both the free space and the cores allow,
-	# and give each one an even slice of the cores for pigz (rounded up so we
+	# and give each one an even slice of the cores for zstd (rounded up so we
 	# don't leave cores idle).
 	MAX_PAR=$(( NJOBS < NPROC ? NJOBS : NPROC ))
 	[ "$SPACE_JOBS" -lt "$MAX_PAR" ] && MAX_PAR=$SPACE_JOBS
 	[ "$MAX_PAR" -lt 1 ] && MAX_PAR=1
-	PIGZ_THREADS=$(( (NPROC + MAX_PAR - 1) / MAX_PAR ))
+	ZSTD_THREADS=$(( (NPROC + MAX_PAR - 1) / MAX_PAR ))
 
 	echo " - $IMG_COST bytes per image, $AVAIL free: room for $SPACE_JOBS"
-	echo " - Building $NJOBS images, $MAX_PAR at a time, $PIGZ_THREADS pigz threads each"
+	echo " - Building $NJOBS images, $MAX_PAR at a time, $ZSTD_THREADS zstd threads each"
 
 	# The base is only read from here on, so it can compress alongside the
 	# boards -- it just has to outlive them. Dispatch it first, since its
-	# pigz pass is the longest single job, and it needs no extra space.
+	# zstd pass is the longest single job, and it needs no extra space.
 	{ compress_image nobootloader "$base" || echo nobootloader >> "$TMPDIR"/failed-"$s"; } &
 
 	for i in $BOARDS; do
