@@ -6,8 +6,10 @@
 {{ $cmdline    := or .cmdline    "console=tty1" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
 # btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
-# detected as non-rotational).
-{{ $btrfsopts  := or .btrfsopts  "compress=zstd:1,noatime,ssd,discard=async" }}
+# detected as non-rotational). The build writes at a high level so the shipped
+# extents are small; btrfsfstab is what the installed system mounts with.
+{{ $btrfsopts  := or .btrfsopts  "compress=zstd:9,noatime,ssd,discard=async" }}
+{{ $btrfsfstab := or .btrfsfstab "compress=zstd:1,noatime,ssd,discard=async" }}
 {{ $rootdev    := "findmnt -fn --nofsroot -o SOURCE --target $IMAGEMNTDIR" }}
 # build number (buildbot: build number; local: timestamp) embedded in every _stock name
 # (@<Profile>_<buildno>_stock) so stocks from different builds coexist; roots stay unversioned.
@@ -45,7 +47,7 @@ actions:
     mountpoints:
       - mountpoint: /
         partition: root
-        options: [ compress=zstd:1, noatime, ssd, discard=async, x-systemd.growfs ]
+        options: [ {{ $btrfsopts }}, x-systemd.growfs ]
 
   # Subvolume layout (no reformat). /boot is a TOP-LEVEL subvolume named "boot"
   # (not "@boot") so it sits outside the per-profile root subvolumes -> a single shared
@@ -92,17 +94,18 @@ actions:
   # /var/cache) are shared by every profile root. @snapshots is intentionally omitted:
   # it holds runtime snapshots, managed on demand, never auto-mounted.
   - action: run
-    description: Append subvolume entries to /etc/fstab
+    description: Set the runtime mount options and append subvolume entries to /etc/fstab
     chroot: false
     command: |
       set -eu
       ROOTPART="$({{ $rootdev }})"
       FSUUID="$(blkid -o value -s UUID -p -c none "$ROOTPART")"
+      sed -i 's|{{ $btrfsopts }}|{{ $btrfsfstab }}|' "$IMAGEMNTDIR/etc/fstab"
       cat >> "$IMAGEMNTDIR/etc/fstab" <<EOF
-      UUID=$FSUUID  /boot        btrfs  {{ $btrfsopts }},subvol=boot        0  0
-      UUID=$FSUUID  /home        btrfs  {{ $btrfsopts }},subvol=@home       0  0
-      UUID=$FSUUID  /var/log     btrfs  {{ $btrfsopts }},subvol=@var-log    0  0
-      UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsopts }},subvol=@var-cache  0  0
+      UUID=$FSUUID  /boot        btrfs  {{ $btrfsfstab }},subvol=boot        0  0
+      UUID=$FSUUID  /home        btrfs  {{ $btrfsfstab }},subvol=@home       0  0
+      UUID=$FSUUID  /var/log     btrfs  {{ $btrfsfstab }},subvol=@var-log    0  0
+      UUID=$FSUUID  /var/cache   btrfs  {{ $btrfsfstab }},subvol=@var-cache  0  0
       EOF
 
   # journald's append-heavy writes fragment badly under btrfs copy-on-write. Pre-create
