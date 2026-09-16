@@ -26,6 +26,10 @@
 : "${USE_BL31:=opensource}"
 : "${USE_TEE:=no}"
 
+# Falcon mode images to build. A flavour is built when its <FLAVOUR>_KERNEL
+# points at a kernel image; it then also needs a <FLAVOUR>_INITRD.
+: "${FALCON_FLAVORS:=installer bootmenu recovery}"
+
 set -e
 
 for i in "$UBOOT_DIR" "$RKBIN_DIR" "$TFA_DIR" "$TEE_DIR"; do
@@ -109,56 +113,71 @@ cat_or_uncompress() {
 	esac > "$dst"
 }
 
-if [ -f "$INSTALLER_KERNEL" ]; then
-	INSTALLER_IMAGE=$(mktemp)
-	TMPDIRS="$TMPDIRS $INSTALLER_IMAGE"
-	cat_or_uncompress "$INSTALLER_KERNEL" "$INSTALLER_IMAGE"
-fi
-if [ -f "$BOOTMENU_KERNEL" ]; then
-	BOOTMENU_IMAGE=$(mktemp)
-	TMPDIRS="$TMPDIRS $BOOTMENU_IMAGE"
-	cat_or_uncompress "$BOOTMENU_KERNEL" "$BOOTMENU_IMAGE"
-fi
+# Flavour names are lowercase and may contain dashes; the variables carrying
+# their inputs are uppercase with underscores.
+falcon_var_prefix() {
+	local p=${1^^}
+	echo "${p//-/_}"
+}
+
+# Collect the flavours we were actually given a kernel for, decompressing each
+# kernel into a temp file that the Falcon builds below feed to binman.
+FALCON_ACTIVE=
+for f in $FALCON_FLAVORS; do
+	uf=$(falcon_var_prefix "$f")
+	kernel="$uf"_KERNEL
+	initrd="$uf"_INITRD
+
+	[ -f "${!kernel}" ] || continue
+
+	if [ ! -f "${!initrd}" ]; then
+		echo "$f: $initrd is not a readable file" >&2
+		exit 1
+	fi
+
+	image=$(mktemp)
+	TMPDIRS="$TMPDIRS $image"
+	cat_or_uncompress "${!kernel}" "$image"
+	eval "${uf}_IMAGE=\$image"
+
+	FALCON_ACTIVE="$FALCON_ACTIVE $f"
+done
+
+uboot_make() {
+	local out="$1"; shift
+
+	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
+		CROSS_COMPILE="$CROSS_COMPILE" "$@"
+}
 
 build_board() {
 	local i="$1"
 	local out="$2"	# out-of-tree temp build dir
+	local f uf initrd image
+	local -a blobs=(BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE")
 
-	make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-		CROSS_COMPILE="$CROSS_COMPILE" \
-		"$i"-rk3576_defconfig rockchip-ramboot.config || return 1
+	uboot_make "$out" "$i"-rk3576_defconfig rockchip-ramboot.config || return 1
 
 	"$UBOOT_DIR"/scripts/kconfig/merge_config.sh -m -O "$out" "$out/.config" "$CONFIGS" || return 1
 
-	if [ -f "$INSTALLER_IMAGE" -o -f "$BOOTMENU_IMAGE" ]; then
-		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-	                CROSS_COMPILE="$CROSS_COMPILE" \
-			rockchip-falcon.config || return 1
+	if [ -n "$FALCON_ACTIVE" ]; then
+		uboot_make "$out" rockchip-falcon.config || return 1
 	else
-		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-			CROSS_COMPILE="$CROSS_COMPILE" \
-			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" || return 1
+		uboot_make "$out" "${blobs[@]}" || return 1
 	fi
 
-	if [ -f "$INSTALLER_IMAGE" ]; then
-		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-			CROSS_COMPILE="$CROSS_COMPILE" \
-			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" \
-			LINUX_KERNEL="$INSTALLER_IMAGE" LINUX_INITRD="$INSTALLER_INITRD" || return 1
-			mv "$out"/u-boot-rockchip-falcon.itb "$out"/installer-falcon.itb
-			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/installer-falcon-usb472.bin
-			mv "$out"/u-boot-rockchip-loader-falcon.bin "$out"/installer-falcon-loader.bin
-	fi
+	for f in $FALCON_ACTIVE; do
+		uf=$(falcon_var_prefix "$f")
+		image="$uf"_IMAGE
+		initrd="$uf"_INITRD
 
-	if [ -f "$BOOTMENU_IMAGE" ]; then
-		make -C "$UBOOT_DIR" O="$out" -j"$JOBS" -l"$NPROC" \
-			CROSS_COMPILE="$CROSS_COMPILE" \
-			BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE" \
-			LINUX_KERNEL="$BOOTMENU_IMAGE" LINUX_INITRD="$BOOTMENU_INITRD" || return 1
-			mv "$out"/u-boot-rockchip-falcon.itb "$out"/bootmenu-falcon.itb
-			mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out"/bootmenu-falcon-usb472.bin
-			mv "$out"/u-boot-rockchip-loader-falcon.bin "$out"/bootmenu-falcon-loader.bin
-	fi
+		uboot_make "$out" "${blobs[@]}" \
+			LINUX_KERNEL="${!image}" LINUX_INITRD="${!initrd}" || return 1
+
+		mv "$out"/u-boot-rockchip-falcon.itb "$out/$f"-falcon.itb || return 1
+		mv "$out"/u-boot-rockchip-usb472-falcon.bin "$out/$f"-falcon-usb472.bin || return 1
+		mv "$out"/u-boot-rockchip-loader-falcon.bin "$out/$f"-falcon-loader.bin || return 1
+	done
 
 	rm -rf "$UBOOT_OUT/$i"
 	mkdir -p "$UBOOT_OUT/$i"

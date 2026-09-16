@@ -190,6 +190,18 @@ USE_BL31=vendor BOARD=rock-4d KEEP_SRC=yes ./build-uboot.sh
 
 Outputs go to `prebuilt/u-boot/<board>/` — `u-boot-rockchip.bin`, `rk3576_loader_v*.bin`, and `rk3576_loader_fspi1_v*.bin` per board, plus USB loader variants.
 
+#### Falcon mode images
+
+The script can also put a kernel and an initrd into the combined FIT image next to U-Boot proper. SPL loads that FIT — either from storage or from the payload uploaded to RAM over USB — and boots the kernel out of it directly, skipping U-Boot proper entirely. `FALCON_FLAVORS` lists the flavours that can be built; it defaults to `installer bootmenu recovery`. Each flavour carries its own kernel and its own initrd, given as `<FLAVOUR>_KERNEL` and `<FLAVOUR>_INITRD`:
+
+```bash
+RECOVERY_KERNEL=/path/to/vmlinuz RECOVERY_INITRD=/path/to/rootfs.cpio.gz ./build-uboot.sh
+```
+
+A flavour is built only when its `<FLAVOUR>_KERNEL` names a readable file, so you can build any subset in one run; the script stops if a flavour is requested without a readable `<FLAVOUR>_INITRD`. The kernel may be compressed (gzip, xz, zstd, lz4, bzip2 or lzma) — the compression is detected and undone automatically. Adding a flavour of your own needs no change to the script, just another word in `FALCON_FLAVORS`.
+
+Each flavour produces three more files in `prebuilt/u-boot/<board>/`: `<flavour>-falcon.itb`, `<flavour>-falcon-usb472.bin` and `<flavour>-falcon-loader.bin`. These are meant to be flashed or downloaded over USB, not written to an image by the scripts in this repository.
+
 ### Building the kernel
 
 #### Mainline kernel
