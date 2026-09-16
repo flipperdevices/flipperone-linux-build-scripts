@@ -6,12 +6,14 @@
 
 set -e
 
+# 6Gb was not enough once zstd -T0 over the send streams started sizing its buffers
+# to a 128-core builder: 2.9GB with 128 workers on zstd:9, against 1.1GB on zstd:3.
 if [ -c /dev/kvm -a -w /dev/kvm ]; then
 	# Have virtualization support, can use fakemachine (default, fast, safe)
-	DEBOS="debos -c $(nproc) -m 6Gb"
+	DEBOS="debos -c $(nproc) -m 10Gb"
 elif [ -f /.dockerenv ]; then
 	# Running in a container without access to virtualization, fall back to the slow method
-	DEBOS="debos -b qemu -c $(nproc) -m 6Gb"
+	DEBOS="debos -b qemu -c $(nproc) -m 10Gb"
 elif [ `id -u` -eq 0 ]; then
 	# Running as root, can use the host mode without fakemachine (fast, less safe)
 	DEBOS="debos"
