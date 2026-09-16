@@ -156,12 +156,12 @@ build_board() {
 	local f uf initrd image
 	local -a blobs=(BL31="$BL31" ROCKCHIP_TPL="$ROCKCHIP_TPL" TEE="$TEE")
 
-	uboot_make "$out" "$i"-rk3576_defconfig rockchip-ramboot.config || return 1
+	uboot_make "$out" "$i"-rk3576_defconfig rockchip-ramboot.config rockchip-falcon.config || return 1
 
 	"$UBOOT_DIR"/scripts/kconfig/merge_config.sh -m -O "$out" "$out/.config" "$CONFIGS" || return 1
 
 	if [ -n "$FALCON_ACTIVE" ]; then
-		uboot_make "$out" rockchip-falcon.config || return 1
+		uboot_make "$out" rockchip-falcon-images.config || return 1
 	else
 		uboot_make "$out" "${blobs[@]}" || return 1
 	fi
