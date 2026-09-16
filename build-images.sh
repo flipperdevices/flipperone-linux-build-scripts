@@ -2,7 +2,7 @@
 : "${UBOOT_OUT:=prebuilt/u-boot}"
 : "${IMG_OUT:=out}"
 : "${IMGSIZE:=6GiB}"
-: "${ZSTD_LEVEL:=12}"
+: "${ZSTD_LEVEL:=9}"
 
 set -e
 
