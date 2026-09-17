@@ -50,6 +50,7 @@ actions:
       - file
       - fio
       - firmware-misc-nonfree
+      - fuse3
       - gcc
       - git
       - glmark2-wayland
