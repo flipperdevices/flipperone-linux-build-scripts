@@ -78,6 +78,7 @@ actions:
       - libldacbt-abr2
       - libldacbt-enc2
       - libopus0
+      - libqmi-utils
       - libsbc1
       - libspa-0.2-bluetooth
       - libtypec-utils
