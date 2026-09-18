@@ -37,6 +37,7 @@ RUN apt-get install -y \
     imagemagick \
     libdw-dev \
     libelf-dev \
+    dwarves \
     debhelper \
     device-tree-compiler \
     libssl-dev:arm64 \
