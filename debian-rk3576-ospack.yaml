@@ -35,6 +35,7 @@ actions:
       - btrfs-compsize
       - btrfs-progs
       - build-essential
+      - busybox
       - ca-certificates
       - cec-utils
       - chromium
