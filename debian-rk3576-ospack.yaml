@@ -110,6 +110,7 @@ actions:
       - python3-plotly
       - rfkill
       - rsync
+      - samba
       - sox
       - strace
       - stress-ng
