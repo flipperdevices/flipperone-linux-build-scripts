@@ -1,0 +1,40 @@
+#!/bin/sh
+# The Wi-Fi LED follows a connected Wi-Fi interface.
+#
+# The netdev trigger watches one interface, and udev points it at whichever wireless
+# interface appeared last. An adapter can bring up two, and then the LED stays dark
+# on the idle one while the other carries the connection. So the choice is made here,
+# where the connection is known: an interface coming up takes the LED, and one going
+# down hands it to another that is still up.
+#
+# Written with printf, not echo: the trigger takes at most 15 bytes, an interface
+# name can be all 15, and a trailing newline makes it 16, which is refused as an I/O
+# error.
+led=/sys/class/leds/flipper-one:rgb:wifi
+iface=$1
+action=$2
+[ -w "$led/device_name" ] || exit 0
+
+is_wlan() {
+    grep -qx DEVTYPE=wlan "/sys/class/net/$1/uevent" 2>/dev/null
+}
+is_wlan "$iface" || exit 0
+
+case $action in
+up)
+    printf %s "$iface" >"$led/device_name"
+    ;;
+down)
+    [ "$(cat "$led/device_name")" = "$iface" ] || exit 0
+    for path in /sys/class/net/*; do
+        other=${path##*/}
+        [ "$other" != "$iface" ] || continue
+        is_wlan "$other" || continue
+        if [ "$(cat "$path/operstate" 2>/dev/null)" = up ]; then
+            printf %s "$other" >"$led/device_name"
+            exit 0
+        fi
+    done
+    ;;
+esac
+exit 0
