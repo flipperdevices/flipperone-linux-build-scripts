@@ -4,7 +4,7 @@ var desktopsArray = desktopsForActivity(currentActivity());
 for( var j = 0; j < desktopsArray.length; j++) {
     desktopsArray[j].wallpaperPlugin = 'org.kde.image';
     desktopsArray[j].currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
-    desktopsArray[j].writeConfig('Image', 'file:///usr/share/wallpapers/FlipperOne/contents/images/wallpaper.jpg');
+    desktopsArray[j].writeConfig('Image', 'file:///usr/share/wallpapers/FlipperOne/contents/images/6912x4320.jpg');
 }
 
 // Kickoff's own defaults name kontact and discover, which this image does not install.

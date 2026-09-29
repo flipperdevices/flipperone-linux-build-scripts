@@ -6,5 +6,5 @@ Timeout=0
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
-Image=/usr/share/wallpapers/FlipperOne/contents/images/wallpaper.jpg
-PreviewImage=/usr/share/wallpapers/FlipperOne/contents/images/wallpaper.jpg
+Image=/usr/share/wallpapers/FlipperOne/contents/images/6912x4320.jpg
+PreviewImage=/usr/share/wallpapers/FlipperOne/contents/images/6912x4320.jpg
