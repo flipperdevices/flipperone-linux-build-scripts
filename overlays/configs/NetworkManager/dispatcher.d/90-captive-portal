@@ -1,5 +1,21 @@
 #!/bin/sh
+# A captive portal's sign-in page on the screen of the active seat0 session: the
+# desktop's, or Kodi's cage on TV-Media-Box, through the launcher Kodi's Chromium
+# favourite uses.
+#
+# Started as a service of that user, not run from here: the dispatcher waits for each
+# script and handles its events in order, so a browser run from here held every later
+# event back, and when it was closed the queued portal event opened a second one.
 [ "$2" = connectivity-change ] && [ "$CONNECTIVITY_STATE" = PORTAL ] || exit 0
+# Still behind it now: an event can be handled after the network has been signed in to.
+[ "$(nmcli -t -f CONNECTIVITY general)" = portal ] || exit 0
+# Only with a screen attached: a session without one would open a window nobody sees.
+shown=
+for status in /sys/class/drm/card*-*/status; do
+    [ "$(cat "$status" 2>/dev/null)" = connected ] && shown=1
+done
+[ -n "$shown" ] || exit 0
+
 session=$(loginctl show-seat seat0 -p ActiveSession --value)
 [ -n "$session" ] || exit 0
 [ "$(loginctl show-session "$session" -p Class --value)" = user ] || exit 0
@@ -12,12 +28,10 @@ for s in "/run/user/$uid"/wayland-[0-9]*; do
     [ -S "$s" ] && { wd=${s##*/}; break; }
 done
 [ -n "$wd" ] || exit 0
-exec sudo -u "$name" env \
-  XDG_RUNTIME_DIR="/run/user/$uid" \
-  WAYLAND_DISPLAY="$wd" \
-  chromium --ozone-platform=wayland \
-  --password-store=basic \
-  --user-data-dir="$home/.config/chromium-standalone" \
-  --force-dark-mode \
-  --start-maximized http://network-test.debian.org/nm
-  
+launcher="$home/.kodi/userdata/launch-chromium.sh"
+[ -x "$launcher" ] || exit 0
+
+# One at a time: the unit has a fixed name, and a second start is refused while the
+# first is still open.
+systemd-run --user --machine="$name@.host" --unit=captive-portal --collect --quiet \
+    --setenv=WAYLAND_DISPLAY="$wd" "$launcher" http://network-test.debian.org/nm || :
