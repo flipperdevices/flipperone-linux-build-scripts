@@ -1,5 +1,10 @@
 [General]
 ColorScheme=BreezeDark
+# kameleon repaints every RGB LED with the accent colour, and the network LEDs are
+# bound to their ports by 99-network-leds.rules. Keeping it from autoloading
+# (kded5rc) is not enough: it is loaded on demand when the session gets a screen,
+# and this is the switch it reads when it is.
+DeviceLedsAccentColored=false
 
 [Icons]
 Theme=breeze-dark
