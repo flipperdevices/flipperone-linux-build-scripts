@@ -317,11 +317,14 @@ actions:
       - duperemove
       - ffmpeg
       - firmware-mediatek
+      - krdp
+      - kwin-wayland
       - libavcodec-extra
       - libavfilter-extra
       - libavformat-extra
       - lpac
       - mesa-teflon-delegate
+      - plasma-workspace
       - umtp-responder
 
   - action: overlay
