@@ -3,7 +3,7 @@
 {{ $kerneldir  := or .kerneldir  "prebuilt/linux" }}
 # cmdline: shared facts + policy only. The BLS generator adds the per-entry rootflags=subvol=
 # and the serial consoles (console=ttyS0/ttyS4/fbcon or ttyFIQ0, per kernel config).
-{{ $cmdline    := or .cmdline    "console=tty1" }}
+{{ $cmdline    := or .cmdline    "console=tty1 mem=4G" }}
 {{ $fslabel    := or .fslabel    "flipperos" }}
 # btrfsopts: fs-wide mount options. ssd is FORCED (loopback/eMMC isn't reliably
 # detected as non-rotational). The build writes at a high level so the shipped
