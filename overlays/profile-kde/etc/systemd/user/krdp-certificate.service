@@ -1,0 +1,10 @@
+[Unit]
+Description=Generate the KRDP TLS certificate
+ConditionPathExists=|!%h/.local/share/krdpserver/krdp.crt
+ConditionPathExists=|!%h/.local/share/krdpserver/krdp.key
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/bin/mkdir -p %h/.local/share/krdpserver
+ExecStart=/usr/bin/openssl req -quiet -nodes -new -x509 -keyout %h/.local/share/krdpserver/krdp.key -out %h/.local/share/krdpserver/krdp.crt -days 3650 -batch -subj /CN=%H

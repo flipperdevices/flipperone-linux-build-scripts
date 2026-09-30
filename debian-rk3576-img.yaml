@@ -285,6 +285,7 @@ actions:
       - kde-spectacle
       - kde-standard
       - konsole
+      - krdp
       - kscreen
       - mpv
       - plasma-nm
