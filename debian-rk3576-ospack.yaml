@@ -317,6 +317,8 @@ actions:
       - duperemove
       - ffmpeg
       - firmware-mediatek
+      - krdp
+      - kwin-wayland
       - libavcodec-extra
       - libavfilter-extra
       - libavformat-extra
