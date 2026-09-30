@@ -1,0 +1,6 @@
+.git
+.gitignore
+.dockerignore
+out
+prebuilt
+src
