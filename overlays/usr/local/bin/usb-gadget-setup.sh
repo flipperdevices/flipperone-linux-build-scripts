@@ -174,9 +174,14 @@ mtp_up()
     # it has to write are handed over instead: FunctionFS takes uid/gid mount options, and without
     # them the endpoints are root:root 0600.
     _uid="$(id -u "$MTP_USER" 2>/dev/null)"; _gid="$(id -g "$MTP_USER" 2>/dev/null)"
-    # The MTP serial comes from umtprd's config only, so it runs from a copy with this device's
-    # serial appended.
-    { cat /etc/umtprd/umtprd.conf; echo "serial \"$SERIAL\""; } > /run/umtprd.conf
+    # The MTP serial and firmware version come from umtprd's config only, so it runs from a copy
+    # with this device's serial and the image's build appended.
+    _build=$(sed -n 's/^BUILD_ID=//p' /etc/os-release | tr -d '"')
+    {
+        cat /etc/umtprd/umtprd.conf
+        echo "serial \"$SERIAL\""
+        [ -z "$_build" ] || echo "firmware_version \"Build $_build\""
+    } > /run/umtprd.conf
     mkdir -p "$FFS_DIR"
     if [ -n "$_uid" ] && [ -n "$_gid" ]; then
         grep -q " $FFS_DIR functionfs " /proc/mounts \
