@@ -32,10 +32,28 @@ FFS_DIR=/dev/ffs-mtp
 INQUIRY="Flipper Storage"
 SDA=/dev/sda
 SDCARD="${SDCARD:-/dev/mmcblk0}"
-DEV_ADDR="02:1A:7D:01:02:03"
-HOST_ADDR="02:1A:7D:01:02:04"
 USB_VID="0x37C1"
 MANUFACTURER="Flipper FZCO"
+CPU_ID=$(/usr/local/bin/rk3576_cpu_serial.sh 2>/dev/null) || CPU_ID=""
+# The USB network MACs from the OTP CPU ID, derived like the end0/end1 ones by the kernel's
+# rockchip-otp-cpuid nvmem layout: sha256 of the hex CPU ID, first 6 bytes, unicast and locally
+# administered, last byte XOR the index. end0/end1 take 0 and 1, the gadget 8 and 9, clear of
+# any index the kernel may add next.
+cpuid_mac()
+{
+    h=$(printf '%s' "$1" | sha256sum | cut -c1-12 | tr a-f A-F)
+    printf '%02X:%s:%s:%s:%s:%02X' $(( (0x$(echo "$h" | cut -c1-2) & 0xFE) | 0x02 )) \
+        "$(echo "$h" | cut -c3-4)" "$(echo "$h" | cut -c5-6)" "$(echo "$h" | cut -c7-8)" \
+        "$(echo "$h" | cut -c9-10)" $(( 0x$(echo "$h" | cut -c11-12) ^ $2 ))
+}
+CPUID_HEX=$(printf '%s\n' "$CPU_ID" | awk -F'\t' '/^cpuid:/{print $2}')
+if [ -n "$CPUID_HEX" ]; then
+    DEV_ADDR=$(cpuid_mac "$CPUID_HEX" 8)
+    HOST_ADDR=$(cpuid_mac "$CPUID_HEX" 9)
+else
+    DEV_ADDR="02:1A:7D:01:02:03"
+    HOST_ADDR="02:1A:7D:01:02:04"
+fi
 # The serial from the device tree if the bootloader put it there, else recomputed from the OTP
 # the way U-Boot computes serial#, else the machine-id. Tested rather than read blind: the
 # redirection fails before the 2>/dev/null beside it can catch anything.
@@ -43,7 +61,7 @@ MANUFACTURER="Flipper FZCO"
 if [ -r /sys/firmware/devicetree/base/serial-number ]; then
     SERIAL=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number)
 else
-    SERIAL=$(/usr/local/bin/rk3576_cpu_serial.sh 2>/dev/null | awk -F'\t' '/^serial:/{print $2}')
+    SERIAL=$(printf '%s\n' "$CPU_ID" | awk -F'\t' '/^serial:/{print $2}')
 fi
 SERIAL=${SERIAL:-$(cat /etc/machine-id)}
 SERIAL=$(printf '%s' "$SERIAL" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')
