@@ -118,7 +118,10 @@ create_func()
     case "$1" in
         ncm.*|ecm.*|eem.*|rndis.*)
             echo "$DEV_ADDR" > $G/functions/$1/dev_addr
-            echo "$HOST_ADDR" > $G/functions/$1/host_addr ;;
+            echo "$HOST_ADDR" > $G/functions/$1/host_addr
+            if [ -d $G/functions/$1/os_desc/interface.ncm ]; then
+                echo WINNCM > $G/functions/$1/os_desc/interface.ncm/compatible_id
+            fi ;;
         mass_storage.*)
             echo 1 > $G/functions/$1/lun.0/removable
             echo "$INQUIRY" > $G/functions/$1/lun.0/inquiry_string ;;
@@ -220,6 +223,13 @@ build_base()
     echo 250 > $G/configs/c.1/MaxPower
     mkdir -p $G/configs/c.1/strings/0x409
     echo "$PRODUCT" > $G/configs/c.1/strings/0x409/configuration
+
+    # Microsoft OS descriptors: Windows 10 loads its NCM driver only for the WINNCM compatible
+    # ID they carry (create_func), Windows 11 also by class.
+    echo 1 > $G/os_desc/use
+    echo 0xcd > $G/os_desc/b_vendor_code
+    echo MSFT100 > $G/os_desc/qw_sign
+    ln -s $G/configs/c.1 $G/os_desc/
 }
 
 start()
@@ -277,6 +287,7 @@ stop()
         [ -e "$G/configs/c.1/$f" ] && rm -f "$G/configs/c.1/$f" ||:
         [ -d "$G/functions/$f" ] && { rmdir "$G/functions/$f" ||:; }
     done
+    rm -f $G/os_desc/c.1
     rmdir $G/configs/c.1/strings/0x409 ||:
     rmdir $G/configs/c.1 ||:
     rmdir $G/strings/0x409 ||:
