@@ -1,0 +1,9 @@
+# SMB only on the USB gadget link. By interface name, so it holds while flipusb0 comes and goes.
+table inet flipper_smb
+delete table inet flipper_smb
+table inet flipper_smb {
+	chain input {
+		type filter hook input priority filter; policy accept;
+		tcp dport 445 iifname != { "lo", "flipusb0" } reject with tcp reset
+	}
+}

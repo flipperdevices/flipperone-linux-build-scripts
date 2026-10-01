@@ -283,12 +283,11 @@ actions:
     chroot: true
     command: chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
 
-  # smbd follows the USB gadget (see overlays/configs/samba/smb.conf), so undo the enable its
-  # package made. nmbd is Windows name service, which nothing here uses.
+  # nmbd is Windows name service, which nothing here uses.
   - action: run
-    description: Leave smbd to the USB gadget and mask nmbd
+    description: Mask nmbd
     chroot: true
-    command: systemctl preset smbd.service && systemctl disable nmbd.service && systemctl mask nmbd.service
+    command: systemctl disable nmbd.service && systemctl mask nmbd.service
 
   - action: run
     description: Save GIT info

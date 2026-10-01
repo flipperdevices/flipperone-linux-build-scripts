@@ -1,3 +1,0 @@
-# Start smbd while an NCM gadget has flipusb0 up. Not add-only: the netdev is moved into the
-# gadget right after it is added, and that event would drop the property again.
-SUBSYSTEM=="net", ACTION!="remove", ATTR{address}=="02:1a:7d:01:02:03", ENV{SYSTEMD_WANTS}+="smbd.service"

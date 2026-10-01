@@ -1,3 +1,0 @@
-# smbd is started by the USB gadget, not at boot. Without this the preset pass on a
-# profile first boot enables it again.
-disable smbd.service
