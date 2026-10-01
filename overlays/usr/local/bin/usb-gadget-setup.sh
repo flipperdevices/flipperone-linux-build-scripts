@@ -174,18 +174,26 @@ mtp_up()
     # it has to write are handed over instead: FunctionFS takes uid/gid mount options, and without
     # them the endpoints are root:root 0600.
     _uid="$(id -u "$MTP_USER" 2>/dev/null)"; _gid="$(id -g "$MTP_USER" 2>/dev/null)"
+    # The MTP serial and firmware version come from umtprd's config only, so it runs from a copy
+    # with this device's serial and the image's build appended.
+    _build=$(sed -n 's/^BUILD_ID=//p' /etc/os-release | tr -d '"')
+    {
+        cat /etc/umtprd/umtprd.conf
+        echo "serial \"$SERIAL\""
+        [ -z "$_build" ] || echo "firmware_version \"Build $_build\""
+    } > /run/umtprd.conf
     mkdir -p "$FFS_DIR"
     if [ -n "$_uid" ] && [ -n "$_gid" ]; then
         grep -q " $FFS_DIR functionfs " /proc/mounts \
             || mount -t functionfs -o "uid=$_uid,gid=$_gid" "$FFS_INST" "$FFS_DIR"
         if ! pgrep -x umtprd >/dev/null 2>&1; then
-            setpriv --reuid "$_uid" --regid "$_gid" --init-groups umtprd &
+            setpriv --reuid "$_uid" --regid "$_gid" --init-groups umtprd -conf /run/umtprd.conf &
         fi
     else
         # No such user: serve as root rather than not at all, and say why the files will be root's.
         echo "usb-gadget-setup: no user '$MTP_USER', umtprd runs as root and its files will be too" >&2
         grep -q " $FFS_DIR functionfs " /proc/mounts || mount -t functionfs "$FFS_INST" "$FFS_DIR"
-        if ! pgrep -x umtprd >/dev/null 2>&1; then umtprd & fi
+        if ! pgrep -x umtprd >/dev/null 2>&1; then umtprd -conf /run/umtprd.conf & fi
     fi
     i=0
     while [ ! -e "$FFS_DIR/ep1" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
