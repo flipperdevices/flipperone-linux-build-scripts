@@ -1,0 +1,15 @@
+[Unit]
+Description=DHCP for the computer on the USB gadget link
+# An address only, no router and no DNS, so the computer keeps its own internet and routes.
+# The link is point to point, and the host MAC is fixed per board, so one address is enough.
+# 169.254.0.1 on flipusb0 still serves a computer that self-assigns instead.
+After=network.target
+
+[Service]
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/dev/null --port=0 \
+	--interface=flipusb0 --bind-dynamic --dhcp-authoritative --leasefile-ro \
+	--dhcp-range=10.0.0.2,10.0.0.2,255.255.255.0,1h --dhcp-option=3 --dhcp-option=6
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
