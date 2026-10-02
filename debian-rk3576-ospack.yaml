@@ -44,7 +44,6 @@ actions:
       - dmidecode
       - dnsmasq-base
       - drm-info
-      - duperemove
       - e2fsprogs
       - edid-decode
       - evtest
@@ -314,6 +313,7 @@ actions:
   - action: apt
     packages:
       - cog
+      - duperemove
       - ffmpeg
       - firmware-mediatek
       - libavcodec-extra
