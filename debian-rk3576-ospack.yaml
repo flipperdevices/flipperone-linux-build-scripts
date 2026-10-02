@@ -260,8 +260,12 @@ actions:
   # blessed, so three boots take every entry to 'bad'. It is wired to start, and Debian's
   # own systemd-boot-check-no-failures.service is wired to gate the target, by the symlinks
   # in overlays/configs/systemd.
+  #
+  # flipper-sync-identity.service comes with it, and is enabled the same way: it gives each
+  # profile the ssh host keys kept on the shared boot subvolume, so the device answers to one
+  # identity whichever profile is booted.
   - action: overlay
-    description: Overlay the btrfs boot-assessment unit
+    description: Overlay the btrfs tools' units
     source: {{ $btrfstoolsdir }}/systemd
     destination: /usr/lib/systemd/system
 
