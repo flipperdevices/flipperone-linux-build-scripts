@@ -285,8 +285,10 @@ actions:
       - kde-spectacle
       - kde-standard
       - konsole
+      - krdp
       - kscreen
       - mpv
+      - openssl
       - plasma-nm
       - plasma-systemmonitor
       - powerdevil
@@ -302,13 +304,17 @@ actions:
       apt-get clean
       rm -rf /var/lib/apt/lists/*
   - action: overlay
-    description: KDE profile config (sddm autologin, plasma, wallpaper)
+    description: KDE profile config (sddm autologin, plasma, wallpaper, krdp)
     source: overlays/profile-kde
     destination: /
   - action: run
     description: Make the KDE desktop the default session on @Desktop
     chroot: true
     command: systemctl set-default graphical.target
+  - action: run
+    description: Start the KRDP remote desktop server in every Plasma session
+    chroot: true
+    command: systemctl --global enable app-org.kde.krdpserver.service
   - action: run
     description: Pin @Desktop's kernel entry-token (NN from flipper-profiles)
     chroot: true
