@@ -27,7 +27,7 @@ serial_prefix=$(printf '%.6s' "$serial")
 
 . /etc/os-release
 
-new_hostname="${device}-${serial_prefix}-${BUILD_ID}"
+new_hostname="${device}-${serial_prefix}"
 
 hostnamectl set-hostname "${new_hostname}"
 

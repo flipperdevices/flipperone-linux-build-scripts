@@ -201,7 +201,7 @@ actions:
     chroot: true
     command: systemctl set-default multi-user.target
 
-  # Stamp the build id into os-release (feeds hostname, MOTD, login banner). Done here, not with
+  # Stamp the build id into os-release (feeds MOTD, login banner). Done here, not with
   # debugfs post-image, because the rootfs is btrfs; every profile inherits it from @Minimal_stock.
   - action: run
     description: Stamp the build id into os-release
