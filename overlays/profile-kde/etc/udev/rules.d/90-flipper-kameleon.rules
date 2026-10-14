@@ -1,0 +1,4 @@
+# kameleon paints every RGB LED it can read the multi_index of with the accent
+# colour, and skips the ones it cannot. The network LEDs belong to
+# 99-network-leds.rules, so they are hidden from it; RGB keyboards still work.
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="flipper-one:rgb:*", RUN+="/usr/bin/chmod 0400 /sys%p/multi_index"
