@@ -1,0 +1,34 @@
+# Buses and GPIO chips are open to root only, except what the EXT connector carries.
+# Ordered after the rules that open them wider.
+SUBSYSTEM=="i2c-dev", GROUP="root", MODE="0600"
+SUBSYSTEM=="spidev", GROUP="root", MODE="0600"
+SUBSYSTEM=="tty", KERNEL=="ttyS[0-9]*", GROUP="root", MODE="0600"
+SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-9]*", GROUP="root", MODE="0600"
+SUBSYSTEM=="pwm", GROUP="root", MODE="0600"
+
+# The EXT connector's GPIO chip, made by ext-gpio.service.
+SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-9]*", DRIVERS=="gpio-aggregator", GROUP="ext-gpio", MODE="0660", SYMLINK+="ext_gpio"
+
+# The EXT connector's buses, matched by controller: bus and ttyS numbers do not follow
+# the controller's own. Each has a node only while an overlay enables it.
+SUBSYSTEM=="i2c-dev", KERNELS=="2ac60000.i2c", GROUP="ext-i2c3", MODE="0660", SYMLINK+="ext_i2c3"
+SUBSYSTEM=="i2c-dev", KERNELS=="2ac70000.i2c", GROUP="ext-i2c4", MODE="0660", SYMLINK+="ext_i2c4"
+SUBSYSTEM=="spidev", KERNELS=="2ad20000.spi", GROUP="ext-spi3", MODE="0660", SYMLINK+="ext_spi3.%n"
+SUBSYSTEM=="spidev", KERNELS=="2ad30000.spi", GROUP="ext-spi4", MODE="0660", SYMLINK+="ext_spi4.%n"
+
+# A spidev on an EXT SPI bus is made from userspace, by writing "spidev <cs>" to the
+# controller's new_device, so the bus's group may write that and delete_device too.
+SUBSYSTEM=="spi_master", KERNELS=="2ad20000.spi", ACTION=="add", RUN+="/usr/bin/chgrp ext-spi3 /sys%p/new_device /sys%p/delete_device", RUN+="/usr/bin/chmod g+w /sys%p/new_device /sys%p/delete_device"
+SUBSYSTEM=="spi_master", KERNELS=="2ad30000.spi", ACTION=="add", RUN+="/usr/bin/chgrp ext-spi4 /sys%p/new_device /sys%p/delete_device", RUN+="/usr/bin/chmod g+w /sys%p/new_device /sys%p/delete_device"
+SUBSYSTEM=="tty", KERNELS=="2ad50000.serial", GROUP="ext-uart2", MODE="0660", SYMLINK+="ext_uart2"
+SUBSYSTEM=="tty", KERNELS=="2ad80000.serial", GROUP="ext-uart5", MODE="0660", SYMLINK+="ext_uart5"
+SUBSYSTEM=="tty", KERNELS=="2ad90000.serial", GROUP="ext-uart6", MODE="0660", SYMLINK+="ext_uart6"
+
+# The EXT connector's PWM channels, a chip each. Most PWM libraries use sysfs rather than
+# the device node, so a chip's export files, and each channel it exports, go to the group too.
+SUBSYSTEM=="pwm", KERNELS=="2ade4000.pwm", GROUP="ext-pwm", MODE="0660", SYMLINK+="ext_pwm2ch4"
+SUBSYSTEM=="pwm", KERNELS=="2ade5000.pwm", GROUP="ext-pwm", MODE="0660", SYMLINK+="ext_pwm2ch5"
+SUBSYSTEM=="pwm", KERNELS=="2ade6000.pwm", GROUP="ext-pwm", MODE="0660", SYMLINK+="ext_pwm2ch6"
+SUBSYSTEM=="pwm", KERNELS=="2ade7000.pwm", GROUP="ext-pwm", MODE="0660", SYMLINK+="ext_pwm2ch7"
+SUBSYSTEM=="pwm", KERNELS=="2ade[4-7]000.pwm", ACTION=="add", RUN+="/usr/bin/chgrp ext-pwm /sys%p/export /sys%p/unexport", RUN+="/usr/bin/chmod g+w /sys%p/export /sys%p/unexport"
+SUBSYSTEM=="pwm", KERNELS=="2ade[4-7]000.pwm", ACTION=="change", ENV{EXPORT}=="pwm[0-9]*", RUN+="/usr/bin/chgrp ext-pwm /sys%p/$env{EXPORT}/period /sys%p/$env{EXPORT}/duty_cycle /sys%p/$env{EXPORT}/polarity /sys%p/$env{EXPORT}/enable", RUN+="/usr/bin/chmod g+w /sys%p/$env{EXPORT}/period /sys%p/$env{EXPORT}/duty_cycle /sys%p/$env{EXPORT}/polarity /sys%p/$env{EXPORT}/enable"

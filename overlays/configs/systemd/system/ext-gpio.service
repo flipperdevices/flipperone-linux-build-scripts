@@ -1,0 +1,15 @@
+[Unit]
+Description=Gather the EXT connector GPIOs into the ext_gpio chip
+ConditionFirmware=|device-tree-compatible(flipper,one-rev-f0b0c1)
+ConditionFirmware=|device-tree-compatible(flipper,one-rev-f0b1c2)
+Wants=sys-kernel-config.mount sys-kernel-debug.mount
+After=sys-kernel-config.mount sys-kernel-debug.mount
+ConditionPathIsDirectory=/sys/kernel/config/gpio-aggregator
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ext-gpio.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

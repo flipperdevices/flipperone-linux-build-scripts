@@ -163,6 +163,20 @@ actions:
              gpasswd -a user render
 
   - action: run
+    description: Add the ext-gpio group, for the EXT connector GPIOs, and put user in it
+    chroot: true
+    command: groupadd --system ext-gpio &&
+             gpasswd -a user ext-gpio
+
+  - action: run
+    description: Add the groups for the EXT connector buses and PWM and put user in them
+    chroot: true
+    command: |
+      for bus in i2c3 i2c4 spi3 spi4 uart2 uart5 uart6 pwm; do
+        groupadd --system ext-$bus && gpasswd -a user ext-$bus || exit 1
+      done
+
+  - action: run
     description: Add dedicated "flipctl" user
     chroot: true
     command: useradd -s /usr/sbin/nologin -d /var/lib/flipctl -G input,video,render -m -r flipctl
