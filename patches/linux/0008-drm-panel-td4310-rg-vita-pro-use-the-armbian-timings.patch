@@ -1,0 +1,54 @@
+From: crackerjacques <jack@supremeoverlordjabs.co>
+Subject: [PATCH] drm/panel: anbernic-td4310: use the timings that drive the RG Vita Pro panel
+
+With the upstream mode (140.02MHz, 50/4/50 horizontal porches) the RG
+Vita Pro panel shows every line shifted against the one above, so the
+picture shears diagonally. 140.02MHz is not a rate the VOP can make
+exactly, and the panel does not tolerate the difference.
+
+Take the mode the Armbian RG Vita Pro image drives this panel with:
+152MHz, 100/4/100 horizontal porches and a 5-line vsync, still 60Hz.
+Feed DCLK_VP1, the video port the DSI hangs off, from VPLL at 1824MHz,
+so the 152MHz pixel clock divides out exactly.
+
+---
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+index 358dea4..a605209 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+@@ -1192,6 +1192,9 @@
+ };
+ 
+ &vop {
++	assigned-clocks = <&cru PLL_VPLL>, <&cru DCLK_VP1_SRC>;
++	assigned-clock-parents = <0>, <&cru PLL_VPLL>;
++	assigned-clock-rates = <1824000000>, <0>;
+ 	status = "okay";
+ };
+ 
+diff --git a/drivers/gpu/drm/panel/panel-anbernic-td4310.c b/drivers/gpu/drm/panel/panel-anbernic-td4310.c
+index 3b6de1b..ee6d5ca 100644
+--- a/drivers/gpu/drm/panel/panel-anbernic-td4310.c
++++ b/drivers/gpu/drm/panel/panel-anbernic-td4310.c
+@@ -206,15 +206,15 @@ static int panel_anbernic_td4310_probe(struct mipi_dsi_device *dsi)
+ }
+ 
+ static const struct drm_display_mode anbernic_vitapro_mode = {
+-	.clock = 140020,
++	.clock = 152000,
+ 	.hdisplay = 1080,
+-	.hsync_start = 1080 + 50,
+-	.hsync_end = 1080 + 50 + 4,
+-	.htotal = 1080 + 50 + 4 + 50,
++	.hsync_start = 1080 + 100,
++	.hsync_end = 1080 + 100 + 4,
++	.htotal = 1080 + 100 + 4 + 100,
+ 	.vdisplay = 1920,
+ 	.vsync_start = 1920 + 15,
+-	.vsync_end = 1920 + 15 + 4,
+-	.vtotal = 1920 + 15 + 4 + 32,
++	.vsync_end = 1920 + 15 + 5,
++	.vtotal = 1920 + 15 + 5 + 32,
+ 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+ };
+ 
