@@ -331,6 +331,7 @@ actions:
       - duperemove
       - ffmpeg
       - firmware-mediatek
+      - firmware-realtek
       - libavcodec-extra
       - libavfilter-extra
       - libavformat-extra
