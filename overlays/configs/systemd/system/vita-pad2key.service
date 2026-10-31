@@ -1,0 +1,11 @@
+[Unit]
+Description=RG Vita Pro gamepad-to-keyboard remap
+ConditionFirmware=device-tree-compatible(anbernic,rg-vita-pro)
+
+[Service]
+ExecStart=/usr/local/bin/vita-pad2key
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
