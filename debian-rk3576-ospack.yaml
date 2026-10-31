@@ -47,6 +47,7 @@ actions:
       - e2fsprogs
       - edid-decode
       - evtest
+      - fbset
       - file
       - fio
       - firmware-misc-nonfree
