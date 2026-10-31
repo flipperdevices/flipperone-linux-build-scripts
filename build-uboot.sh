@@ -10,6 +10,7 @@
 : "${CROSS_COMPILE64:=aarch64-linux-gnu-}"
 : "${CROSS_COMPILE32:=arm-linux-gnueabihf-}"
 : "${CONFIGS:=configs/u-boot}"
+: "${BOARD_DEFCONFIGS:=configs/u-boot-defconfigs}"
 
 : "${UBOOT_GIT:=https://github.com/flipperdevices/u-boot.git}"
 : "${UBOOT_BRANCH:=rk3576}"
@@ -49,6 +50,11 @@ done
 [ ! -d "$TFA_DIR" ] && [ x"$USE_BL31" = x"opensource" ] && git clone --depth 1 -b "$TFA_BRANCH" "$TFA_GIT" "$TFA_DIR"
 [ ! -d "$TEE_DIR" -a x"$USE_TEE" = x"yes" ] && git clone --depth 1 -b "$TEE_BRANCH" "$TEE_GIT" "$TEE_DIR"
 
+# Boards the U-Boot tree has no defconfig for (e.g. Anbernic RG Vita Pro, which
+# is generic-rk3576 with its upstream DT). Copied in before the board list is
+# globbed below, so BOARD=all picks them up too.
+cp "$BOARD_DEFCONFIGS"/*-rk3576_defconfig "$UBOOT_DIR"/configs/
+
 TEE=
 if [ x"$USE_TEE" = x"yes" ]; then
 	pushd "$TEE_DIR"
@@ -59,7 +65,7 @@ if [ x"$USE_TEE" = x"yes" ]; then
 fi
 
 CONFIGS=`realpath "$CONFIGS"/*`
-ROCKCHIP_TPL=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_ddr_*.bin | tail -n1`
+: "${ROCKCHIP_TPL:=`realpath "$RKBIN_DIR"/bin/rk35/rk3576_ddr_*.bin | tail -n1`}"
 BL31=
 
 if [ x"$USE_BL31" = x"opensource" ]; then
