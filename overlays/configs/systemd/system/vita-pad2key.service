@@ -3,6 +3,8 @@ Description=RG Vita Pro gamepad-to-keyboard remap
 ConditionFirmware=device-tree-compatible(anbernic,rg-vita-pro)
 
 [Service]
+# PAD2KEY_MODE=flipctl, written by vita-flipctl.service while flipctl holds the screen.
+EnvironmentFile=-/run/vita-pad2key.env
 ExecStart=/usr/local/bin/vita-pad2key
 Restart=always
 RestartSec=2
