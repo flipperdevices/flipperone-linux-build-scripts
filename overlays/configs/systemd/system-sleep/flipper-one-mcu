@@ -1,4 +1,4 @@
 #!/bin/sh
 case "$1" in
-  pre) echo suspend-request > /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate ;;
+  pre) for f in /sys/bus/i2c/drivers/flipper-one-mcu/*/cpustate; do [ -e "$f" ] || continue; echo suspend-request > "$f"; done ;;
 esac
