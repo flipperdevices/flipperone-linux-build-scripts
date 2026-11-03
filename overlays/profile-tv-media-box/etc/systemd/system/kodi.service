@@ -12,7 +12,7 @@ StandardInput=tty
 StandardOutput=journal
 TimeoutStartSec=infinity
 ExecStartPre=/home/user/.kodi/kodi-display-gate
-ExecStart=/usr/bin/cage -- /usr/bin/kodi-standalone
+ExecStart=/usr/bin/cage -m last -- /usr/bin/kodi-standalone
 Restart=on-abort
 
 [Install]
