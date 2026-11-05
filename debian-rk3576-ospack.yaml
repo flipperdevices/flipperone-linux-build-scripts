@@ -274,9 +274,10 @@ actions:
   # from reached boot-complete.target. Without it every boot is counted and none is ever
   # blessed, so three boots take every entry to 'bad'. It is wired to start, and Debian's
   # own systemd-boot-check-no-failures.service is wired to gate the target, by the symlinks
-  # in overlays/configs/systemd.
+  # in overlays/configs/systemd. flipper-sync-settings.service, enabled the same way, applies
+  # the device's settings (the Wi-Fi country) from the shared boot subvolume on every boot.
   - action: overlay
-    description: Overlay the btrfs boot-assessment unit
+    description: Overlay the btrfs boot-assessment and settings units
     source: {{ $btrfstoolsdir }}/systemd
     destination: /usr/lib/systemd/system
 
