@@ -22,13 +22,11 @@ session=$(loginctl show-seat seat0 -p ActiveSession --value)
 uid=$(loginctl show-session "$session" -p User --value)
 name=$(loginctl show-session "$session" -p Name --value)
 [ -n "$uid" ] && [ -n "$name" ] || exit 0
-home=$(getent passwd "$name" | cut -d: -f6)
-[ -n "$home" ] || exit 0
 for s in "/run/user/$uid"/wayland-[0-9]*; do
     [ -S "$s" ] && { wd=${s##*/}; break; }
 done
 [ -n "$wd" ] || exit 0
-launcher="$home/.kodi/userdata/launch-chromium.sh"
+launcher=/usr/local/bin/launch-chromium.sh
 [ -x "$launcher" ] || exit 0
 
 # One at a time: the unit has a fixed name, and a second start is refused while the
