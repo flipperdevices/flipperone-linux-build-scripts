@@ -1,0 +1,12 @@
+[Unit]
+Description=Headphone jack to internal-speaker auto switch (RG Vita Pro)
+ConditionFirmware=device-tree-compatible(anbernic,rg-vita-pro)
+After=sound.target
+
+[Service]
+ExecStart=/usr/local/bin/vita-jack-switch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

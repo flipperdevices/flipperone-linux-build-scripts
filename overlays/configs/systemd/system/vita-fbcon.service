@@ -1,0 +1,11 @@
+# The text console on the RG Vita Pro screen. fbcon=map:1 is for the Flipper One's fb1
+# (HDMI); the Vita has only fb0. The text comes out sideways. Started by 93-vita-fbcon.rules.
+[Unit]
+Description=Text console on the RG Vita Pro screen
+ConditionFirmware=device-tree-compatible(anbernic,rg-vita-pro)
+DefaultDependencies=no
+After=dev-fb0.device
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for c in 1 2 3 4 5 6; do con2fbmap $c 0; done'
