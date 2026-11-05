@@ -349,6 +349,7 @@ actions:
     recommends: false
     packages:
       - cage
+      - exfatprogs
       - fonts-noto-core
       - fonts-noto-mono
       - fonts-roboto-unhinted
@@ -362,6 +363,7 @@ actions:
       - kodi-repository-kodi
       - kodi-vfs-libarchive
       - kodi-vfs-sftp
+      - udisks2
   - action: run
     description: Prune orphaned packages and apt cache
     chroot: true
