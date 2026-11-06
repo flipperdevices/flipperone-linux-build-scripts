@@ -364,11 +364,45 @@ actions:
       - kodi-vfs-libarchive
       - kodi-vfs-sftp
       - udisks2
+  # Debian packages no weather addon. Open-Meteo comes from flipper-devel of our fork, our
+  # fixes on top of upstream, pinned to a commit; its modules from the Kodi mirror.
+{{- $kodizips := dict
+    "script.module.certifi/script.module.certifi-2023.5.7.zip" "c16d4cd2efe6e57dbb5e8d71a9beb3af213b1e3d717e8b0b24f0cbdc4c645070"
+    "script.module.chardet/script.module.chardet-5.1.0.zip" "d5010fc55a9523d86a306ae9e6a8dea0e3248fe079b9ed37280fe86110cd766a"
+    "script.module.dateutil/script.module.dateutil-2.8.2.zip" "4f264a82986bcdd6880a73a894b263a7750e3e4f2b27a0f511bf82347ac5b2db"
+    "script.module.idna/script.module.idna-3.10.0.zip" "c4ff34dbfab2736e9214a374d331bd6f558d8b3fea8eb7902e210749509242b3"
+    "script.module.pytz/script.module.pytz-2023.3.0+matrix.1.zip" "ac770594355682d2b9c7c9d5a9ad468e14f7fd08ba05ea6ecfaea5333495babe"
+    "script.module.requests/script.module.requests-2.31.0.zip" "a5704f0fd7afb4154e1beea9b5f05a002bcd75fa581a1e5fd15ece39bf2bd38a"
+    "script.module.six/script.module.six-1.16.0+matrix.1.zip" "4197f7773f75ab9f16b3c920195acbb8b8b151b4b3c8c3e14fc4876e764e3860"
+    "script.module.urllib3/script.module.urllib3-2.2.3.zip" "740b2d63bb50eee9fb35f01c567ec8d3588c5bbd548e2b8d280932be30d82f53" }}
+{{- range $zip, $sum := $kodizips }}
+  - action: download
+    url: https://mirrors.kodi.tv/addons/omega/{{ $zip }}
+    sha256sum: {{ $sum }}
+    unpack: true
+    name: {{ base $zip }}
+  - action: overlay
+    origin: {{ base $zip }}
+    destination: /usr/share/kodi/addons
+  - action: run
+    chroot: true
+    command: |
+      sed -i '/<\/addons>/i\  <addon optional="true">{{ dir $zip }}</addon>' /usr/share/kodi/system/addon-manifest.xml
+{{- end }}
+  - action: download
+    url: https://github.com/flipperdevices/weather.openmeteo/archive/ae70e38c7fa6f4a3230fa0f52c8f61a9111825d3.zip
+    unpack: true
+    name: weather.openmeteo
+  - action: overlay
+    origin: weather.openmeteo
+    source: weather.openmeteo-ae70e38c7fa6f4a3230fa0f52c8f61a9111825d3
+    destination: /usr/share/kodi/addons/weather.openmeteo
   - action: run
     description: Enable the packaged Kodi addons without a startup prompt
     chroot: true
     command: |
-      for id in imagedecoder.heif inputstream.ffmpegdirect pvr.iptvsimple vfs.libarchive vfs.sftp; do
+      for id in imagedecoder.heif inputstream.ffmpegdirect pvr.iptvsimple vfs.libarchive vfs.sftp \
+          weather.openmeteo; do
         sed -i "/<\/addons>/i\  <addon optional=\"true\">$id</addon>" /usr/share/kodi/system/addon-manifest.xml
       done
   - action: run
