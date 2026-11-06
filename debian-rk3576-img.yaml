@@ -363,7 +363,7 @@ actions:
       apt-get clean
       rm -rf /var/lib/apt/lists/*
   - action: overlay
-    description: TV media box profile config (kodi, enabled under multi-user)
+    description: TV media box profile config (kodi, enabled under multi-user, default favourites)
     source: overlays/profile-tv-media-box
     destination: /
   - action: run
