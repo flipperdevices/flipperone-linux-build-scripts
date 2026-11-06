@@ -365,6 +365,13 @@ actions:
       - kodi-vfs-sftp
       - udisks2
   - action: run
+    description: Enable the packaged Kodi addons without a startup prompt
+    chroot: true
+    command: |
+      for id in imagedecoder.heif inputstream.ffmpegdirect pvr.iptvsimple vfs.libarchive vfs.sftp; do
+        sed -i "/<\/addons>/i\  <addon optional=\"true\">$id</addon>" /usr/share/kodi/system/addon-manifest.xml
+      done
+  - action: run
     description: Prune orphaned packages and apt cache
     chroot: true
     command: |
