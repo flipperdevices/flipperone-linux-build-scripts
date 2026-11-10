@@ -1,0 +1,23 @@
+# Debian's unit without network-online.target: smbd binds all addresses, so
+# waiting for the network only delays boot, and fails it when there is none.
+[Unit]
+Description=Samba SMB Daemon
+Documentation=man:smbd(8) man:samba(7) man:smb.conf(5)
+After=network.target nmb.service winbind.service
+
+[Service]
+Type=notify
+PIDFile=/run/samba/smbd.pid
+LimitNOFILE=16384
+Environment=SMBDOPTIONS=
+EnvironmentFile=-/etc/default/samba
+ExecStartPre=/usr/share/samba/update-apparmor-samba-profile
+ExecStart=/usr/sbin/smbd --foreground --no-process-group $SMBDOPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+LimitCORE=infinity
+ExecCondition=/usr/share/samba/is-configured smb
+
+[Install]
+WantedBy=multi-user.target
+# Upstream name:
+Alias=smb.service
