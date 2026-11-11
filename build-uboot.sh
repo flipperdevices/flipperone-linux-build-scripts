@@ -53,7 +53,7 @@ TEE=
 if [ x"$USE_TEE" = x"yes" ]; then
 	pushd "$TEE_DIR"
 	make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" -j$(nproc) clean
-	make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" CFG_USER_TA_TARGETS=ta_arm64 -j$(nproc)
+	make PLATFORM=rockchip-rk3576 CROSS_COMPILE32="$CROSS_COMPILE32" CROSS_COMPILE64="$CROSS_COMPILE64" CFG_USER_TA_TARGETS=ta_arm64 CFG_EXT_DT_CACHED=y -j$(nproc)
 	TEE=`realpath out/arm-plat-rockchip/core/tee.bin`
 	popd
 fi
