@@ -399,12 +399,22 @@ actions:
     origin: weather.openmeteo
     source: weather.openmeteo-ae70e38c7fa6f4a3230fa0f52c8f61a9111825d3
     destination: /usr/share/kodi/addons/weather.openmeteo
+  # The Flipper skin is Estuary from kodi-data plus a patch; addon.xml and images come with
+  # the profile overlay below.
+  - action: run
+    description: Derive the Flipper Kodi skin from Estuary
+    chroot: false
+    command: |
+      set -eu
+      ADDONS="$IMAGEMNTDIR/usr/share/kodi/addons"
+      cp -a "$ADDONS/skin.estuary" "$ADDONS/skin.flipper"
+      patch -d "$ADDONS/skin.flipper" -p1 --no-backup-if-mismatch < "$RECIPEDIR/patches/kodi/skin.flipper.patch"
   - action: run
     description: Enable the packaged Kodi addons without a startup prompt
     chroot: true
     command: |
       for id in imagedecoder.heif inputstream.ffmpegdirect pvr.iptvsimple vfs.libarchive vfs.sftp \
-          weather.openmeteo; do
+          weather.openmeteo skin.flipper; do
         sed -i "/<\/addons>/i\  <addon optional=\"true\">$id</addon>" /usr/share/kodi/system/addon-manifest.xml
       done
   - action: run
