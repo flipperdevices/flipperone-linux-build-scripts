@@ -16,6 +16,8 @@
 
 : "${TFA_GIT:=https://github.com/ARM-software/arm-trusted-firmware.git}"
 : "${TFA_BRANCH:=master}"
+# Only the submodules the rk3576 build needs (libfdt lives in contrib/dtc)
+: "${TFA_SUBMODULES:=contrib/dtc}"
 
 : "${TEE_GIT:=https://github.com/OP-TEE/optee_os.git}"
 : "${TEE_BRANCH:=master}"
@@ -64,6 +66,7 @@ BL31=
 
 if [ x"$USE_BL31" = x"opensource" ]; then
 	pushd "$TFA_DIR"
+	git submodule update --init --depth 1 $TFA_SUBMODULES
 	make PLAT=rk3576 -j$(nproc) clean
 	[ x"$USE_TEE" = x"yes" ] && make PLAT=rk3576 BL32="$TEE" SPD=opteed -j$(nproc) || make PLAT=rk3576 -j$(nproc)
 	popd
