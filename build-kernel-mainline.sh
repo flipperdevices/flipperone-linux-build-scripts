@@ -1,6 +1,7 @@
 #!/bin/bash
 : "${LINUX_DIR:=src/linux}"
 : "${VENDOR_DTS:=vendor-dts}"
+: "${PATCHES_DIR:=patches/linux}"
 : "${KEEP_SRC:=no}"
 : "${LINUX_OUT:=prebuilt/linux}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
@@ -15,6 +16,8 @@ set -e
 if [ -d "$LINUX_DIR" ]; then
 	if [ x"$KEEP_SRC" = x"update" ]; then
 		pushd "$LINUX_DIR"
+		git reset --hard HEAD
+		git clean -fd
 		git pull
 		popd
 	elif [ x"$KEEP_SRC" = x"no" ]; then
@@ -23,6 +26,15 @@ if [ -d "$LINUX_DIR" ]; then
 fi
 
 [ ! -d "$LINUX_DIR" ] && git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_GIT" "$LINUX_DIR"
+
+# A kept tree (KEEP_SRC=yes) already carries them.
+if [ x"$KEEP_SRC" != x"yes" ]; then
+	for f in "$PATCHES_DIR"/*.patch; do
+		[ -f "$f" ] || continue
+		echo "Applying patch: $f"
+		patch -d "$LINUX_DIR" -p1 < "$f"
+	done
+fi
 
 BASE_CONFIG=`realpath "$BASE_CONFIG"`
 CONFIGS=`realpath "$CONFIGS"/*`

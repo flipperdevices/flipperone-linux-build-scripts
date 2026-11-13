@@ -1,0 +1,6 @@
+# RG Vita Pro: until alsa-store has saved a mixer state, start the codec from one captured
+# on hardware. The id is read from device/, the card: ATTRS{id} with KERNELS!="card*"
+# never matches, as both would have to hold on the same device.
+ACTION=="add", SUBSYSTEM=="sound", KERNEL=="controlC*", \
+	ATTR{device/id}=="rockchipes8388c", TEST!="/var/lib/alsa/asound.state", \
+	RUN+="/usr/sbin/alsactl -E HOME=/run/alsa -E XDG_RUNTIME_DIR=/run/alsa/runtime -f /usr/local/share/vita/asound.state restore $attr{device/number}"

@@ -47,6 +47,7 @@ actions:
       - e2fsprogs
       - edid-decode
       - evtest
+      - fbset
       - file
       - fio
       - firmware-misc-nonfree
@@ -318,6 +319,7 @@ actions:
       - duperemove
       - ffmpeg
       - firmware-mediatek
+      - firmware-realtek
       - libavcodec-extra
       - libavfilter-extra
       - libavformat-extra

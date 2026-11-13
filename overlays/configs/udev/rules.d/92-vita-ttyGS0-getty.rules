@@ -1,0 +1,4 @@
+# A login on the USB gadget's serial port. Only the RG Vita Pro's gadget has one
+# (usb-ncm-msc-mtp-gadget.service.d/20-vita-acm.conf), so the getty starts when the
+# port appears rather than being enabled on boards where it never would.
+SUBSYSTEM=="tty", KERNEL=="ttyGS0", TAG+="systemd", ENV{SYSTEMD_WANTS}+="serial-getty@ttyGS0.service"
