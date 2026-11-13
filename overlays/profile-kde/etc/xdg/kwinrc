@@ -1,0 +1,5 @@
+# Blur and contrast redraw the area behind every translucent panel and popup in
+# several passes, which at 4K more than doubles kwin's GPU time per animation.
+[Plugins]
+blurEnabled=false
+contrastEnabled=false
