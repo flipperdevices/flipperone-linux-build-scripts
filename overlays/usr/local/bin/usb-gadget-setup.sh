@@ -1,7 +1,8 @@
 #!/bin/sh
 # usb-gadget-setup.sh {start|stop|restart|eject} [options] - build a USB gadget from the
 # selected functions and bind it to the dwc3 UDC. Used directly, or via the thin presets
-# usb-ncm-gadget.sh / usb-msc-gadget.sh / usb-ncm-msc-gadget.sh / usb-ncm-msc-mtp-gadget.sh.
+# usb-ncm-gadget.sh / usb-msc-gadget.sh / usb-ncm-msc-gadget.sh / usb-ncm-msc-mtp-gadget.sh /
+# usb-ncm-mtp-acm-gadget.sh.
 #
 # Functions can be combined into one composite gadget (one UDC, one device). The storage
 # LUN starts empty; a medium is loaded by writing lun.0/file, so sharing or swapping media
@@ -93,9 +94,11 @@ wanted_funcs()
     [ "$WANT_ECM" = 1 ]     && echo "$ECM_FUNC"
     [ "$WANT_EEM" = 1 ]     && echo "$EEM_FUNC"
     [ "$WANT_RNDIS" = 1 ]   && echo "$RNDIS_FUNC"
-    [ "$WANT_ACM" = 1 ]     && echo "$ACM_FUNC"
     [ "$WANT_STORAGE" = 1 ] && echo "$MSC_FUNC"
     [ "$WANT_MTP" = 1 ]     && echo "$MTP_FUNC"
+    # Last: functions take endpoints in this order, and the dwc3's last TX FIFOs are too
+    # small for bulk. ACM's notify endpoint fits the 336-byte one.
+    [ "$WANT_ACM" = 1 ]     && echo "$ACM_FUNC"
     :
 }
 
