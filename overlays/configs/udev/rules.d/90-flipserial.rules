@@ -1,0 +1,2 @@
+# The gadget serial port, named like flipusb0, with a login prompt on it.
+SUBSYSTEM=="tty", KERNEL=="ttyGS0", SYMLINK+="flipserial0", TAG+="systemd", ENV{SYSTEMD_WANTS}+="serial-getty@flipserial0.service"
