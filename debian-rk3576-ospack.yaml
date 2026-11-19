@@ -129,6 +129,7 @@ actions:
       - unzip
       - upower
       - usb-modeswitch
+      - usbip
       - usbutils
       - util-linux-extra
       - v4l-utils
