@@ -30,7 +30,7 @@ Build scripts (run them in order):
 | Script | What it does |
 |---|---|
 | `build-uboot.sh` | Clones U-Boot and TF-A (or uses Rockchip's binary BL31), builds the bootloader and SPL loader for each target board |
-| `build-kernel-mainline.sh` | Clones `flipper-linux-kernel`, merges config fragments from `configs/linux/`, builds arm64 kernel `.deb` packages and DTBs |
+| `build-kernel-mainline.sh` | Clones `flipper-linux-kernel`, applies patches from `patches/linux/`, merges config fragments from `configs/linux/`, builds arm64 kernel `.deb` packages and DTBs |
 | `build-kernel-bsp.sh` | Clones Rockchip's BSP kernel (`develop-6.1`), fetches vendor DTS files, applies patches from `patches/bsp/`, builds arm64 kernel packages |
 | `build-images.sh` | Assembles complete GPT disk images for all boards you've built bootloaders for; calls `build-rootfs-img.sh` to build the root filesystem if it doesn't exist yet |
 | `build-rootfs-img.sh` | Runs debos on `debian-rk3576-img.yaml` to install the kernel into a partitioned image, then zeekstd-compresses it |
@@ -43,6 +43,8 @@ Other directories:
 - `overlays/` — files copied into the root filesystem: systemd units, NetworkManager config, Broadcom Wi-Fi/BT firmware, KDE Plasma settings, SDDM autologin, U-Boot menu config
 - `vendor-dts/` — Luckfox Omni3576 DTS/DTSI files and BSP device tree overlay sources (`.dtso`) for the EVB evaluation board and shared peripherals
 - `patches/bsp/` — kernel patches applied to the BSP tree (TypeC, panfrost DTS, audio card)
+- `patches/linux/` — kernel patches applied to the mainline tree (Anbernic RG Vita Pro joypad MCU, touchscreen reset, fuel gauge, DTS)
+- `configs/u-boot-defconfigs/` — U-Boot defconfigs for boards the U-Boot tree has none for, copied into it before the build
 - `rk_unpacker/` — standalone Python tool to extract partition images from Rockchip `update.img` files
 - `prebuilt/`, `src/`, `out/` — build outputs and source clones; all gitignored
 
@@ -63,6 +65,7 @@ Every push to this repository (and to the tracked branches of its dependencies) 
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/b297e6ab-88d8-4085-a0d2-b989462414b1"><br><sub><a href="https://www.luckfox.com/EN-Luckfox-Omni3576">Luckfox Omni3576</a></sub></div> | `omni3576` | |
 | <div align="center"><img width="200" src="https://github.com/user-attachments/assets/82d41031-3548-42cb-8a6f-e9037fb76ea3"><br><sub><a href="https://www.firefly.io/products/ROC-RK3576-PC.html">Firefly ROC-RK3576-PC</a></sub></div> | `roc-pc` | |
 | Rockchip RK3576 EVB1 | `evb` | Official Rockchip evaluation board. Not available for sale. |
+| Anbernic RG Vita Pro | `anbernic-rg-vita-pro` | Handheld. Boots from microSD ahead of eMMC. U-Boot is generic-rk3576 with the Vita's upstream DT, from `configs/u-boot-defconfigs/`; the touchscreen, analog sticks and fuel gauge come from `patches/linux/`. The vibrator buzzes once when U-Boot starts. |
 
 ---
 
@@ -313,6 +316,28 @@ Switch Radxa 4D into Maskrom mode, then:
 rockusb list
 rockusb download-boot prebuilt/u-boot/rock-4d/rk3576_loader_v*.bin
 rockusb write-bmap out/debian-512-rock-4d-*.img.zst
+rockusb reset-device
+```
+
+##### Flashing Anbernic RG Vita Pro eMMC
+
+The RG Vita Pro has no MASKROM button, and its BootROM always runs a valid loader from eMMC first, so Maskrom has to be entered from the U-Boot console on the debug UART (1500000 baud). The UART is only reachable on the mainboard: open the case and solder wires or a connector to the UART pads. `sudo reboot maskrom` from Linux does not work on this board.
+
+Connect the Type C port to the host computer, interrupt autoboot on the UART and run:
+
+```
+mw.l 0x26024040 0xef08a53c
+mw.l 0x26026200 0xef08a53c
+reset -w
+```
+
+This puts the BootROM's download flag (`BOOT_BROM_DOWNLOAD`) in the two registers that carry it across a reset. Use `reset -w`: a plain `reset` drives the reset output, which clears them.
+
+Then flash as usual:
+
+```bash
+rockusb download-boot out/u-boot/anbernic-rg-vita-pro/rk3576_loader_v*.bin
+rockusb write-bmap out/images/debian-512-anbernic-rg-vita-pro-*.img.zst
 rockusb reset-device
 ```
 

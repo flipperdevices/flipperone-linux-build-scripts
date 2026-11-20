@@ -1,0 +1,3 @@
+# Hand the RG Vita Pro screen's framebuffer to the text console
+# (vita-fbcon.service, which does nothing on other boards).
+SUBSYSTEM=="graphics", KERNEL=="fb0", TAG+="systemd", ENV{SYSTEMD_WANTS}+="vita-fbcon.service"

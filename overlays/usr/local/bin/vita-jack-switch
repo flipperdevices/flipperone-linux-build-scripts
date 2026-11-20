@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+# RG Vita Pro: mute the internal speakers while headphones are plugged in.
+import subprocess, sys
+import evdev
+from evdev import ecodes as e
+
+def amixer(*args):
+    return subprocess.run(['amixer', '-c', 'rockchipes8388c', *args],
+                          capture_output=True, text=True).stdout
+
+def set_speakers(on):
+    amixer('sset', 'Internal Speakers', 'on' if on else 'off')
+
+dev = next((d for d in map(evdev.InputDevice, evdev.list_devices())
+            if 'Headphones' in d.name
+            and e.SW_HEADPHONE_INSERT in d.capabilities().get(e.EV_SW, [])), None)
+if not dev:
+    sys.exit('headphone jack not found')  # systemd starts us again
+
+set_speakers('values=on' not in amixer('cget', 'iface=CARD,name=Headphones Jack'))
+for ev in dev.read_loop():
+    if ev.type == e.EV_SW and ev.code == e.SW_HEADPHONE_INSERT:
+        set_speakers(not ev.value)

@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+# RG Vita Pro: gamepad buttons -> keyboard keys, through uinput.
+import os, time, select, evdev
+from evdev import ecodes as e, UInput
+
+DESKTOP_MAP = {
+    e.BTN_DPAD_UP: e.KEY_UP,     e.BTN_DPAD_DOWN: e.KEY_DOWN,
+    e.BTN_DPAD_LEFT: e.KEY_LEFT, e.BTN_DPAD_RIGHT: e.KEY_RIGHT,
+    e.BTN_SOUTH:  e.KEY_ENTER,
+    e.BTN_EAST:   e.KEY_ESC,
+    e.BTN_WEST:   e.KEY_HOME,
+    e.BTN_SELECT: e.KEY_SPACE,
+    e.BTN_START:  e.KEY_LEFTMETA,
+    e.BTN_TL:     e.KEY_PAGEUP,
+    e.BTN_TR:     e.KEY_PAGEDOWN,
+}
+
+DESKTOP_COMBO = {
+    e.BTN_MODE:  (e.KEY_LEFTALT,  e.KEY_TAB),
+    e.BTN_Z:     (e.KEY_LEFTALT,  e.KEY_TAB),
+    e.BTN_NORTH: (e.KEY_LEFTCTRL, e.KEY_F4),
+}
+
+# flipctl's own keys (flipper-ui key.rs): arrows, Enter ok, Backspace back, Tab app
+# switch, and A Z X C V B for PTT, Escape, View, Power, Edit and Run. Laid out after
+# the Flipper One: confirm and back on A and B as Anbernic labels them, PTT on the
+# top-left shoulder, Escape ("to main menu") on HOME and Power on MENU.
+FLIPCTL_MAP = {
+    e.BTN_DPAD_UP: e.KEY_UP,     e.BTN_DPAD_DOWN: e.KEY_DOWN,
+    e.BTN_DPAD_LEFT: e.KEY_LEFT, e.BTN_DPAD_RIGHT: e.KEY_RIGHT,
+    e.BTN_EAST:   e.KEY_ENTER,
+    e.BTN_SOUTH:  e.KEY_BACKSPACE,
+    e.BTN_NORTH:  e.KEY_X,
+    e.BTN_WEST:   e.KEY_V,
+    e.BTN_SELECT: e.KEY_TAB,
+    e.BTN_START:  e.KEY_B,
+    e.BTN_TL:     e.KEY_A,
+    e.KEY_HOME:   e.KEY_Z,
+    e.BTN_MODE:   e.KEY_C,
+}
+
+# vita-flipctl.service sets PAD2KEY_MODE=flipctl while it holds the screen.
+if os.environ.get("PAD2KEY_MODE") == "flipctl":
+    MAP, COMBO = FLIPCTL_MAP, {}
+else:
+    MAP, COMBO = DESKTOP_MAP, DESKTOP_COMBO
+ALL = set(MAP) | set(COMBO)
+
+def sources():
+    out = {}
+    for p in evdev.list_devices():
+        try:
+            d = evdev.InputDevice(p)
+        except Exception:
+            continue
+        if d.name == "vita-pad2key":
+            continue
+        if any(k in d.capabilities().get(e.EV_KEY, []) for k in ALL):
+            out[d.fd] = d
+    return out
+
+keys = set(MAP.values())
+for seq in COMBO.values():
+    keys.update(seq)
+ui = UInput({e.EV_KEY: sorted(keys)}, name="vita-pad2key")
+
+devs = {}
+while True:
+    if not devs:
+        devs = sources()
+        if not devs:
+            time.sleep(2)
+            continue
+    r, _, _ = select.select(devs, [], [])
+    for fd in r:
+        try:
+            events = list(devs[fd].read())
+        except OSError:
+            try: devs[fd].close()
+            except Exception: pass
+            del devs[fd]
+            continue
+        for ev in events:
+            if ev.type != e.EV_KEY:
+                continue
+            if ev.code in COMBO:
+                if ev.value == 1:
+                    seq = COMBO[ev.code]
+                    for k in seq: ui.write(e.EV_KEY, k, 1)
+                    for k in reversed(seq): ui.write(e.EV_KEY, k, 0)
+                    ui.syn()
+            elif ev.code in MAP:
+                ui.write(e.EV_KEY, MAP[ev.code], ev.value)
+                ui.syn()
