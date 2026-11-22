@@ -1,0 +1,27 @@
+From: crackerjacques <jack@supremeoverlordjabs.co>
+Subject: [PATCH] arm64: dts: rockchip: rk3576-anbernic-rg-vita-pro: disable CQE on the eMMC
+
+With the command queue engine the RG Vita Pro eMMC (G1J9R8, HS400
+enhanced strobe) logs cqhci "spurious TCN" and "Failed to halt" CQE
+recoveries from the first seconds of boot. Writes then stall, the
+desktop freezes when left alone, and btrfs on the eMMC picks up
+corruption. The Armbian RG Vita Pro DTS drops supports-cqe for the same
+reason, and plain mode is stable there at full speed.
+
+---
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+--- a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+@@ -1201,6 +1201,12 @@
+ 	non-removable;
+ 	mmc-hs400-1_8v;
+ 	mmc-hs400-enhanced-strobe;
++	/*
++	 * CQE breaks on this eMMC: cqhci "spurious TCN" and "Failed to halt"
++	 * recovery loops from boot onwards, I/O stalls under sustained writes
++	 * and btrfs corruption. Plain (non-CQ) mode is stable at full speed.
++	 */
++	/delete-property/ supports-cqe;
+ 	status = "okay";
+ };
+ 

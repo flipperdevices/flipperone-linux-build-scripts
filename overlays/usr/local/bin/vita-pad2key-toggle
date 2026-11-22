@@ -1,0 +1,7 @@
+#!/bin/sh
+# Turn the pad-as-keyboard remap off, to hand the raw gamepad to a game, or back on.
+if systemctl is-active --quiet vita-pad2key; then
+	systemctl stop vita-pad2key && echo "pad-as-keyboard off"
+else
+	systemctl start vita-pad2key && echo "pad-as-keyboard on"
+fi

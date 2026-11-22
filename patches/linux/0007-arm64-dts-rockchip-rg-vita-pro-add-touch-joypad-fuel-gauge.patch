@@ -1,0 +1,106 @@
+From: crackerjacques <jack@supremeoverlordjabs.co>
+Subject: [PATCH] arm64: dts: rockchip: rk3576-anbernic-rg-vita-pro: add touchscreen, joypad MCU and fuel gauge
+
+Fill in the three devices the upstream DTS only leaves comments for, as
+the Armbian RG Vita Pro DTS describes them: the Synaptics RMI4 touch
+controller of the TDDI panel on i2c0, the SPI MCU that reads the analog
+sticks on spi1, and the CellWise CW221x fuel gauge on i2c6. Their drivers
+come from the preceding patches.
+
+---
+diff --git a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+index 358dea43..8e3aa58c 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3576-anbernic-rg-vita-pro.dts
+@@ -503,7 +503,33 @@ &i2c0 {
+ 	pinctrl-names = "default";
+ 	status = "okay";
+ 
+-	/* synaptics,dsx-i2c touchscreen at 0x70 */
++	touchscreen: touchscreen@70 {
++		compatible = "syna,rmi4-i2c";
++		reg = <0x70>;
++		interrupt-parent = <&gpio0>;
++		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
++		pinctrl-0 = <&touch_int>, <&touch_rst>;
++		pinctrl-names = "default";
++		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
++		syna,reset-delay-ms = <200>;
++		syna,startup-delay-ms = <300>;
++		vdd-supply = <&vdd_lcd>;
++		vio-supply = <&vcc_1v8_s3>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		rmi4-f01@1 {
++			reg = <0x01>;
++			syna,nosleep-mode = <1>;
++		};
++
++		rmi4-f12@12 {
++			reg = <0x12>;
++			syna,clip-x-high = <1080>;
++			syna,clip-y-high = <1920>;
++			syna,sensor-type = <1>;
++		};
++	};
+ };
+ 
+ &i2c1 {
+@@ -954,7 +980,18 @@ hym8563: rtc@51 {
+ 		wakeup-source;
+ 	};
+ 
+-	/* cellwise,cw221X battery manager at 0x64 */
++	fuel-gauge@64 {
++		compatible = "cellwise,cw221X";
++		reg = <0x64>;
++		cellwise,battery-profile = [
++			5a 00 00 00 00 00 00 00 ab b5 ae c0 a9 a4 cf af
++			96 ff ff d7 9a 83 70 69 65 65 65 b8 81 d9 af d9
++			d2 ce cd cb ca c7 c8 c5 c2 ba a8 96 8a 85 7d 7a
++			7f 88 92 93 94 d3 ff 5f 20 00 ab 10 00 91 68 00
++			00 00 64 3c a0 89 00 00 00 00 00 00 00 00 00 b2
++		];
++		cw,user_rsense = <2000>;
++	};
+ };
+ 
+ &mipidcphy {
+@@ -1091,6 +1128,10 @@ touch {
+ 		touch_int: touch-int {
+ 			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+ 		};
++
++		touch_rst: touch-rst {
++			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
++		};
+ 	};
+ 
+ 	usb {
+@@ -1188,7 +1229,24 @@ &spi1 {
+ 	pinctrl-0 = <&spi1m2_pins>, <&spi1m2_csn0>;
+ 	status = "okay";
+ 
+-	/* SPI controlled MCU for joystick and joystick LEDs. */
++	joypad@0 {
++		compatible = "anbernic,spi-mcu-joypad";
++		reg = <0>;
++		abs-rx-max = <25000>;
++		abs-rx-min = <2500>;
++		abs-ry-max = <25000>;
++		abs-ry-min = <2500>;
++		abs-x-max = <25000>;
++		abs-x-min = <2500>;
++		abs-y-max = <25000>;
++		abs-y-min = <2500>;
++		deadzone-left = <3000>;
++		deadzone-right = <3000>;
++		deadzone-triggers = <32000>; /* No analog triggers */
++		enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
++		poll-interval-ms = <5>;
++		spi-max-frequency = <1400000>;
++	};
+ };
+ 
+ &vop {
