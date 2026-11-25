@@ -277,9 +277,11 @@ actions:
     description: KDE desktop packages
     recommends: false        # image is minbase/no-recommends; deps are listed explicitly
     packages:
+      - ark
       - bluedevil
       - blueman
       - breeze-gtk-theme
+      - kate
       - kde-config-gtk-style
       - kde-config-screenlocker
       - kde-spectacle
