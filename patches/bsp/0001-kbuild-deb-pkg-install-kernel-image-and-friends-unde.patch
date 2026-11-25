@@ -8,8 +8,8 @@ index 67cd420dcf89..ea2476d3a456 100755
  
 +mkdir -p "$tmpdir/lib/modules/${KERNELRELEASE}"
 +cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
-+cp System.map "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
-+cp $KCONFIG_CONFIG "$tmpdir/lib/modules/${KERNELRELEASE}/vmlinuz"
++cp System.map "$tmpdir/lib/modules/${KERNELRELEASE}/System.map"
++cp $KCONFIG_CONFIG "$tmpdir/lib/modules/${KERNELRELEASE}/config"
 +
  if is_enabled CONFIG_OF_EARLY_FLATTREE; then
  	# Only some architectures with OF support have this target
