@@ -22,14 +22,25 @@ else
 fi
 serial=${serial:-$(cat /etc/machine-id)}
 
-# First 3 bytes (6 hex chars) of serial for hostname
-serial_prefix=$(printf '%.6s' "$serial")
+# The name fused into the MCU at the factory, if the MCU reports one (empty on other boards)
+name=$(/usr/local/bin/flipper-one-name.sh) || name=
+
+# The name the way a hostname label takes it ("P00per" -> "flipperone-p00per"), else the first
+# 3 bytes (6 hex chars) of the serial
+host_suffix=$(printf '%s' "$name" | tr 'A-Z._' 'a-z--' | sed 's/^-*//; s/-*$//')
+[ -n "$host_suffix" ] || host_suffix=$(printf '%.6s' "$serial")
 
 . /etc/os-release
 
-new_hostname="${device}-${serial_prefix}"
+new_hostname="${device}-${host_suffix}"
 
 hostnamectl set-hostname "${new_hostname}"
+
+# BlueZ names the Bluetooth adapter after the pretty hostname, which the call above clears.
+# Not worth stopping for: the hostname is already set, so nothing below would get another run.
+if [ -n "$name" ]; then
+    hostnamectl set-hostname --pretty "Flipper One ${name}" || true
+fi
 
 # Get build info
 build_id=${BUILD_ID:-unknown}
@@ -52,13 +63,17 @@ cat <<EOF >/etc/avahi/services/flipper.service
   <service>
     <type>_flipper._tcp</type>
     <port>22</port>
-    <txt-record>serial=${serial}</txt-record>
+    <txt-record>serial=${serial}</txt-record>${name:+
+    <txt-record>name=${name}</txt-record>}
   </service>
 </service-group>
 EOF
 
-# Set WiFi AP SSID with CPU serial in NetworkManager connection profiles
-sed -i "s/WIFISSIDSERIAL/${serial}/" /etc/NetworkManager/system-connections/wifi-router*.nmconnection 2>/dev/null || true
+# Set WiFi AP SSID with the name, else the CPU serial, in NetworkManager connection profiles.
+# FlipperOne_6GHz_ leaves 16 of an SSID's 32 bytes: all a serial takes, not all a name or a
+# machine-id may, and NetworkManager refuses a longer one.
+ssid_suffix=$(printf '%.16s' "${name:-$serial}")
+sed -i "s/WIFISSIDSERIAL/${ssid_suffix}/" /etc/NetworkManager/system-connections/wifi-router*.nmconnection 2>/dev/null || true
 nmcli connection reload 2>/dev/null || true
 
 systemd-machine-id-setup
@@ -67,12 +82,16 @@ systemd-machine-id-setup
 # banner appearing first would mean a hostname, machine-id or avahi service that never landed.
 sync
 
+# A Name line for the banner, only for a device that has a name
+name_line=${name:+"Name:         $name"}
+
 # The SSH welcome banner, written last on purpose: the unit keys its retry off this file, so it
 # must not appear until everything above it is done.
 cat <<EOF >/etc/ssh/welcome_banner
 =================== Welcome to FlipperOne ===================
 Git:          $build_git
-Board:        $board
+Board:        $board${name_line:+
+$name_line}
 CPU Serial:   $serial
 Memory:       $total_mem
 Build ID:     $build_id
