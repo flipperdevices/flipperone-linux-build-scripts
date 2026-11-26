@@ -167,6 +167,14 @@ actions:
              gpasswd -a user video &&
              gpasswd -a user render
 
+  # flipctl runs as user outside any login, and finds its runtime directory, the user's
+  # bus and PipeWire under /run/user/1000. Lingering keeps those up with nobody logged
+  # in; loginctl enable-linger needs a running logind, so the marker is written directly.
+  - action: run
+    description: Let user linger
+    chroot: true
+    command: mkdir -p /var/lib/systemd/linger && touch /var/lib/systemd/linger/user
+
   - action: run
     description: Add the ext-gpio group, for the EXT connector GPIOs, and put user in it
     chroot: true

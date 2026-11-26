@@ -78,15 +78,12 @@ install -D -m 644 "$SRC/systemd/flipctl.service" "$OUT/lib/systemd/system/flipct
 # What the unit needs in place before it can start, staged into the vendor paths under
 # /usr rather than /etc, which is where a deploy onto a running system writes them.
 #
-# The group is the one that bites: SupplementaryGroups names `gpio`, and systemd
-# refuses to start a unit naming a group that does not exist, with 216/GROUP and
-# nothing on the panel. sysusers creates it at boot, the udev rule hands the gpiochip
-# and spidev nodes to it, and the module list registers the device classes the unit's
-# DeviceAllow lines resolve by name when it starts.
+# The groups are the ones that bite: SupplementaryGroups names `gpio` and `leds`, and
+# systemd refuses to start a unit naming a group that does not exist, with 216/GROUP and
+# nothing on the panel. sysusers creates them at boot, and the udev rule hands the
+# gpiochip and spidev nodes and the network LEDs' attributes to them.
 install -D -m 644 "$SRC/systemd/flipctl.sysusers.conf" "$OUT/lib/sysusers.d/flipctl.conf"
 install -D -m 644 "$SRC/systemd/70-flipctl-devices.rules" \
         "$OUT/lib/udev/rules.d/70-flipctl-devices.rules"
-install -D -m 644 "$SRC/systemd/flipctl-devices.conf" \
-        "$OUT/lib/modules-load.d/flipctl-devices.conf"
 
 echo "build-flipctl: staged $(du -sh "$OUT" | cut -f1) in $OUT"
