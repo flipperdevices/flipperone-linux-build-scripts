@@ -4,7 +4,7 @@
 : "${IMG_OUT:=out}"
 : "${BOOTSIZE:=128MiB}"
 : "${IMGSIZE:=145MiB}"
-: "${INSTALLER_BOOTARGS:=console=ttyS0,1500000n8 fbcon=map:1}"
+: "${INSTALLER_BOOTARGS:=console=ttyS0,1500000n8}"
 
 set -e
 
