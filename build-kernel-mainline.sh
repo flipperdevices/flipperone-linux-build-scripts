@@ -2,7 +2,7 @@
 : "${LINUX_DIR:=src/linux}"
 : "${VENDOR_DTS:=vendor-dts}"
 : "${KEEP_SRC:=no}"
-: "${LINUX_OUT:=prebuilt/linux}"
+: "${LINUX_OUT:=prebuilt/linux-mainline}"
 : "${CROSS_COMPILE:=aarch64-linux-gnu-}"
 : "${BASE_CONFIG:=configs/minconfig-mainline}"
 : "${CONFIGS:=configs/linux}"
