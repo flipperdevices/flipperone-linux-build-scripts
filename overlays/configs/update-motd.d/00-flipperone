@@ -14,6 +14,9 @@ else
 fi
 serial=${serial:-$(cat /etc/machine-id)}
 
+# The name fused into the MCU at the factory, if the MCU reports one
+name=$(/usr/local/bin/flipper-one-name.sh) || name=
+
 . /etc/os-release
 
 # Get build info
@@ -33,7 +36,8 @@ cat <<EOF
                     Welcome to FlipperOne
 
    Git:          $build_git
-   Board:        $board
+   Board:        $board${name:+
+   Name:         ${name}}
    CPU Serial:   $serial
    Memory:       $total_mem
    Build ID:     $build_id
